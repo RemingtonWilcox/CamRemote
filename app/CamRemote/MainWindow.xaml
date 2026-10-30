@@ -1,0 +1,160 @@
+<Window x:Class="CamRemote.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="CamRemote — A7S III" Width="1500" Height="900" MinWidth="900" MinHeight="560"
+        Loaded="OnLoaded" Closing="OnClosing" KeyDown="OnKeyDown">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="310" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Status strip over the picture -->
+        <DockPanel Grid.Row="0" Grid.Column="0" Margin="12,8" LastChildFill="False">
+            <Border x:Name="RecBadge" DockPanel.Dock="Left" Background="{StaticResource Rec}" CornerRadius="4"
+                    Padding="8,2" Margin="0,0,12,0" Visibility="Collapsed">
+                <TextBlock x:Name="RecTime" Text="● REC 00:00:00" FontWeight="Bold" Foreground="White" />
+            </Border>
+            <TextBlock x:Name="CamSummary" DockPanel.Dock="Left" VerticalAlignment="Center" FontSize="14" />
+            <TextBlock x:Name="CardText" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="16,0,0,0" />
+            <TextBlock x:Name="BatteryText" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="16,0,0,0" />
+        </DockPanel>
+
+        <!-- Live picture from the capture card. Click to focus, right-click to cancel. -->
+        <Border Grid.Row="1" Grid.Column="0" Background="Black">
+            <Grid>
+                <TextBlock x:Name="NoSignal" Text="No video — pick a picture source on the right"
+                           Foreground="{StaticResource Dim}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <!-- Turns red while recording -->
+                <Border x:Name="RecFrame" HorizontalAlignment="Center" VerticalAlignment="Center"
+                        BorderThickness="3" BorderBrush="Transparent">
+                <Grid x:Name="PictureHost">
+                    <Grid.LayoutTransform>
+                        <RotateTransform x:Name="PictureRotation" Angle="0" />
+                    </Grid.LayoutTransform>
+                    <Image x:Name="Picture" Stretch="Uniform" Cursor="Cross"
+                           MouseLeftButtonDown="OnPictureClick" MouseRightButtonDown="OnPictureRightClick" />
+                    <Canvas x:Name="Overlay" IsHitTestVisible="False">
+                        <Rectangle x:Name="FocusMark" Width="56" Height="56" Stroke="#FFF2C94C" StrokeThickness="2"
+                                   Visibility="Collapsed" />
+                    </Canvas>
+                </Grid>
+                </Border>
+                <Border x:Name="AlertBanner" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,14,0,0"
+                        CornerRadius="6" Padding="16,8" Background="{StaticResource Rec}" Visibility="Collapsed" IsHitTestVisible="False">
+                    <TextBlock x:Name="AlertText" Foreground="White" FontSize="16" FontWeight="Bold" TextAlignment="Center" />
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Messages -->
+        <DockPanel Grid.Row="2" Grid.Column="0" Margin="12,6">
+            <TextBlock x:Name="VideoInfo" DockPanel.Dock="Right" Foreground="{StaticResource Dim}" />
+            <TextBlock x:Name="MessageText" Foreground="{StaticResource Dim}" TextTrimming="CharacterEllipsis" />
+        </DockPanel>
+
+        <!-- Controls -->
+        <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" BorderBrush="#333" BorderThickness="1,0,0,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="16,10,16,16">
+                    <DockPanel>
+                        <Ellipse x:Name="LinkDot" Width="10" Height="10" Fill="#666" Margin="0,0,8,0" DockPanel.Dock="Left" />
+                        <TextBlock x:Name="LinkText" Text="Camera not connected" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Button x:Name="ConnectButton" Content="Connect camera…" Click="OnConnectClick" Margin="0,8,0,0"
+                            HorizontalAlignment="Stretch" />
+
+                    <Button x:Name="RecButton" Click="OnRecClick" Height="56" Margin="0,14,0,0" IsEnabled="False"
+                            HorizontalAlignment="Stretch" ToolTip="Start / stop recording (F9)">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="RecDot" Width="18" Height="18" Fill="{StaticResource Rec}" Margin="0,0,10,0" />
+                            <TextBlock x:Name="RecLabel" Text="Record" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <TextBlock Text="EXPOSURE" Style="{StaticResource Section}" />
+                    <StackPanel x:Name="ExposurePanel" />
+                    <UniformGrid x:Name="BaseIsoButtons" Rows="1" Margin="0,0,0,4">
+                        <Button x:Name="Iso640Button" Content="Base ISO 640" Margin="0,0,3,0" Padding="4,6" Click="OnBaseIsoClick" Tag="640"
+                                ToolTip="Lower native ISO of the A7S III in S-Log3" />
+                        <Button x:Name="Iso12800Button" Content="Base ISO 12800" Margin="3,0,0,0" Padding="4,6" Click="OnBaseIsoClick" Tag="12800"
+                                ToolTip="Upper native ISO of the A7S III in S-Log3 — cleanest choice for low light" />
+                    </UniformGrid>
+
+                    <TextBlock Text="FOCUS" Style="{StaticResource Section}" />
+                    <StackPanel x:Name="FocusPanel" />
+                    <StackPanel x:Name="ManualFocus" Margin="0,2,0,0">
+                        <TextBlock Text="Focus ring (hold to keep turning)" FontSize="12" Foreground="Gray" Margin="0,0,0,3" />
+                        <UniformGrid Rows="1">
+                            <RepeatButton Content="◀◀◀" Tag="-7" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="0,0,2,0" ToolTip="Nearer, big step" />
+                            <RepeatButton Content="◀◀" Tag="-3" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="0,0,2,0" ToolTip="Nearer" />
+                            <RepeatButton Content="◀" Tag="-1" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="0,0,2,0" ToolTip="Nearer, fine" />
+                            <RepeatButton Content="▶" Tag="1" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="2,0,0,0" ToolTip="Farther, fine" />
+                            <RepeatButton Content="▶▶" Tag="3" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="2,0,0,0" ToolTip="Farther" />
+                            <RepeatButton Content="▶▶▶" Tag="7" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="2,0,0,0" ToolTip="Farther, big step" />
+                        </UniformGrid>
+                        <DockPanel Margin="0,2,0,0">
+                            <TextBlock Text="near" FontSize="11" Foreground="{StaticResource Dim}" DockPanel.Dock="Left" />
+                            <TextBlock Text="far" FontSize="11" Foreground="{StaticResource Dim}" DockPanel.Dock="Right" />
+                            <TextBlock />
+                        </DockPanel>
+                        <StackPanel x:Name="MagnifierPanel" />
+                    </StackPanel>
+                    <TextBlock x:Name="TouchHint" TextWrapping="Wrap" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,6,0,0"
+                               Text="Click the picture to focus there. Right-click cancels." />
+
+                    <TextBlock Text="AUDIO" Style="{StaticResource Section}" />
+                    <Grid x:Name="Meters" Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="52" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="14" />
+                            <RowDefinition Height="4" />
+                            <RowDefinition Height="14" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="L" FontSize="11" Foreground="{StaticResource Dim}" VerticalAlignment="Center" />
+                        <TextBlock Text="R" FontSize="11" Foreground="{StaticResource Dim}" VerticalAlignment="Center" Grid.Row="2" />
+                        <Grid x:Name="MeterLTrack" Grid.Column="1" Background="#2A2A2A">
+                            <Rectangle x:Name="MeterL" HorizontalAlignment="Left" Width="0" />
+                            <Rectangle x:Name="HoldL" HorizontalAlignment="Left" Width="2" Fill="White" Visibility="Collapsed" />
+                        </Grid>
+                        <Grid x:Name="MeterRTrack" Grid.Column="1" Grid.Row="2" Background="#2A2A2A">
+                            <Rectangle x:Name="MeterR" HorizontalAlignment="Left" Width="0" />
+                            <Rectangle x:Name="HoldR" HorizontalAlignment="Left" Width="2" Fill="White" Visibility="Collapsed" />
+                        </Grid>
+                        <TextBlock x:Name="MeterLText" Grid.Column="2" FontSize="11" TextAlignment="Right" VerticalAlignment="Center" />
+                        <TextBlock x:Name="MeterRText" Grid.Column="2" Grid.Row="2" FontSize="11" TextAlignment="Right" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock x:Name="MeterHint" TextWrapping="Wrap" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,0,0,4" />
+                    <StackPanel x:Name="AudioPanel" />
+
+                    <Expander Header="More camera settings" Margin="0,18,0,0" IsExpanded="False">
+                        <StackPanel x:Name="MorePanel" Margin="0,6,0,0" />
+                    </Expander>
+
+                    <TextBlock Text="PICTURE" Style="{StaticResource Section}" />
+                    <ComboBox x:Name="VideoDevices" SelectionChanged="OnVideoDeviceChanged" />
+                    <DockPanel Margin="0,8,0,0">
+                        <TextBlock x:Name="RotationText" Text="Rotation 0°" VerticalAlignment="Center" Width="90" DockPanel.Dock="Left" />
+                        <UniformGrid Rows="1">
+                            <Button Content="⟲ Left" Margin="0,0,3,0" Padding="4,5" Click="OnRotateClick" Tag="-90"
+                                    ToolTip="Turn the picture 90° counter-clockwise (for a camera on its side)" />
+                            <Button Content="⟳ Right" Margin="3,0,0,0" Padding="4,5" Click="OnRotateClick" Tag="90"
+                                    ToolTip="Turn the picture 90° clockwise (for a camera on its side)" />
+                        </UniformGrid>
+                    </DockPanel>
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,6,0,0"
+                               Text="Wi-Fi live view works with no cable. For the sharpest, smoothest picture, run HDMI into a capture card (camera HDMI Resolution: 1080p)." />
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</Window>

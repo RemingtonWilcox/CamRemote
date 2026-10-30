@@ -1,0 +1,8 @@
+vendor/
+build/
+bin/
+obj/
+.vs/
+*.user
+dist/
+app/CamRemote/SdkNames.g.cs
