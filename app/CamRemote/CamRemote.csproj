@@ -12,6 +12,7 @@
     <SelfContained>false</SelfContained>
     <AssemblyName>CamRemote</AssemblyName>
     <RootNamespace>CamRemote</RootNamespace>
+    <ApplicationIcon>CamRemote.ico</ApplicationIcon>
     <!-- WPF's Fluent dark theme (ThemeMode) is still marked experimental. -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
   </PropertyGroup>
@@ -28,6 +29,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="NAudio.Wasapi" Version="3.3.0" />
+    <Resource Include="CamRemote.ico" />
   </ItemGroup>
 
 </Project>

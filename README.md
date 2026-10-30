@@ -113,6 +113,7 @@ After this, the app connects by itself every time you open it, and reconnects wh
 - **Base ISO 640 / 12800:** the A7S III's two native ISOs in S-Log3. 12800 is the cleanest choice in low light.
 - **Focus ring:** works in MF (or DMF). ◀◀◀ ◀◀ ◀ go nearer, ▶ ▶▶ ▶▶▶ go farther. Hold a button to keep turning.
 - **Click the picture** to focus there (AF with Touch Operation on, movie mode). Right-click cancels.
+- **Picture source:** **Camera over Wi-Fi** needs no cable. Any HDMI capture card Windows sees is listed too, at its highest resolution. Plugged one in after opening the app? Click **↻**.
 - **Rotate:** ⟲ / ⟳ under **Picture**, for a camera mounted in portrait. Remembered next time.
 - **Record:** the big button or **F9**.
 - **Nothing reacts to the mouse wheel,** so you can't change a setting by accident while scrolling.
@@ -143,6 +144,7 @@ The agent will still need you to download the Sony SDK (it requires accepting So
 - `native/CamBridge/`: a small C++ DLL that wraps Sony's SDK in a flat C API returning JSON.
 - `app/CamRemote/`: the WPF app (.NET 10): camera session (`CameraService.cs`), Wi-Fi live view (`LiveViewFeed.cs`), capture card feed (`VideoFeed.cs`), audio meters (`AudioMeter.cs`) and the UI.
 - `tools/gen_names.py`: generates `SdkNames.g.cs` (property codes and value names) from the SDK headers at build time.
+- `tools/make_icon.py`: draws the app icon (`CamRemote.ico`).
 - `build.ps1`: generates the names, builds the DLL and publishes the app to `dist\`.
 
 Notes from Sony's SDK reference (v2.02.00) for the A7S III:

@@ -1,6 +1,7 @@
 <Window x:Class="CamRemote.ConnectWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Icon="CamRemote.ico"
         Title="Connect camera" Width="460" SizeToContent="Height" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner" Loaded="OnLoaded">
     <StackPanel Margin="18">

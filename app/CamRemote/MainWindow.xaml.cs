@@ -17,6 +17,7 @@ public partial class MainWindow : Window
     private readonly double[] _hold = [-100, -100];
     private DateTime _holdSince = DateTime.Now;
     private bool _useWifi; // picture from the camera's live view instead of the capture card
+    private string _activeSource = ""; // Id of the picture source that's running
     private readonly Settings _settings = Settings.Load();
     private readonly List<PropControl> _rows = [];
     private readonly DispatcherTimer _tick;
@@ -83,6 +84,13 @@ public partial class MainWindow : Window
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        await LoadSourcesAsync();
+        await TryReconnectAsync(first: true);
+    }
+
+    /// <summary>Lists Wi-Fi plus every capture card Windows sees, and selects the saved one (Wi-Fi if it's gone).</summary>
+    private async Task LoadSourcesAsync()
+    {
         try
         {
             var devices = await VideoFeed.ListAsync();
@@ -94,9 +102,9 @@ public partial class MainWindow : Window
         {
             ShowMessage("Couldn't list video devices: " + ex.Message);
         }
-
-        await TryReconnectAsync(first: true);
     }
+
+    private async void OnRefreshSourcesClick(object sender, RoutedEventArgs e) => await LoadSourcesAsync();
 
     /// <summary>
     /// With auto-connect on, keeps trying the saved camera while it's off or out of range, and after a
@@ -140,6 +148,8 @@ public partial class MainWindow : Window
     private async void OnVideoDeviceChanged(object sender, SelectionChangedEventArgs e)
     {
         if (VideoDevices.SelectedItem is not VideoDevice dev) return;
+        if (dev.Id == _activeSource) return; // the list was refreshed; keep the running picture
+        _activeSource = dev.Id;
         _settings.VideoDeviceId = dev.Id;
         _settings.Save();
         Picture.Source = null;
@@ -154,7 +164,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowMessage($"Couldn't open {dev.Name}: {ex.Message} (is another app using it, like OBS or Elgato Studio?)");
+            ShowMessage($"Couldn't open {dev.Name}: {ex.Message} (is another app using it, like OBS or the capture card's own app?)");
         }
     }
 

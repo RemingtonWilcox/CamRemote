@@ -1,6 +1,7 @@
 <Window x:Class="CamRemote.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Icon="CamRemote.ico"
         Title="CamRemote — A7S III" Width="1500" Height="900" MinWidth="900" MinHeight="560"
         Loaded="OnLoaded" Closing="OnClosing" KeyDown="OnKeyDown">
     <Grid>
@@ -141,7 +142,12 @@
                     </Expander>
 
                     <TextBlock Text="PICTURE" Style="{StaticResource Section}" />
-                    <ComboBox x:Name="VideoDevices" SelectionChanged="OnVideoDeviceChanged" />
+                    <DockPanel>
+                        <Button Content="↻" DockPanel.Dock="Right" Width="34" Margin="6,0,0,0" Click="OnRefreshSourcesClick"
+                                ToolTip="Look for capture cards again (after plugging one in)" />
+                        <ComboBox x:Name="VideoDevices" SelectionChanged="OnVideoDeviceChanged"
+                                  ToolTip="Camera over Wi-Fi needs no cable. Any HDMI capture card Windows sees is listed too." />
+                    </DockPanel>
                     <DockPanel Margin="0,8,0,0">
                         <TextBlock x:Name="RotationText" Text="Rotation 0°" VerticalAlignment="Center" Width="90" DockPanel.Dock="Left" />
                         <UniformGrid Rows="1">
