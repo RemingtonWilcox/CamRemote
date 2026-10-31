@@ -17,7 +17,7 @@ See the live picture, focus, set exposure and hit record, with no cables and fro
 
 <br><br>
 
-<img src="docs/app.png" alt="The CamRemote window" width="760" />
+<img src="docs/hero.jpg" alt="CamRemote showing a sharp live view of a branch, with camera controls alongside" width="560" />
 
 </div>
 
@@ -141,6 +141,8 @@ Don't ask me for my camera password.
 <br>
 
 ## What you can do
+
+<p align="center"><img src="docs/app.png" alt="The CamRemote window" width="760" /></p>
 
 | | |
 |---|---|
