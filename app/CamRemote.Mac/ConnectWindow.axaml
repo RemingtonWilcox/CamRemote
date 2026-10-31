@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="CamRemote.ConnectWindow"
+        Title="Connect camera" Width="460" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner">
+    <StackPanel Margin="18">
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Content="Search again" Click="OnSearch" x:Name="SearchButton" />
+            <TextBlock Text="Cameras found on Wi-Fi / USB" VerticalAlignment="Center" />
+        </DockPanel>
+        <ListBox x:Name="Found" Height="110" Margin="0,8,0,0" SelectionChanged="OnFoundSelected" />
+        <TextBlock x:Name="SearchStatus" Classes="Small" Margin="0,4,0,0" />
+
+        <TextBlock Text="Camera IP address (if it isn't found above)" Margin="0,14,0,4" />
+        <TextBox x:Name="IpBox" />
+
+        <TextBlock Text="Access Authen. user" Margin="0,12,0,4" />
+        <TextBox x:Name="UserBox" />
+        <TextBlock Text="Access Authen. password" Margin="0,12,0,4" />
+        <TextBox x:Name="PasswordBox" PasswordChar="•" />
+        <TextBlock Classes="Small" Margin="0,6,0,0"
+                   Text="On the camera: MENU › Network › Network Option › Access Authen. Settings. The password is saved in your Keychain." />
+
+        <CheckBox x:Name="AutoBox" Content="Connect automatically when CamRemote starts" Margin="0,14,0,0" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+            <Button Content="Cancel" IsCancel="True" Margin="0,0,8,0" MinWidth="90" Click="OnCancel" />
+            <Button Content="Connect" IsDefault="True" Click="OnConnect" MinWidth="90" />
+        </StackPanel>
+    </StackPanel>
+</Window>

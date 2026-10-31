@@ -1,0 +1,209 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="CamRemote.MainWindow"
+        Title="CamRemote — A7S III" Width="1400" Height="860" MinWidth="980" MinHeight="600"
+        Background="#16181B">
+    <Grid ColumnDefinitions="*,310" RowDefinitions="Auto,Auto,*,Auto">
+
+        <!-- Status strip over the picture -->
+        <DockPanel Grid.Row="0" Grid.Column="0" Margin="12,8" LastChildFill="False">
+            <Border x:Name="RecBadge" DockPanel.Dock="Left" Background="{StaticResource Rec}" CornerRadius="4"
+                    Padding="8,2" Margin="0,0,12,0" IsVisible="False">
+                <TextBlock x:Name="RecTime" Text="● REC 00:00:00" FontWeight="Bold" Foreground="White" />
+            </Border>
+            <TextBlock x:Name="CamSummary" DockPanel.Dock="Left" VerticalAlignment="Center" FontSize="14" />
+            <TextBlock x:Name="CardText" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="16,0,0,0" />
+            <TextBlock x:Name="BatteryText" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="16,0,0,0" />
+        </DockPanel>
+
+        <!-- Shooting guides: quick toggles, then the meter and histogram. Click the histogram for detail. -->
+        <DockPanel Grid.Row="1" Grid.Column="0" Margin="12,0,12,8" Height="38" LastChildFill="False">
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                <ToggleButton x:Name="HistogramChip" Content="Histogram" Classes="Chip" Click="OnAssistToggle" ToolTip.Tip="Show the histogram (H)" />
+                <ToggleButton x:Name="ZebraChip" Content="Zebras" Classes="Chip" Click="OnAssistToggle" ToolTip.Tip="Stripe the brightest parts of the picture (Z)" />
+                <ToggleButton x:Name="PeakingChip" Content="Peaking" Classes="Chip" Click="OnAssistToggle" ToolTip.Tip="Colour the parts in focus (P)" />
+                <ToggleButton x:Name="GridChip" Content="Grid" Classes="Chip" Click="OnAssistToggle" ToolTip.Tip="Rule of thirds and centre mark (G)" />
+                <Button x:Name="DetailButton" Content="⋯" Padding="9,3" MinHeight="26" Focusable="False" Click="OnAssistDetailClick" ToolTip.Tip="Levels, colours and the full histogram" />
+            </StackPanel>
+            <Panel x:Name="HistogramBox" DockPanel.Dock="Right" Width="128" Background="#1E1E1E" Cursor="Hand"
+                   PointerPressed="OnHistogramPressed" ToolTip.Tip="Brightness of the picture. Amber is past the zebra level. Click for detail.">
+                <Image x:Name="HistogramSmall" Stretch="Fill" />
+            </Panel>
+            <StackPanel x:Name="ClipBox" DockPanel.Dock="Right" Margin="0,0,8,0" VerticalAlignment="Center">
+                <TextBlock x:Name="OverText" FontSize="11" TextAlignment="Right" />
+                <TextBlock x:Name="UnderText" FontSize="11" TextAlignment="Right" Foreground="{StaticResource Dim}" />
+            </StackPanel>
+            <StackPanel x:Name="MeterBox" DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center"
+                        ToolTip.Tip="The camera's exposure meter, in stops.">
+                <TextBlock x:Name="ExposureText" Width="34" FontSize="12" TextAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <Canvas x:Name="ExposureScale" Width="150" Height="24">
+                    <Rectangle x:Name="ExposureNeedle" Width="3" Height="24" Fill="White" />
+                </Canvas>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Live picture. Click to focus, right-click to cancel. -->
+        <Border Grid.Row="2" Grid.Column="0" Background="Black">
+            <Panel>
+                <TextBlock x:Name="NoSignal" Text="No video — pick a picture source on the right"
+                           Foreground="{StaticResource Dim}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <!-- Turns red while recording -->
+                <Border x:Name="RecFrame" HorizontalAlignment="Center" VerticalAlignment="Center"
+                        BorderThickness="3" BorderBrush="Transparent">
+                    <LayoutTransformControl x:Name="PictureTurn">
+                        <Panel x:Name="PictureHost">
+                            <Image x:Name="Picture" Stretch="Uniform" Cursor="Cross" PointerPressed="OnPicturePressed" />
+                            <Image x:Name="AssistLayer" Stretch="Uniform" IsHitTestVisible="False" IsVisible="False" />
+                            <Grid x:Name="GuideGrid" IsHitTestVisible="False" IsVisible="False" ColumnDefinitions="*,*,*" RowDefinitions="*,*,*">
+                                <Border Grid.Column="1" Grid.RowSpan="3" BorderBrush="#80FFFFFF" BorderThickness="1,0" />
+                                <Border Grid.Row="1" Grid.ColumnSpan="3" BorderBrush="#80FFFFFF" BorderThickness="0,1" />
+                                <Rectangle Grid.Row="1" Grid.Column="1" Width="24" Height="1" Fill="#B0FFFFFF" />
+                                <Rectangle Grid.Row="1" Grid.Column="1" Width="1" Height="24" Fill="#B0FFFFFF" />
+                            </Grid>
+                            <Canvas x:Name="Overlay" IsHitTestVisible="False">
+                                <Rectangle x:Name="FocusMark" Width="56" Height="56" Stroke="#FFF2C94C" StrokeThickness="2" IsVisible="False" />
+                            </Canvas>
+                        </Panel>
+                    </LayoutTransformControl>
+                </Border>
+                <Border x:Name="AlertBanner" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,14,0,0"
+                        CornerRadius="6" Padding="16,8" Background="{StaticResource Rec}" IsVisible="False" IsHitTestVisible="False">
+                    <TextBlock x:Name="AlertText" Foreground="White" FontSize="16" FontWeight="Bold" TextAlignment="Center" />
+                </Border>
+            </Panel>
+        </Border>
+
+        <!-- Messages -->
+        <DockPanel Grid.Row="3" Grid.Column="0" Margin="12,6">
+            <TextBlock x:Name="VideoInfo" DockPanel.Dock="Right" Foreground="{StaticResource Dim}" />
+            <TextBlock x:Name="MessageText" Foreground="{StaticResource Dim}" TextTrimming="CharacterEllipsis" />
+        </DockPanel>
+
+        <!-- Controls -->
+        <Border Grid.Row="0" Grid.RowSpan="4" Grid.Column="1" BorderBrush="#333" BorderThickness="1,0,0,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="16,10,16,16">
+                    <DockPanel>
+                        <Ellipse x:Name="LinkDot" Width="10" Height="10" Fill="#666" Margin="0,0,8,0" DockPanel.Dock="Left" />
+                        <TextBlock x:Name="LinkText" Text="Camera not connected" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Button x:Name="ConnectButton" Content="Connect camera…" Click="OnConnectClick" Margin="0,8,0,0"
+                            HorizontalAlignment="Stretch" />
+
+                    <Button x:Name="RecButton" Click="OnRecClick" Height="56" Margin="0,14,0,0" IsEnabled="False"
+                            HorizontalAlignment="Stretch" VerticalContentAlignment="Center" ToolTip.Tip="Start / stop recording (F9)">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="RecDot" Width="18" Height="18" Fill="{StaticResource Rec}" Margin="0,0,10,0" />
+                            <TextBlock x:Name="RecLabel" Text="Record" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <TextBlock Text="EXPOSURE" Classes="Section" />
+                    <StackPanel x:Name="ExposurePanel" />
+                    <UniformGrid x:Name="BaseIsoButtons" Rows="1" Margin="0,0,0,4">
+                        <Button x:Name="Iso640Button" Content="Base ISO 640" Margin="0,0,3,0" Padding="4,6" Click="OnBaseIsoClick" Tag="640" HorizontalAlignment="Stretch"
+                                ToolTip.Tip="Lower native ISO of the A7S III in S-Log3" />
+                        <Button x:Name="Iso12800Button" Content="Base ISO 12800" Margin="3,0,0,0" Padding="4,6" Click="OnBaseIsoClick" Tag="12800" HorizontalAlignment="Stretch"
+                                ToolTip.Tip="Upper native ISO of the A7S III in S-Log3 — cleanest choice for low light" />
+                    </UniformGrid>
+
+                    <TextBlock Text="FOCUS" Classes="Section" />
+                    <StackPanel x:Name="FocusPanel" />
+                    <StackPanel x:Name="ManualFocus" Margin="0,2,0,0">
+                        <TextBlock Text="Focus ring: drag or scroll" FontSize="12" Foreground="Gray" Margin="0,0,0,3" />
+                        <Border x:Name="FocusWheel" Height="44" Margin="0,0,0,6" Background="#191919" BorderBrush="#444" BorderThickness="1"
+                                CornerRadius="4" ClipToBounds="True" Cursor="SizeWestEast" PointerPressed="OnWheelDown" PointerMoved="OnWheelMove"
+                                PointerReleased="OnWheelUp" PointerWheelChanged="OnWheelScroll" ToolTip.Tip="Drag like a focus ring. Faster moves focus further.">
+                            <Canvas x:Name="WheelTicks" />
+                        </Border>
+                        <UniformGrid Rows="1">
+                            <RepeatButton Content="◀◀◀" Tag="-7" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="0,0,2,0" HorizontalAlignment="Stretch" ToolTip.Tip="Nearer, big step" />
+                            <RepeatButton Content="◀◀" Tag="-3" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="0,0,2,0" HorizontalAlignment="Stretch" ToolTip.Tip="Nearer" />
+                            <RepeatButton Content="◀" Tag="-1" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="0,0,2,0" HorizontalAlignment="Stretch" ToolTip.Tip="Nearer, fine" />
+                            <RepeatButton Content="▶" Tag="1" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="2,0,0,0" HorizontalAlignment="Stretch" ToolTip.Tip="Farther, fine" />
+                            <RepeatButton Content="▶▶" Tag="3" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="2,0,0,0" HorizontalAlignment="Stretch" ToolTip.Tip="Farther" />
+                            <RepeatButton Content="▶▶▶" Tag="7" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="2,0,0,0" HorizontalAlignment="Stretch" ToolTip.Tip="Farther, big step" />
+                        </UniformGrid>
+                        <DockPanel Margin="0,2,0,0">
+                            <TextBlock Text="near" FontSize="11" Foreground="{StaticResource Dim}" DockPanel.Dock="Left" />
+                            <TextBlock Text="far" FontSize="11" Foreground="{StaticResource Dim}" DockPanel.Dock="Right" />
+                            <TextBlock />
+                        </DockPanel>
+                    </StackPanel>
+                    <TextBlock Text="Focus magnifier" FontSize="12" Foreground="Gray" Margin="0,8,0,3" />
+                    <StackPanel x:Name="MagnifierButtons" Orientation="Horizontal" />
+                    <Button x:Name="StopTracking" Content="Stop tracking" Margin="0,8,0,0" HorizontalAlignment="Stretch" Click="OnStopTrackingClick" IsVisible="False" />
+                    <TextBlock x:Name="TouchHint" Classes="Small" Margin="0,6,0,0" />
+
+                    <TextBlock Text="AUDIO" Classes="Section" />
+                    <Grid x:Name="Meters" Margin="0,0,0,4" ColumnDefinitions="16,*,52" RowDefinitions="14,4,14">
+                        <TextBlock Text="L" FontSize="11" Foreground="{StaticResource Dim}" VerticalAlignment="Center" />
+                        <TextBlock Text="R" FontSize="11" Foreground="{StaticResource Dim}" VerticalAlignment="Center" Grid.Row="2" />
+                        <Panel x:Name="MeterLTrack" Grid.Column="1" Background="#2A2A2A">
+                            <Rectangle x:Name="MeterL" HorizontalAlignment="Left" Width="0" />
+                            <Rectangle x:Name="HoldL" HorizontalAlignment="Left" Width="2" Fill="White" IsVisible="False" />
+                        </Panel>
+                        <Panel x:Name="MeterRTrack" Grid.Column="1" Grid.Row="2" Background="#2A2A2A">
+                            <Rectangle x:Name="MeterR" HorizontalAlignment="Left" Width="0" />
+                            <Rectangle x:Name="HoldR" HorizontalAlignment="Left" Width="2" Fill="White" IsVisible="False" />
+                        </Panel>
+                        <TextBlock x:Name="MeterLText" Grid.Column="2" FontSize="11" TextAlignment="Right" VerticalAlignment="Center" />
+                        <TextBlock x:Name="MeterRText" Grid.Column="2" Grid.Row="2" FontSize="11" TextAlignment="Right" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock x:Name="MeterHint" Classes="Small" Margin="0,0,0,4" />
+                    <StackPanel x:Name="AudioPanel" />
+
+                    <Expander Header="More camera settings" Margin="0,18,0,0" IsExpanded="False" HorizontalAlignment="Stretch">
+                        <StackPanel x:Name="MorePanel" Margin="0,6,0,0" />
+                    </Expander>
+
+                    <TextBlock Text="PICTURE" Classes="Section" />
+                    <DockPanel>
+                        <Button Content="↻" DockPanel.Dock="Right" Width="34" Margin="6,0,0,0" Click="OnRefreshSourcesClick"
+                                ToolTip.Tip="Look for capture cards again (after plugging one in)" />
+                        <ComboBox x:Name="VideoDevices" SelectionChanged="OnVideoDeviceChanged" HorizontalAlignment="Stretch"
+                                  ToolTip.Tip="Camera over Wi-Fi needs no cable. Any HDMI capture card your Mac sees is listed too." />
+                    </DockPanel>
+                    <DockPanel Margin="0,8,0,0">
+                        <TextBlock x:Name="RotationText" Text="Rotation 0°" VerticalAlignment="Center" Width="90" DockPanel.Dock="Left" />
+                        <UniformGrid Rows="1">
+                            <Button Content="⟲ Left" Margin="0,0,3,0" Padding="4,5" Click="OnRotateClick" Tag="-90" HorizontalAlignment="Stretch"
+                                    ToolTip.Tip="Turn the picture 90° counter-clockwise (for a camera on its side)" />
+                            <Button Content="⟳ Right" Margin="3,0,0,0" Padding="4,5" Click="OnRotateClick" Tag="90" HorizontalAlignment="Stretch"
+                                    ToolTip.Tip="Turn the picture 90° clockwise (for a camera on its side)" />
+                        </UniformGrid>
+                    </DockPanel>
+                    <TextBlock Classes="Small" Margin="0,6,0,0"
+                               Text="Wi-Fi live view works with no cable. For the sharpest, smoothest picture, run HDMI into a capture card (camera HDMI Resolution: 1080p)." />
+
+                    <TextBlock Text="PHONE" Classes="Section" />
+                    <CheckBox x:Name="PhoneEnabled" Content="Allow phone control" Click="OnPhoneToggle"
+                              ToolTip.Tip="Serves a control page to your home network and Tailscale. Keeps the Mac awake while on." />
+                    <TextBlock x:Name="PhoneInfo" TextWrapping="Wrap" FontSize="12" Margin="0,6,0,0" IsVisible="False" />
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <Popup x:Name="AssistDetail" PlacementTarget="{Binding #HistogramBox}" Placement="Bottom" IsLightDismissEnabled="True"
+               Closed="OnAssistDetailClosed">
+            <Border Width="340" Padding="14" Background="#1B1E22" BorderBrush="#444" BorderThickness="1" CornerRadius="6">
+                <StackPanel>
+                    <Border Height="130" Background="#111">
+                        <Image x:Name="HistogramLarge" Stretch="Fill" />
+                    </Border>
+                    <TextBlock x:Name="DetailText" FontSize="12" Foreground="{StaticResource Dim}" Margin="0,6,0,10" />
+                    <Grid ColumnDefinitions="130,*" RowDefinitions="Auto,Auto,Auto">
+                        <TextBlock Text="Zebra level" Classes="Label" />
+                        <ComboBox x:Name="ZebraLevelBox" Grid.Column="1" Margin="0,0,0,6" HorizontalAlignment="Stretch" SelectionChanged="OnAssistSettingChanged" />
+                        <TextBlock Text="Peaking sensitivity" Grid.Row="1" Classes="Label" />
+                        <ComboBox x:Name="PeakSensitivityBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" HorizontalAlignment="Stretch" SelectionChanged="OnAssistSettingChanged" />
+                        <TextBlock Text="Peaking colour" Grid.Row="2" Classes="Label" />
+                        <ComboBox x:Name="PeakColorBox" Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch" SelectionChanged="OnAssistSettingChanged" />
+                    </Grid>
+                    <TextBlock Classes="Small" FontSize="11" Margin="0,10,0,0"
+                               Text="These read the picture you see here, not the recorded file. A Monitor LUT or Gamma Display Assist changes what they show." />
+                </StackPanel>
+            </Border>
+        </Popup>
+    </Grid>
+</Window>

@@ -1,12 +1,15 @@
 // CamBridge: a flat C API over Sony's Camera Remote SDK so the C# app can P/Invoke it.
 // One camera at a time. Strings cross the boundary as UTF-8; lists come back as JSON.
 
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#endif
 
 #include <atomic>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <mutex>
 #include <shared_mutex>
 #include <string>
@@ -18,7 +21,12 @@
 
 namespace SDK = SCRSDK;
 
+#ifdef _WIN32
 #define CB_API extern "C" __declspec(dllexport)
+#else
+#define CB_API extern "C" __attribute__((visibility("default")))
+#define __stdcall
+#endif
 
 // Event kinds sent to the app's callback.
 enum CbEventKind : int {
@@ -69,6 +77,7 @@ public:
 
 static Callback g_callback;
 
+#ifdef _WIN32
 static std::string utf8(const CrChar* s, size_t len = (size_t)-1)
 {
     if (!s) return {};
@@ -81,6 +90,16 @@ static std::string utf8(const CrChar* s, size_t len = (size_t)-1)
     out.resize(strlen(out.c_str()));
     return out;
 }
+#else
+// The Mac SDK's strings are already UTF-8.
+static std::string utf8(const CrChar* s, size_t len = (size_t)-1)
+{
+    if (!s) return {};
+    std::string out = len == (size_t)-1 ? std::string(s) : std::string(s, len);
+    out.resize(strlen(out.c_str()));
+    return out;
+}
+#endif
 
 static void jsonStr(std::string& j, const std::string& s)
 {
@@ -187,7 +206,7 @@ CB_API int cb_make_ip_camera(const char* ip, int ssh)
 {
     std::unique_lock<std::shared_mutex> l(g_lock);
     unsigned a, b, c, d;
-    if (sscanf_s(ip, "%u.%u.%u.%u", &a, &b, &c, &d) != 4) return -1;
+    if (sscanf(ip, "%u.%u.%u.%u", &a, &b, &c, &d) != 4) return -1;
     if (g_ipInfo) { g_ipInfo->Release(); g_ipInfo = nullptr; }
     CrInt32u addr = a | (b << 8) | (c << 16) | (d << 24);
     CrInt8u mac[6] = {0};

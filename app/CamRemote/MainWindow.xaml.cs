@@ -12,7 +12,8 @@ public partial class MainWindow : Window
 {
     private readonly CameraService _cam;
     private readonly VideoFeed _video;
-    private readonly LiveViewFeed _live;
+    private readonly IUi _ui;
+    private readonly LiveViewFeed<BitmapSource> _live;
     private readonly PictureAssist _assist;
     private WriteableBitmap? _assistBitmap;
     private bool _loadingAssist;
@@ -40,7 +41,9 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        _cam = new CameraService(Dispatcher);
+        var ui = new WpfUi(Dispatcher);
+        _ui = ui;
+        _cam = new CameraService(ui);
         _video = new VideoFeed(Dispatcher);
         _video.BitmapChanged += () =>
         {
@@ -48,19 +51,19 @@ public partial class MainWindow : Window
             Picture.Source = _video.Bitmap;
             NoSignal.Visibility = Visibility.Collapsed;
         };
-        _assist = new PictureAssist(Dispatcher);
+        _assist = new PictureAssist(ui);
         _assist.Done += ShowAssist;
         _video.Drew += () =>
         {
-            if (!_useWifi && _video.Bitmap != null) _assist.Offer(_video.Bitmap);
+            if (!_useWifi && _video.Bitmap != null) OfferToAssist(_video.Bitmap);
         };
-        _live = new LiveViewFeed(Dispatcher);
+        _live = new LiveViewFeed<BitmapSource>(ui, DecodeJpeg);
         _live.Frame += bmp =>
         {
             if (!_useWifi) return;
             Picture.Source = bmp;
             NoSignal.Visibility = Visibility.Collapsed;
-            _assist.Offer(bmp);
+            OfferToAssist(bmp);
         };
         _cam.Message += ShowMessage;
         _cam.StateChanged += OnLinkChanged;
@@ -100,8 +103,39 @@ public partial class MainWindow : Window
         _hideFocusMark.Tick += (_, _) => { FocusMark.Visibility = Visibility.Collapsed; _hideFocusMark.Stop(); };
     }
 
+    private static (BitmapSource, int, int) DecodeJpeg(byte[] buffer, int length)
+    {
+        var bmp = new BitmapImage();
+        using (var ms = new System.IO.MemoryStream(buffer, 0, length, false))
+        {
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.StreamSource = ms;
+            bmp.EndInit();
+        }
+        bmp.Freeze();
+        return (bmp, bmp.PixelWidth, bmp.PixelHeight);
+    }
+
+    private void OfferToAssist(BitmapSource frame)
+    {
+        BitmapSource source = frame.Format == PixelFormats.Bgr32 || frame.Format == PixelFormats.Bgra32
+            ? frame : new FormatConvertedBitmap(frame, PixelFormats.Bgr32, null, 0);
+        _assist.Offer(source.PixelWidth, source.PixelHeight, pixels => source.CopyPixels(pixels, source.PixelWidth * 4, 0));
+    }
+
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        if (_settings.AgreedVersion < Agreement.Version)
+        {
+            if (MessageBox.Show(this, Agreement.Text, "Before you start", MessageBoxButton.OKCancel) != MessageBoxResult.OK)
+            {
+                Close();
+                return;
+            }
+            _settings.AgreedVersion = Agreement.Version;
+            _settings.Save();
+        }
         await LoadSourcesAsync();
         await SetPhoneAsync(_settings.PhoneEnabled);
         await TryReconnectAsync(first: true);
@@ -131,7 +165,7 @@ public partial class MainWindow : Window
     /// </summary>
     private async Task TryReconnectAsync(bool first = false)
     {
-        if (_reconnecting || _cam.HoldReconnect || !_settings.AutoConnect || _settings.CameraIp.Length == 0) return;
+        if (_settings.AgreedVersion < Agreement.Version || _reconnecting || _cam.HoldReconnect || !_settings.AutoConnect || _settings.CameraIp.Length == 0) return;
         var idle = DateTime.Now - _linkSince;
         bool due = _cam.State switch
         {
@@ -144,7 +178,7 @@ public partial class MainWindow : Window
         try
         {
             _linkSince = DateTime.Now;
-            if (!await ConnectWindow.ConnectSavedAsync(_cam, _settings, ShowMessage, quiet: !first))
+            if (!await CameraConnect.SavedAsync(_cam, _settings, ShowMessage, ConnectWindow.AskFingerprint, quiet: !first))
                 ShowMessage("Waiting for the camera (on, on Wi-Fi, Remote Shooting on). Trying again every 15 s…");
         }
         finally
@@ -271,7 +305,7 @@ public partial class MainWindow : Window
         else if (e.Key == Key.F12 && _cam.State == LinkState.Connected)
         {
             // Diagnostics: every property the camera reports, with names.
-            var path = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CamRemote", "props.txt");
+            var path = System.IO.Path.Combine(Settings.Folder, "props.txt");
             var lines = _cam.Props.Values.OrderBy(p => p.Code).Select(p =>
                 $"{(Enum.IsDefined(typeof(PropCode), p.Code) ? ((PropCode)p.Code).ToString() : $"0x{p.Code:X}"),-45} " +
                 $"value=0x{p.Value:X} type=0x{p.Type:X} writable={p.Writable} enable={p.Enable} " +
@@ -722,7 +756,7 @@ public partial class MainWindow : Window
         {
             _settings.EnsurePhoneSecrets();
             _settings.Save();
-            var sony = new SonyRemote(Dispatcher, _cam, _live, _settings, _rows, () =>
+            var sony = new SonyRemote(_ui, _cam, () => _live.Latest, _settings, _rows, () =>
                 (BatteryText.Text, CardText.Text, AlertBanner.Visibility == Visibility.Visible ? AlertText.Text : ""));
             var server = new PhoneServer(_settings, [sony]);
             try

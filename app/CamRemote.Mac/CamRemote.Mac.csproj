@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>CamRemote</AssemblyName>
+    <RootNamespace>CamRemote</RootNamespace>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <!-- The camera code is shared with the Windows app. This project adds the Mac window, capture and audio. -->
+  <ItemGroup>
+    <Compile Include="..\CamRemote\Agreement.cs" Link="Shared\Agreement.cs" />
+    <Compile Include="..\CamRemote\CameraConnect.cs" Link="Shared\CameraConnect.cs" />
+    <Compile Include="..\CamRemote\CameraService.cs" Link="Shared\CameraService.cs" />
+    <Compile Include="..\CamRemote\Format.cs" Link="Shared\Format.cs" />
+    <Compile Include="..\CamRemote\IUi.cs" Link="Shared\IUi.cs" />
+    <Compile Include="..\CamRemote\LiveViewFeed.cs" Link="Shared\LiveViewFeed.cs" />
+    <Compile Include="..\CamRemote\Native.cs" Link="Shared\Native.cs" />
+    <Compile Include="..\CamRemote\PhoneServer.cs" Link="Shared\PhoneServer.cs" />
+    <Compile Include="..\CamRemote\PictureAssist.cs" Link="Shared\PictureAssist.cs" />
+    <Compile Include="..\CamRemote\SdkNames.g.cs" Link="Shared\SdkNames.g.cs" />
+    <Compile Include="..\CamRemote\Settings.cs" Link="Shared\Settings.cs" />
+    <Compile Include="..\CamRemote\SonyRemote.cs" Link="Shared\SonyRemote.cs" />
+    <EmbeddedResource Include="..\CamRemote\phone.html" LogicalName="phone.html" />
+    <EmbeddedResource Include="..\CamRemote\phone-icon.png" LogicalName="phone-icon.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Avalonia" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+  </ItemGroup>
+
+</Project>

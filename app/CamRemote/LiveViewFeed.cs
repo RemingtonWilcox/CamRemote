@@ -1,14 +1,13 @@
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Windows.Media.Imaging;
-using System.Windows.Threading;
 
 namespace CamRemote;
 
 /// <summary>Pulls the camera's live-view JPEGs over the SDK connection (Wi-Fi or USB) on its own thread.</summary>
-public sealed class LiveViewFeed
+public sealed class LiveViewFeed<TFrame>
 {
-    private readonly Dispatcher _ui;
+    private readonly IUi _ui;
+    private readonly Func<byte[], int, (TFrame Frame, int Width, int Height)> _decode;
     private readonly byte[] _buf = new byte[8 * 1024 * 1024];
     private Thread? _thread;
     private volatile bool _run;
@@ -21,9 +20,14 @@ public sealed class LiveViewFeed
     public (byte[] Jpeg, long No)? Latest => _latest?.Value;
     private volatile StrongBox<(byte[] Jpeg, long No)>? _latest;
 
-    public event Action<BitmapSource>? Frame;
+    public event Action<TFrame>? Frame;
 
-    public LiveViewFeed(Dispatcher ui) => _ui = ui;
+    /// <param name="decode">Turns a JPEG (the first n bytes of the buffer) into a frame the window can show.</param>
+    public LiveViewFeed(IUi ui, Func<byte[], int, (TFrame Frame, int Width, int Height)> decode)
+    {
+        _ui = ui;
+        _decode = decode;
+    }
 
     public bool Running => _run;
 
@@ -72,21 +76,13 @@ public sealed class LiveViewFeed
             if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0) continue; // UI still drawing; drop this one
             try
             {
-                var bmp = new BitmapImage();
-                using (var ms = new MemoryStream(_buf, 0, n, false))
-                {
-                    bmp.BeginInit();
-                    bmp.CacheOption = BitmapCacheOption.OnLoad;
-                    bmp.StreamSource = ms;
-                    bmp.EndInit();
-                }
-                bmp.Freeze();
-                Format = $"{bmp.PixelWidth}×{bmp.PixelHeight} live view";
-                _ui.BeginInvoke(DispatcherPriority.Render, () =>
+                var (frame, width, height) = _decode(_buf, n);
+                Format = $"{width}×{height} live view";
+                _ui.Post(() =>
                 {
                     _busy = 0;
                     if (!_run) return;
-                    Frame?.Invoke(bmp);
+                    Frame?.Invoke(frame);
                     Interlocked.Increment(ref _frames);
                 });
             }

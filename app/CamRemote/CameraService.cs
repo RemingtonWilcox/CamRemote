@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
-using System.Windows.Threading;
 
 namespace CamRemote;
 
@@ -50,11 +49,11 @@ public sealed class CameraService : IDisposable
     private const long PriorityPcRemote = 2;
     private const long LiveViewQualityHigh = 1;
 
-    private readonly Dispatcher _ui;
+    private readonly IUi _ui;
     private readonly BlockingCollection<Action> _queue = new();
     private readonly Thread _worker;
     private readonly Native.EventFn _eventFn; // kept alive for the native side
-    private readonly DispatcherTimer _poll;
+    private readonly IDisposable _poll;
     private bool _refreshQueued;
 
     public Dictionary<uint, Prop> Props { get; private set; } = new();
@@ -70,7 +69,7 @@ public sealed class CameraService : IDisposable
     public event Action? StateChanged;
     public event Action<string>? Message;
 
-    public CameraService(Dispatcher ui)
+    public CameraService(IUi ui)
     {
         _ui = ui;
         _eventFn = OnNativeEvent;
@@ -81,8 +80,7 @@ public sealed class CameraService : IDisposable
         {
             if (Native.cb_init(_eventFn) != 0) Say("Sony SDK failed to start.");
         });
-        _poll = new DispatcherTimer(TimeSpan.FromSeconds(2), DispatcherPriority.Background, (_, _) => RequestRefresh(), ui);
-        _poll.Start();
+        _poll = ui.Every(TimeSpan.FromSeconds(2), RequestRefresh);
     }
 
     private void Safe(Action a)
@@ -109,9 +107,9 @@ public sealed class CameraService : IDisposable
         return tcs.Task;
     }
 
-    private void Say(string msg) => _ui.BeginInvoke(() => Message?.Invoke(msg));
+    private void Say(string msg) => _ui.Post(() => Message?.Invoke(msg));
 
-    private void SetState(LinkState s) => _ui.BeginInvoke(() =>
+    private void SetState(LinkState s) => _ui.Post(() =>
     {
         State = s;
         StateChanged?.Invoke();
@@ -156,7 +154,7 @@ public sealed class CameraService : IDisposable
         Run(() =>
         {
             Native.cb_disconnect();
-            _ui.BeginInvoke(() =>
+            _ui.Post(() =>
             {
                 Props = new();
                 PropsChanged?.Invoke();
@@ -182,7 +180,7 @@ public sealed class CameraService : IDisposable
                 RequestRefresh();
                 break;
             case Native.EvDisconnected:
-                _ui.BeginInvoke(() => Props = new()); // stale values (like "recording") would mislead
+                _ui.Post(() => Props = new()); // stale values (like "recording") would mislead
                 SetState(LinkState.Disconnected);
                 Say(a == 0 ? "Disconnected." : "Disconnected: " + Native.ErrorName((int)a));
                 break;
@@ -190,7 +188,7 @@ public sealed class CameraService : IDisposable
                 RequestRefresh();
                 break;
             case Native.EvError:
-                if (a == 0x8216) _ui.BeginInvoke(() => HoldReconnect = true);
+                if (a == 0x8216) _ui.Post(() => HoldReconnect = true);
                 Say(a == 0x8216
                     ? "The camera rejected the user or password. Check MENU › Network › Network Option › Access Authen. Info (case-sensitive)."
                     : "Camera error: " + Native.ErrorName((int)a));
@@ -230,7 +228,7 @@ public sealed class CameraService : IDisposable
                 };
                 map[p.Code] = p;
             }
-            _ui.BeginInvoke(() =>
+            _ui.Post(() =>
             {
                 Props = map;
                 PropsChanged?.Invoke();
@@ -319,9 +317,9 @@ public sealed class CameraService : IDisposable
                 else if (track)
                 {
                     Thread.Sleep(1200);
-                    _ui.BeginInvoke(() => RequestRefresh());
+                    _ui.Post(() => RequestRefresh());
                     Thread.Sleep(300);
-                    _ui.BeginInvoke(() =>
+                    _ui.Post(() =>
                     {
                         if (TapTracks && !IsTracking) Say("The camera focused there but didn't report tracking.");
                     });
@@ -472,7 +470,7 @@ public sealed class CameraService : IDisposable
 
     public void Dispose()
     {
-        _poll.Stop();
+        _poll.Dispose();
         Run(Native.cb_release);
         _queue.CompleteAdding();
         _worker.Join(3000);

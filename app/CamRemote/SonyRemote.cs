@@ -1,15 +1,13 @@
-using System.Windows.Threading;
-
 namespace CamRemote;
 
 /// <summary>The A7S III as the phone page sees it. Every camera call hops to the UI thread, where CameraService lives.</summary>
-public sealed class SonyRemote(Dispatcher ui, CameraService cam, LiveViewFeed live, Settings settings, IReadOnlyList<PropControl> rows,
+public sealed class SonyRemote(IUi ui, CameraService cam, Func<(byte[] Jpeg, long No)?> latest, Settings settings, IReadOnlyList<IPropRow> rows,
     Func<(string Battery, string Card, string Alert)> status) : IRemoteCamera
 {
     public string Id => "sony";
     public string Name => "A7S III";
 
-    public object State() => ui.Invoke(() =>
+    public object State() => ui.Invoke<object>(() =>
     {
         var (battery, card, alert) = status();
         long focusMode = cam.Get(PropCode.FocusMode)?.Value ?? 0;
@@ -31,9 +29,9 @@ public sealed class SonyRemote(Dispatcher ui, CameraService cam, LiveViewFeed li
         };
     });
 
-    public (byte[] Jpeg, long No)? LatestFrame() => live.Latest;
+    public (byte[] Jpeg, long No)? LatestFrame() => latest();
 
-    public string? Set(string id, string value) => ui.Invoke(() =>
+    public string? Set(string id, string value) => ui.Invoke<string?>(() =>
     {
         if (cam.State != LinkState.Connected) return "The camera isn't connected.";
         if (!long.TryParse(value, out long v)) return "That value isn't valid.";
@@ -46,17 +44,17 @@ public sealed class SonyRemote(Dispatcher ui, CameraService cam, LiveViewFeed li
         return null;
     });
 
-    public string? Record(bool on) => ui.Invoke(() =>
+    public string? Record(bool on) => ui.Invoke<string?>(() =>
     {
         if (cam.State != LinkState.Connected) return "The camera isn't connected.";
         if (cam.IsRecording != on) cam.ToggleRecord(); // a repeated tap on a slow link can't flip it back
         return (string?)null;
     });
 
-    public string? Focus(double x, double y) => ui.Invoke(() =>
+    public string? Focus(double x, double y) => ui.Invoke<string?>(() =>
         cam.State == LinkState.Connected ? cam.TouchFocus(x, y) : "The camera isn't connected.");
 
-    public string? FocusStep(int step) => ui.Invoke(() =>
+    public string? FocusStep(int step) => ui.Invoke<string?>(() =>
     {
         if (cam.State != LinkState.Connected) return "The camera isn't connected.";
         cam.FocusStep(step);

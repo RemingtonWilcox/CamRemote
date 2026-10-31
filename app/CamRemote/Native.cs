@@ -6,7 +6,7 @@ namespace CamRemote;
 /// <summary>P/Invoke surface of native/CamBridge (a thin C wrapper over Sony's Camera Remote SDK).</summary>
 internal static class Native
 {
-    private const string Dll = "CamBridge.dll";
+    private const string Dll = "CamBridge"; // CamBridge.dll, or libCamBridge.dylib on a Mac
 
     public const int EvConnected = 1, EvDisconnected = 2, EvPropertyChanged = 3, EvError = 4, EvWarning = 5;
 

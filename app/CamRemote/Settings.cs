@@ -1,11 +1,13 @@
 using System.IO;
 using System.Security.Cryptography;
 using System.Text.Json;
+#if WINDOWS
 using Windows.Security.Credentials;
+#endif
 
 namespace CamRemote;
 
-/// <summary>App settings in %APPDATA%\CamRemote\settings.json. The camera password lives in Windows Credential Manager.</summary>
+/// <summary>App settings in settings.json in <see cref="Folder"/>. The camera password lives in Windows Credential Manager or the macOS Keychain.</summary>
 public sealed class Settings
 {
     private const string VaultResource = "CamRemote camera";
@@ -16,6 +18,7 @@ public sealed class Settings
     public string CameraUser { get; set; } = "admin";
     public string Fingerprint { get; set; } = "";
     public bool AutoConnect { get; set; } = true;
+    public int AgreedVersion { get; set; } // the Agreement.Version last agreed to
     public int Rotation { get; set; } // degrees clockwise: 0, 90, 180 or 270, for a camera mounted on its side
     public bool ShowHistogram { get; set; } = true;
     public bool ShowZebras { get; set; }
@@ -31,8 +34,12 @@ public sealed class Settings
     public string PhoneCode { get; set; } = ""; // typed once on a phone
     public string PhoneToken { get; set; } = ""; // what the phone keeps afterwards
 
-    private static string Path => System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CamRemote", "settings.json");
+    /// <summary>%APPDATA%\CamRemote on Windows, ~/Library/Application Support/CamRemote on a Mac.</summary>
+    public static string Folder => System.IO.Path.Combine(OperatingSystem.IsMacOS()
+        ? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Application Support")
+        : Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CamRemote");
+
+    private static string Path => System.IO.Path.Combine(Folder, "settings.json");
 
     public static Settings Load()
     {
@@ -53,6 +60,7 @@ public sealed class Settings
         File.WriteAllText(Path, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
     }
 
+#if WINDOWS
     public string LoadPassword()
     {
         try { var c = new PasswordVault().Retrieve(VaultResource, CameraUser); c.RetrievePassword(); return c.Password; }
@@ -65,4 +73,9 @@ public sealed class Settings
         try { foreach (var c in vault.FindAllByResource(VaultResource)) vault.Remove(c); } catch { /* none saved */ }
         if (password.Length > 0) vault.Add(new PasswordCredential(VaultResource, CameraUser, password));
     }
+#else
+    public string LoadPassword() => MacNative.LoadSecret(VaultResource, CameraUser);
+
+    public void SavePassword(string password) => MacNative.SaveSecret(VaultResource, CameraUser, password);
+#endif
 }

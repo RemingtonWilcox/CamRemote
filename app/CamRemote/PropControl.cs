@@ -9,7 +9,7 @@ namespace CamRemote;
 /// One camera setting in the side panel. None of these react to the mouse wheel, so scrolling
 /// the panel can never change the camera.
 /// </summary>
-public sealed class PropControl
+public sealed class PropControl : IPropRow
 {
     public enum Kind
     {

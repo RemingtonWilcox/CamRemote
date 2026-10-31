@@ -1,7 +1,3 @@
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Threading;
-
 namespace CamRemote;
 
 public sealed record AssistOptions(bool Active, bool Zebra, int ZebraLevel, bool Peaking, int PeakSensitivity, uint PeakColor);
@@ -18,7 +14,7 @@ public sealed class AssistResult
 /// Reads the picture on its own thread for the histogram, zebras and focus peaking. The A7S III can't send
 /// these over the SDK, so they're worked out here from the same picture you see. Frames are dropped rather than queued.
 /// </summary>
-public sealed class PictureAssist(Dispatcher ui)
+public sealed class PictureAssist(IUi ui)
 {
     private const int MinFrameMs = 66; // about 15 updates a second is plenty for a guide
     private const int UnderLevel = 8; // about 3%
@@ -39,8 +35,8 @@ public sealed class PictureAssist(Dispatcher ui)
 
     public AssistOptions Options { get => _options; set => _options = value; }
 
-    /// <summary>Call on the UI thread with each new frame.</summary>
-    public void Offer(BitmapSource frame)
+    /// <summary>Call on the UI thread with each new frame. <paramref name="copy"/> fills a w×h×4 buffer with BGRA pixels.</summary>
+    public void Offer(int w, int h, Action<byte[]> copy)
     {
         var options = _options;
         long now = Environment.TickCount64;
@@ -49,17 +45,14 @@ public sealed class PictureAssist(Dispatcher ui)
         _lastAt = now;
         try
         {
-            BitmapSource source = frame.Format == PixelFormats.Bgr32 || frame.Format == PixelFormats.Bgra32
-                ? frame : new FormatConvertedBitmap(frame, PixelFormats.Bgr32, null, 0);
-            int w = source.PixelWidth, h = source.PixelHeight;
             if (_pixels.Length != w * h * 4) _pixels = new byte[w * h * 4];
-            source.CopyPixels(_pixels, w * 4, 0);
+            copy(_pixels);
             Task.Run(() =>
             {
                 try
                 {
                     Analyze(_pixels, w, h, options, _result, ref _luma);
-                    ui.BeginInvoke(() =>
+                    ui.Post(() =>
                     {
                         _busy = 0;
                         if (_options.Active) Done?.Invoke(_result);

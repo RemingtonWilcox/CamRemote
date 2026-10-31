@@ -1,0 +1,41 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="CamRemote.App"
+             Name="CamRemote"
+             RequestedThemeVariant="Dark">
+    <Application.Resources>
+        <SolidColorBrush x:Key="Dim" Color="#9A9A9A" />
+        <SolidColorBrush x:Key="Rec" Color="#E5322D" />
+        <SolidColorBrush x:Key="Ok" Color="#4CC26A" />
+        <SolidColorBrush x:Key="Warn" Color="#E8B339" />
+    </Application.Resources>
+    <Application.Styles>
+        <FluentTheme />
+        <Style Selector="TextBlock.Section">
+            <Setter Property="Foreground" Value="{StaticResource Dim}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,18,0,6" />
+        </Style>
+        <Style Selector="TextBlock.Label">
+            <Setter Property="Foreground" Value="{StaticResource Dim}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+        <Style Selector="TextBlock.Small">
+            <Setter Property="Foreground" Value="{StaticResource Dim}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="ToggleButton.Chip">
+            <Setter Property="Padding" Value="10,3" />
+            <Setter Property="MinHeight" Value="26" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,4,0" />
+            <Setter Property="Focusable" Value="False" />
+        </Style>
+        <Style Selector="Button, RepeatButton">
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+    </Application.Styles>
+</Application>

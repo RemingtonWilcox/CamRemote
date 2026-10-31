@@ -1,41 +1,42 @@
 # Instructions for AI agents
 
-You're helping someone set up CamRemote, a Windows app that controls a Sony A7S III over Wi-Fi. The human-facing steps are in README.md. Your job is the PC side: check the machine, install what's missing, get the SDK in place and build. Keep the person in the loop in plain language; many users aren't developers.
+You're helping someone set up CamRemote, an app for Windows and Mac that controls a Sony A7S III over Wi-Fi. Most people here are photographers, not developers, and they may only be chatting with you, with no access to their computer. Use plain language, give one step at a time, and wait for them to confirm each step.
 
-## Before you start
+## Help someone set it up
 
-1. **Check the OS.** This app is Windows 10/11 x64 only (WPF). On a Mac or Linux machine, stop and tell the person plainly: it won't run there without a port. Don't attempt the build.
-2. **Check what's installed** before installing anything: `git --version`, `cmake --version`, `dotnet --list-sdks` (needs a 10.x SDK), `python --version` (3.9+; on Windows, `python` can be the Microsoft Store stub, which prints nothing useful), and a C++ compiler (look for Visual Studio 2022 or newer with the VC tools, e.g. `& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`).
-3. **Install only what's missing**, using the winget commands in README.md section 3. Tell the person before you start an install; the Visual Studio Build Tools one is large and slow (run it in the background if your harness supports that). After installing, open a new shell so PATH updates.
+Follow the three steps in README.md: install the app, set up the camera, connect. **Don't build anything.** The ready-made downloads need no tools, accounts or Sony SDK.
 
-## The Sony SDK
+1. **Ask what they have.** Windows or Mac? On a Mac, is it Apple or Intel (Apple menu › About This Mac)? Windows 11 x64 and macOS 14.1 or newer are supported. Windows on ARM and Linux aren't: say so plainly.
+2. **Install.** Send them the matching download link from the top of README.md. Windows may show a blue **Windows protected your PC** box: **More info**, then **Run anyway**. On a Mac, they drag CamRemote to Applications.
+3. **The camera menus.** Go through the table in README.md section 2, one row at a time. They press the buttons themselves. Ask them to close Sony's Monitor & Control app first.
+4. **Connect.** Follow README.md section 3. On a Mac, **Local Network** must be allowed or the camera won't be found. If something fails, use the "Something not working?" section.
 
-- The SDK can't be downloaded by you: it sits behind Sony's licence agreement. Send the person to https://support.d-imaging.sony.co.jp/app/sdk/en/index.html for the **Windows** zip and wait for them.
-- It belongs in `vendor\CrSDK\` so that `vendor\CrSDK\RemoteCli.zip` (or an unpacked `vendor\CrSDK\RemoteCli\`) exists. `build.ps1` unpacks `RemoteCli.zip` itself. If the person unzipped into a nested folder (e.g. `vendor\CrSDK\CrSDK_v2.02.00_...\`), move the contents up one level.
-- Success check: `vendor\CrSDK\RemoteCli\external\crsdk\Cr_Core.lib` exists after the build starts.
-- **Never commit anything under `vendor\`**, and never commit `app\CamRemote\SdkNames.g.cs` (it's generated from Sony's headers). Both are in `.gitignore`; keep it that way.
+They agree to the note on first launch themselves. Explain it if asked; don't agree on their behalf.
 
-## Build
+## Build from source
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\build.ps1
-```
+Only when someone asks to build it or change the code.
 
-It ends with `Built dist\CamRemote.exe`. Common failures:
+1. **Check what's installed** before installing anything: `git`, `cmake`, the .NET 10 SDK, Python 3.9+ and a C++ compiler (Visual Studio 2022 or newer with the VC tools, or Xcode's command line tools on a Mac). On Windows, `python` can be the Microsoft Store stub, which prints nothing useful.
+2. **Install only what's missing,** and tell the person before you start. Visual Studio's C++ tools are large and slow.
+3. **The Sony SDK can't be downloaded by you:** it sits behind Sony's licence agreement. Send the person to https://support.d-imaging.sony.co.jp/app/sdk/en/index.html for the **Windows** or **Mac** zip and wait for them.
+4. It belongs in `vendor\CrSDK\` so that `vendor\CrSDK\RemoteCli.zip` (or an unpacked `vendor\CrSDK\RemoteCli\`) exists. If it was unzipped into a nested folder, move the contents up one level.
+5. **Build.** On Windows, `powershell -ExecutionPolicy Bypass -File .\build.ps1` ends with `Built dist\CamRemote.exe`. On a Mac, `./build-mac.sh` ends with `Built dist/CamRemote.app`.
 
-- **CMake can't find a Visual Studio generator:** the C++ build tools are missing or CMake is older than the installed Visual Studio. Update CMake (`winget upgrade Kitware.CMake`) or install the VC tools workload.
-- **`python` not found / does nothing:** the Store stub is first on PATH. Install Python with winget and open a new shell.
-- **`gen_names.py` errors about a missing enum:** a newer SDK renamed something. Read the error, find the new name in `vendor\CrSDK\RemoteCli\app\CRSDK\*.h`, and update `VALUE_ENUMS` in `tools\gen_names.py`. Tell the person what changed.
+Common failures:
+
+- **CMake can't find a Visual Studio generator:** the C++ build tools are missing or CMake is older than Visual Studio. Update CMake or install the VC tools workload.
+- **`python` not found or does nothing:** the Store stub is first on PATH. Install Python and open a new shell.
+- **`gen_names.py` errors about a missing enum:** a newer SDK renamed something. Find the new name in `vendor\CrSDK\RemoteCli\app\CRSDK\*.h`, update `VALUE_ENUMS` in `tools\gen_names.py`, and tell the person what changed.
 - **NuGet restore fails:** the machine is offline or behind a proxy. Tell the person; don't change their network settings.
+- **The Mac app crashes at launch over SSH:** the display is asleep. Wake it first.
 
-## After the build
-
-- Offer to put a shortcut to `dist\CamRemote.exe` on the desktop.
-- The person does the camera setup (README sections 1–2) and the first connection (section 7) themselves.
+**Never commit anything under `vendor\`**, and never commit `app\CamRemote\SdkNames.g.cs` (it's generated from Sony's headers). Both are in `.gitignore`; keep it that way. Sony's licence allows its libraries inside the finished app, not the SDK itself.
 
 ## Don't
 
-- Don't ask for, type or store the camera's Access Authen. password. The person types it into the app; the app keeps it in Windows Credential Manager.
-- Don't change firewall rules, network settings or router settings. If Windows Firewall prompts, the person answers it (Private networks only).
+- Don't ask for, type or store the camera's Access Authen. password. The person types it into the app; the app keeps it in Windows Credential Manager or the macOS Keychain.
+- Don't change firewall rules, network settings or router settings. If a Windows Firewall or macOS privacy prompt appears, the person answers it.
 - Don't change camera firmware or camera settings for them.
 - Don't add telemetry, auto-updaters or background services.
+- Don't remove the first-launch agreement. Sony's licence requires it for anyone distributing the app.
