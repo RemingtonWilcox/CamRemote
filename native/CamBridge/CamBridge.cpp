@@ -201,8 +201,29 @@ static SDK::ICrCameraObjectInfo* pickInfo(int index)
     return const_cast<SDK::ICrCameraObjectInfo*>(g_enum->GetCameraObjectInfo(index));
 }
 
+static SDK::CrCameraDeviceModelList modelFromName(const std::string& name)
+{
+    static const std::pair<const char*, SDK::CrCameraDeviceModelList> models[] = {
+        {"ILCE-1M2", SDK::CrCameraDeviceModel_ILCE_1M2}, {"ILCE-1", SDK::CrCameraDeviceModel_ILCE_1},
+        {"ILCE-9M3", SDK::CrCameraDeviceModel_ILCE_9M3}, {"ILCE-7RM6", SDK::CrCameraDeviceModel_ILCE_7RM6},
+        {"ILCE-7RM5", SDK::CrCameraDeviceModel_ILCE_7RM5}, {"ILCE-7CR", SDK::CrCameraDeviceModel_ILCE_7CR},
+        {"ILCE-7M5", SDK::CrCameraDeviceModel_ILCE_7M5}, {"ILCE-7M4", SDK::CrCameraDeviceModel_ILCE_7M4},
+        {"ILCE-7CM2", SDK::CrCameraDeviceModel_ILCE_7CM2}, {"ILCE-6700", SDK::CrCameraDeviceModel_ILCE_6700},
+        {"ILME-FX6", SDK::CrCameraDeviceModel_ILME_FX6}, {"ILME-FX3A", SDK::CrCameraDeviceModel_ILME_FX3A},
+        {"ILME-FX3", SDK::CrCameraDeviceModel_ILME_FX3}, {"ILME-FX2", SDK::CrCameraDeviceModel_ILME_FX2},
+        {"ILME-FX30", SDK::CrCameraDeviceModel_ILME_FX30}, {"MPC-2610", SDK::CrCameraDeviceModel_MPC_2610},
+        {"ZV-E1", SDK::CrCameraDeviceModel_ZV_E1}, {"ZV-E10M2", SDK::CrCameraDeviceModel_ZV_E10M2},
+        {"PXW-Z300", SDK::CrCameraDeviceModel_PXW_Z300}, {"PXW-Z200", SDK::CrCameraDeviceModel_PXW_Z200},
+        {"HXR-NX800", SDK::CrCameraDeviceModel_HXR_NX800}, {"DSC-RX1RM3", SDK::CrCameraDeviceModel_DSC_RX1RM3},
+        {"ILX-LR1", SDK::CrCameraDeviceModel_ILX_LR1},
+    };
+    for (const auto& m : models)
+        if (name == m.first) return m.second;
+    return SDK::CrCameraDeviceModel_ILCE_7SM3;
+}
+
 // Builds camera info for a known IP when discovery doesn't find it. Use index -1 afterwards.
-CB_API int cb_make_ip_camera(const char* ip, int ssh)
+CB_API int cb_make_ip_camera(const char* ip, int ssh, const char* model)
 {
     std::unique_lock<std::shared_mutex> l(g_lock);
     unsigned a, b, c, d;
@@ -211,7 +232,7 @@ CB_API int cb_make_ip_camera(const char* ip, int ssh)
     CrInt32u addr = a | (b << 8) | (c << 16) | (d << 24);
     CrInt8u mac[6] = {0};
     return (int)SDK::CreateCameraObjectInfoEthernetConnection(
-        &g_ipInfo, SDK::CrCameraDeviceModel_ILCE_7SM3, addr, mac, ssh ? 1 : 0);
+        &g_ipInfo, modelFromName(model), addr, mac, ssh ? 1 : 0);
 }
 
 CB_API int cb_fingerprint(int index, char* out, int cap)

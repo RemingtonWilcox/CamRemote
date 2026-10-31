@@ -323,11 +323,26 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>Names the connected camera in the title, and offers its native ISOs if it has two.</summary>
+    private void ShowCameraModel()
+    {
+        bool connected = _cam.State == LinkState.Connected;
+        Title = connected ? $"CamRemote — {CameraModels.Label(_settings.CameraModel)}" : "CamRemote";
+        var model = connected ? CameraModels.Find(_settings.CameraModel) : null;
+        BaseIsoButtons.Visibility = model is { HasBaseIso: true } ? Visibility.Visible : Visibility.Collapsed;
+        if (model is not { HasBaseIso: true }) return;
+        IsoLowButton.Content = $"Base ISO {model.LowIso}";
+        IsoLowButton.Tag = model.LowIso.ToString();
+        IsoHighButton.Content = $"Base ISO {model.HighIso}";
+        IsoHighButton.Tag = model.HighIso.ToString();
+    }
+
     private void OnLinkChanged()
     {
         _linkSince = DateTime.Now;
         if (_cam.State == LinkState.Connected) _wasConnected = true;
         KeepAwake();
+        ShowCameraModel();
         var (color, text, button) = _cam.State switch
         {
             LinkState.Connected => ((Brush)FindResource("Ok"), "Camera connected", "Disconnect"),
@@ -355,8 +370,8 @@ public partial class MainWindow : Window
         bool iso = _cam.Get(PropCode.IsoSensitivity) is { Writable: true };
         BaseIsoButtons.IsEnabled = iso;
         long isoNow = (_cam.Get(PropCode.IsoSensitivity)?.Value ?? 0) & 0xFFFFFF;
-        Iso640Button.FontWeight = isoNow == 640 ? FontWeights.Bold : FontWeights.Normal;
-        Iso12800Button.FontWeight = isoNow == 12800 ? FontWeights.Bold : FontWeights.Normal;
+        IsoLowButton.FontWeight = isoNow == BaseIsoOf(IsoLowButton) ? FontWeights.Bold : FontWeights.Normal;
+        IsoHighButton.FontWeight = isoNow == BaseIsoOf(IsoHighButton) ? FontWeights.Bold : FontWeights.Normal;
 
         // The focus ring only does anything in MF or DMF.
         long focusMode = _cam.Get(PropCode.FocusMode)?.Value ?? 0;
@@ -501,7 +516,9 @@ public partial class MainWindow : Window
         _rows.Add(c);
     }
 
-    /// <summary>Jumps to one of the A7S III's two native ISOs (640 / 12800 in S-Log3).</summary>
+    private static long BaseIsoOf(Button b) => long.TryParse(b.Tag as string, out long v) ? v : 0;
+
+    /// <summary>Jumps to one of the connected camera's two native ISOs.</summary>
     private void OnBaseIsoClick(object sender, RoutedEventArgs e)
     {
         if (_cam.SetBaseIso(long.Parse((string)((Button)sender).Tag)) is { } problem) ShowMessage(problem);

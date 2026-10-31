@@ -16,7 +16,7 @@ internal static class Native
     [DllImport(Dll)] public static extern int cb_init(EventFn fn);
     [DllImport(Dll)] public static extern void cb_release();
     [DllImport(Dll)] private static extern int cb_enum(int timeoutSec, byte[] output, int cap);
-    [DllImport(Dll)] public static extern int cb_make_ip_camera([MarshalAs(UnmanagedType.LPUTF8Str)] string ip, int ssh);
+    [DllImport(Dll)] public static extern int cb_make_ip_camera([MarshalAs(UnmanagedType.LPUTF8Str)] string ip, int ssh, [MarshalAs(UnmanagedType.LPUTF8Str)] string model);
     [DllImport(Dll)] private static extern int cb_fingerprint(int index, byte[] output, int cap);
     [DllImport(Dll)] public static extern int cb_connect(int index,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string user,

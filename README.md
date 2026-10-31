@@ -165,7 +165,7 @@ Don't ask me for my camera password.
 
 <br>
 
-Check that the camera is on, on the same Wi-Fi as your computer (not a guest network), and has **Remote Shooting** on. If it still doesn't appear, find its address under Network › Wi-Fi › **Display Wi-Fi Info.** and type that **IP address** into the box in CamRemote.
+Check that the camera is on, on the same Wi-Fi as your computer (not a guest network), and has **Remote Shooting** on. If it still doesn't appear, find its address under Network › Wi-Fi › **Display Wi-Fi Info.**, type that **IP address** into the box in CamRemote and pick your camera underneath.
 
 On a Mac, also check System Settings › Privacy & Security › **Local Network**, and turn CamRemote on.
 
@@ -245,7 +245,7 @@ That's normal after resetting the camera or changing its Access Authen. settings
 <br>
 
 - **ISO / Shutter / Iris:** ◀ ▶ step through values. Click the value to see every choice.
-- **Base ISO 640 / 12800:** the A7S III's two native ISOs in S-Log3. 12800 is the cleanest choice in low light. Other cameras have different native ISOs, so use the ISO control instead.
+- **Base ISO 640 / 12800:** the A7S III's two native ISOs in S-Log3. 12800 is the cleanest choice in low light. These buttons only appear on the A7S III. On other cameras, use the ISO control.
 - **Focus wheel:** works in MF (or DMF). Right is farther, left is nearer.
 - **Focus magnifier:** while magnified, click the picture to move the magnified area.
 - **Click the picture:** works in movie mode. Right-click cancels (Control-click on a Mac). In MF it autofocuses once, then returns to MF.

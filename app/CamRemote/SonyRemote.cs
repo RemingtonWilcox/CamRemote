@@ -1,11 +1,11 @@
 namespace CamRemote;
 
-/// <summary>The A7S III as the phone page sees it. Every camera call hops to the UI thread, where CameraService lives.</summary>
+/// <summary>The Sony camera as the phone page sees it. Every camera call hops to the UI thread, where CameraService lives.</summary>
 public sealed class SonyRemote(IUi ui, CameraService cam, Func<(byte[] Jpeg, long No)?> latest, Settings settings, IReadOnlyList<IPropRow> rows,
     Func<(string Battery, string Card, string Alert)> status) : IRemoteCamera
 {
     public string Id => "sony";
-    public string Name => "A7S III";
+    public string Name => CameraModels.Label(settings.CameraModel);
 
     public object State() => ui.Invoke<object>(() =>
     {
@@ -17,6 +17,7 @@ public sealed class SonyRemote(IUi ui, CameraService cam, Func<(byte[] Jpeg, lon
             recording = cam.IsRecording,
             rotation = settings.Rotation,
             battery, card, alert,
+            baseIso = cam.State == LinkState.Connected && CameraModels.Find(settings.CameraModel) is { HasBaseIso: true } m ? new[] { m.LowIso, m.HighIso } : [],
             manualFocus = focusMode is 1 or 6,
             meter = cam.MeterStops,
             magnify = cam.MagnifyRatio,

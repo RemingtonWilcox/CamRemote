@@ -12,8 +12,9 @@
         <ListBox x:Name="Found" Height="110" Margin="0,8,0,0" SelectionChanged="OnFoundSelected" />
         <TextBlock x:Name="SearchStatus" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,4,0,0" />
 
-        <TextBlock Text="Camera IP address (if it isn't found above)" Margin="0,14,0,4" />
+        <TextBlock Text="Camera IP address and model (if it isn't found above)" Margin="0,14,0,4" />
         <TextBox x:Name="IpBox" />
+        <ComboBox x:Name="ModelBox" Margin="0,6,0,0" />
 
         <TextBlock Text="Access Authen. user" Margin="0,12,0,4" />
         <TextBox x:Name="UserBox" />

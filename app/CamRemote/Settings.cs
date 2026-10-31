@@ -15,6 +15,7 @@ public sealed class Settings
     public string VideoDeviceId { get; set; } = "";
     public string CameraIp { get; set; } = "";
     public string CameraMac { get; set; } = ""; // finds the camera again if the router gives it a new IP
+    public string CameraModel { get; set; } = "ILCE-7SM3"; // as the camera reports it
     public string CameraUser { get; set; } = "admin";
     public string Fingerprint { get; set; } = "";
     public bool AutoConnect { get; set; } = true;

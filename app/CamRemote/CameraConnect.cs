@@ -39,15 +39,13 @@ public static class CameraConnect
         {
             index = picked.Index;
             ssh = picked.Ssh;
-            if (picked.Mac.Length > 0 && picked.Mac != settings.CameraMac)
-            {
-                settings.CameraMac = picked.Mac;
-                settings.Save();
-            }
+            if (picked.Mac.Length > 0) settings.CameraMac = picked.Mac;
+            if (picked.Model.Length > 0) settings.CameraModel = picked.Model;
+            settings.Save();
         }
         else
         {
-            int err = await cam.AddByIpAsync(settings.CameraIp);
+            int err = await cam.AddByIpAsync(settings.CameraIp, settings.CameraModel);
             if (err != 0)
             {
                 say($"\"{settings.CameraIp}\" isn't a usable IP address.");

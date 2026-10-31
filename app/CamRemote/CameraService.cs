@@ -132,7 +132,7 @@ public sealed class CameraService : IDisposable
     /// <summary>Reads the camera's SSH fingerprint. Index -1 means a camera added by IP.</summary>
     public Task<string?> FingerprintAsync(int index) => Run(() => Native.Fingerprint(index));
 
-    public Task<int> AddByIpAsync(string ip) => Run(() => Native.cb_make_ip_camera(ip, 1));
+    public Task<int> AddByIpAsync(string ip, string model) => Run(() => Native.cb_make_ip_camera(ip, 1, CameraModels.Find(model)?.Sdk ?? model));
 
     public void Connect(int index, string user, string password, string fingerprint)
     {
@@ -254,7 +254,7 @@ public sealed class CameraService : IDisposable
 
     public bool IsRecording => Get(PropCode.RecordingState)?.Value == 1;
 
-    /// <summary>The A7S III toggles recording on "Down"; Sony asks for "Up" right after.</summary>
+    /// <summary>The camera toggles recording on "Down"; Sony asks for "Up" right after.</summary>
     public void ToggleRecord() => Run(() =>
     {
         int err = Native.cb_command(CmdMovieRecord, ParamDown);
@@ -449,7 +449,7 @@ public sealed class CameraService : IDisposable
         }
     }
 
-    /// <summary>Jumps to a native ISO (640 / 12800 in S-Log3). Returns a message if the camera isn't offering it.</summary>
+    /// <summary>Jumps to a native ISO. Returns a message if the camera isn't offering it.</summary>
     public string? SetBaseIso(long want)
     {
         var p = Get(PropCode.IsoSensitivity);

@@ -84,7 +84,7 @@ details summary { color:var(--dim); padding:14px 0 8px; font-size:14px; }
   <button id="rec">● Record</button>
 
   <h2>EXPOSURE</h2><div id="exposure"></div>
-  <div class="btns row"><button data-iso="640">Base ISO 640</button><button data-iso="12800">Base ISO 12800</button></div>
+  <div class="btns row"><button data-iso="0" class="hide"></button><button data-iso="0" class="hide"></button></div>
   <h2>FOCUS</h2><div id="focus"></div>
   <div id="ringBox" class="row">
     <div class="lbl">Focus ring: drag. Near ← → far</div>
@@ -194,7 +194,12 @@ function render(s) {
     $('needle').style.left = (50 + m * 16) + '%';
     $('needle').style.background = a <= .35 ? 'var(--ok)' : a >= 2 ? 'var(--warn)' : '#fff';
   }
-  for (const b of document.querySelectorAll('[data-iso]')) b.disabled = !connected;
+  document.querySelectorAll('[data-iso]').forEach((b, i) => {
+    const iso = (s.baseIso || [])[i];
+    b.classList.toggle('hide', !iso);
+    if (iso) { b.dataset.iso = iso; b.textContent = 'Base ISO ' + iso; }
+    b.disabled = !connected;
+  });
   $('ringBox').style.opacity = s.manualFocus ? 1 : .4;
   $('stopTrack').classList.toggle('hide', !s.tracking);
   const mags = [0, ...s.magnifyChoices];

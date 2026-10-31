@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Icon="CamRemote.ico"
-        Title="CamRemote — A7S III" Width="1500" Height="900" MinWidth="980" MinHeight="600"
+        Title="CamRemote" Width="1500" Height="900" MinWidth="980" MinHeight="600"
         Loaded="OnLoaded" Closing="OnClosing" KeyDown="OnKeyDown">
     <Grid>
         <Grid.ColumnDefinitions>
@@ -120,11 +120,11 @@
 
                     <TextBlock Text="EXPOSURE" Style="{StaticResource Section}" />
                     <StackPanel x:Name="ExposurePanel" />
-                    <UniformGrid x:Name="BaseIsoButtons" Rows="1" Margin="0,0,0,4">
-                        <Button x:Name="Iso640Button" Content="Base ISO 640" Margin="0,0,3,0" Padding="4,6" Click="OnBaseIsoClick" Tag="640"
-                                ToolTip="Lower native ISO of the A7S III in S-Log3" />
-                        <Button x:Name="Iso12800Button" Content="Base ISO 12800" Margin="3,0,0,0" Padding="4,6" Click="OnBaseIsoClick" Tag="12800"
-                                ToolTip="Upper native ISO of the A7S III in S-Log3 — cleanest choice for low light" />
+                    <UniformGrid x:Name="BaseIsoButtons" Visibility="Collapsed" Rows="1" Margin="0,0,0,4">
+                        <Button x:Name="IsoLowButton" Margin="0,0,3,0" Padding="4,6" Click="OnBaseIsoClick"
+                                ToolTip="Lower native ISO of this camera" />
+                        <Button x:Name="IsoHighButton" Margin="3,0,0,0" Padding="4,6" Click="OnBaseIsoClick"
+                                ToolTip="Upper native ISO of this camera, cleanest in low light" />
                     </UniformGrid>
 
                     <TextBlock Text="FOCUS" Style="{StaticResource Section}" />

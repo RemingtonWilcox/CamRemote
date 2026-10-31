@@ -17,6 +17,8 @@ public partial class ConnectWindow : Window
         _cam = cam;
         _settings = settings;
         IpBox.Text = settings.CameraIp;
+        ModelBox.ItemsSource = CameraModels.All;
+        ModelBox.SelectedItem = CameraModels.Find(settings.CameraModel);
         UserBox.Text = settings.CameraUser;
         PasswordBox.Text = settings.LoadPassword();
         AutoBox.IsChecked = settings.AutoConnect;
@@ -41,7 +43,9 @@ public partial class ConnectWindow : Window
 
     private void OnFoundSelected(object? sender, SelectionChangedEventArgs e)
     {
-        if (Found.SelectedItem is FoundCamera { Ip.Length: > 0 } c) IpBox.Text = c.Ip;
+        if (Found.SelectedItem is not FoundCamera c) return;
+        if (c.Ip.Length > 0) IpBox.Text = c.Ip;
+        if (CameraModels.Find(c.Model) is { } model) ModelBox.SelectedItem = model;
     }
 
     private void OnCancel(object? sender, RoutedEventArgs e) => Close(false);
@@ -55,6 +59,7 @@ public partial class ConnectWindow : Window
             return;
         }
         _settings.CameraIp = ip;
+        if (ModelBox.SelectedItem is CameraModel typed) _settings.CameraModel = typed.Sdk;
         _settings.CameraUser = (UserBox.Text ?? "").Trim();
         _settings.AutoConnect = AutoBox.IsChecked == true;
         _settings.SavePassword(PasswordBox.Text ?? "");

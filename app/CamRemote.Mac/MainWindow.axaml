@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="CamRemote.MainWindow"
-        Title="CamRemote — A7S III" Width="1400" Height="860" MinWidth="980" MinHeight="600"
+        Title="CamRemote" Width="1400" Height="860" MinWidth="980" MinHeight="600"
         Background="#16181B">
     <Grid ColumnDefinitions="*,310" RowDefinitions="Auto,Auto,*,Auto">
 
@@ -100,11 +100,11 @@
 
                     <TextBlock Text="EXPOSURE" Classes="Section" />
                     <StackPanel x:Name="ExposurePanel" />
-                    <UniformGrid x:Name="BaseIsoButtons" Rows="1" Margin="0,0,0,4">
-                        <Button x:Name="Iso640Button" Content="Base ISO 640" Margin="0,0,3,0" Padding="4,6" Click="OnBaseIsoClick" Tag="640" HorizontalAlignment="Stretch"
-                                ToolTip.Tip="Lower native ISO of the A7S III in S-Log3" />
-                        <Button x:Name="Iso12800Button" Content="Base ISO 12800" Margin="3,0,0,0" Padding="4,6" Click="OnBaseIsoClick" Tag="12800" HorizontalAlignment="Stretch"
-                                ToolTip.Tip="Upper native ISO of the A7S III in S-Log3 — cleanest choice for low light" />
+                    <UniformGrid x:Name="BaseIsoButtons" IsVisible="False" Rows="1" Margin="0,0,0,4">
+                        <Button x:Name="IsoLowButton" Margin="0,0,3,0" Padding="4,6" Click="OnBaseIsoClick" HorizontalAlignment="Stretch"
+                                ToolTip.Tip="Lower native ISO of this camera" />
+                        <Button x:Name="IsoHighButton" Margin="3,0,0,0" Padding="4,6" Click="OnBaseIsoClick" HorizontalAlignment="Stretch"
+                                ToolTip.Tip="Upper native ISO of this camera, cleanest in low light" />
                     </UniformGrid>
 
                     <TextBlock Text="FOCUS" Classes="Section" />
