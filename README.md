@@ -4,7 +4,7 @@
 
 # CamRemote
 
-**Control your Sony A7S III from your computer or phone.**<br>
+**Control your Sony camera from your computer or phone.**<br>
 See the live picture, focus, set exposure and hit record, with no cables and from anywhere your Wi-Fi reaches.
 
 <br>
@@ -23,6 +23,25 @@ See the live picture, focus, set exposure and hit record, with no cables and fro
 
 <br>
 
+## Which cameras work?
+
+CamRemote is tested on the **A7S III**. Sony says its remote software can control these cameras over Wi-Fi, so they should work too, but nobody has tried them yet.
+
+| | |
+|---|---|
+| **Alpha full frame** | A1 II · A1 · A9 III · A7R VI · A7R V · A7CR · **A7S III ✅** · A7 V · A7 IV · A7C II |
+| **Alpha APS-C** | a6700 |
+| **Cinema Line** | FX6 (firmware 3.00 or later) · FX3 (firmware 2.00 or later) · FX3A · FX2 · FX30 · BURANO |
+| **Vlogging** | ZV-E1 · ZV-E10 II |
+| **Camcorders** | PXW-Z300 · PXW-Z200 · HXR-NX800 |
+| **Other** | RX1R III · ILX-LR1 |
+
+✅ = tested. Update your camera to its latest firmware first. Some features, such as click to focus, may behave differently on your camera.
+
+**Won't work over Wi-Fi:** A9 II, A7R IV, A7R IVA, A7C, RX0 II, BRC-AM7 and FR7. Cameras not listed at all, such as the A7 III or a6400, aren't supported by Sony's software.
+
+<br>
+
 ## Set it up in 3 steps
 
 Allow about 10 minutes. You only do this once.
@@ -36,7 +55,7 @@ Allow about 10 minutes. You only do this once.
 > [!TIP]
 > **Have an AI assistant?** It can walk you through all of this. [Here's what to paste](#let-your-ai-do-it).
 
-**You'll need:** an A7S III, Wi-Fi at the place you're shooting, and a Windows 11 PC or a Mac on macOS 14.1 or newer.
+**You'll need:** [a supported camera](#which-cameras-work), Wi-Fi at the place you're shooting, and a Windows 11 PC or a Mac on macOS 14.1 or newer.
 
 <br>
 
@@ -74,6 +93,8 @@ The first time it opens, you'll see a short note about Sony's terms. Click **OK*
 
 Close Sony's **Monitor & Control** app first. The camera only talks to one remote at a time.
 
+These are the A7S III's menus. Most newer Sony cameras are very similar. If yours look different, search your camera's Help Guide for the name in bold.
+
 On the camera, press **MENU**, then:
 
 | | Do this | Where to find it |
@@ -85,7 +106,7 @@ On the camera, press **MENU**, then:
 | 🎥 | **Switch the camera to movie mode.** Click-to-focus only works there. | Mode dial |
 
 > [!NOTE]
-> Menu names can differ on older firmware. If yours don't match, update the camera first, using the ILCE-7SM3 firmware from your country's Sony support site. CamRemote was tested on firmware 5.01.
+> Menu names can differ on older firmware. If yours don't match, update the camera first, using the firmware from your country's Sony support site. CamRemote was tested on the A7S III with firmware 5.01.
 
 <br>
 
@@ -111,9 +132,9 @@ If your computer asks about network access, say yes:
 Using ChatGPT, Claude or another assistant? Paste this in, and it'll guide you one step at a time, from the camera menus to your first connection:
 
 ```text
-Help me set up CamRemote for my Sony A7S III, one step at a time.
+Help me set up CamRemote for my Sony camera, one step at a time.
 Read the guide at https://github.com/RemingtonWilcox/CamRemote/blob/main/AGENTS.md
-Ask me whether I'm on Windows or Mac, then walk me through it in plain language.
+Ask which camera I have and whether I'm on Windows or Mac, then walk me through it in plain language.
 Don't ask me for my camera password.
 ```
 
@@ -210,7 +231,7 @@ That's normal after resetting the camera or changing its Access Authen. settings
 
 - **Windows on ARM isn't supported.** Sony's software doesn't run on those PCs.
 - **Your camera password stays on your computer,** in Windows Credential Manager or your Mac's Keychain.
-- **Only tested on the A7S III.** Other Sony cameras might work, but nobody has tried them.
+- **Only tested on the A7S III.** The other cameras on the list should work, but nobody has tried them yet.
 - **Warranty:** Sony's terms say a camera controlled through an app like this is no longer covered by its manufacturer warranty.
 - **CamRemote isn't made by, endorsed by or supported by Sony.**
 
@@ -224,7 +245,7 @@ That's normal after resetting the camera or changing its Access Authen. settings
 <br>
 
 - **ISO / Shutter / Iris:** ◀ ▶ step through values. Click the value to see every choice.
-- **Base ISO 640 / 12800:** the A7S III's two native ISOs in S-Log3. 12800 is the cleanest choice in low light.
+- **Base ISO 640 / 12800:** the A7S III's two native ISOs in S-Log3. 12800 is the cleanest choice in low light. Other cameras have different native ISOs, so use the ISO control instead.
 - **Focus wheel:** works in MF (or DMF). Right is farther, left is nearer.
 - **Focus magnifier:** while magnified, click the picture to move the magnified area.
 - **Click the picture:** works in movie mode. Right-click cancels (Control-click on a Mac). In MF it autofocuses once, then returns to MF.

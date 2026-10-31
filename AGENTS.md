@@ -1,12 +1,12 @@
 # Instructions for AI agents
 
-You're helping someone set up CamRemote, an app for Windows and Mac that controls a Sony A7S III over Wi-Fi. Most people here are photographers, not developers, and they may only be chatting with you, with no access to their computer. Use plain language, give one step at a time, and wait for them to confirm each step.
+You're helping someone set up CamRemote, an app for Windows and Mac that controls Sony cameras over Wi-Fi. It's tested on the A7S III. Most people here are photographers, not developers, and they may only be chatting with you, with no access to their computer. Use plain language, give one step at a time, and wait for them to confirm each step.
 
 ## Help someone set it up
 
 Follow the three steps in README.md: install the app, set up the camera, connect. **Don't build anything.** The ready-made downloads need no tools, accounts or Sony SDK.
 
-1. **Ask what they have.** Windows or Mac? On a Mac, is it Apple or Intel (Apple menu › About This Mac)? Windows 11 x64 and macOS 14.1 or newer are supported. Windows on ARM and Linux aren't: say so plainly.
+1. **Ask what they have.** Which camera? Check it against "Which cameras work?" in README.md. If it isn't on the list, say so plainly and stop. If it's listed but isn't the A7S III, tell them it should work but hasn't been tested, and its menus may differ a little. Windows or Mac? On a Mac, is it Apple or Intel (Apple menu › About This Mac)? Windows 11 x64 and macOS 14.1 or newer are supported. Windows on ARM and Linux aren't: say so plainly.
 2. **Install.** Send them the matching download link from the top of README.md. Windows may show a blue **Windows protected your PC** box: **More info**, then **Run anyway**. On a Mac, they drag CamRemote to Applications.
 3. **The camera menus.** Go through the table in README.md section 2, one row at a time. They press the buttons themselves. Ask them to close Sony's Monitor & Control app first.
 4. **Connect.** Follow README.md section 3. On a Mac, **Local Network** must be allowed or the camera won't be found. If something fails, use the "Something not working?" section.
