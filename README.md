@@ -17,7 +17,7 @@ See the live picture, focus, set exposure and hit record, with no cables and fro
 
 <br><br>
 
-<img src="docs/hero.jpg" alt="CamRemote showing a sharp live view of a branch, with camera controls alongside" width="560" />
+<img src="docs/hero.jpg" alt="CamRemote showing a live view of a small bird on a branch, with camera controls alongside" width="560" />
 
 </div>
 
