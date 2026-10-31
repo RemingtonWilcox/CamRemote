@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CamRemote">
+<link rel="apple-touch-icon" href="/icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<title>CamRemote</title>
+<style>
+:root { --bg:#101214; --panel:#1b1e22; --line:#30353b; --text:#f1f1f1; --dim:#9a9a9a; --rec:#e5322d; --ok:#4cc26a; --warn:#e8b339; }
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+html, body { margin:0; background:var(--bg); color:var(--text); font:16px -apple-system, system-ui, sans-serif; }
+body { padding:env(safe-area-inset-top) 12px calc(env(safe-area-inset-bottom) + 16px); user-select:none; -webkit-user-select:none; }
+button { font:inherit; color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 8px; min-height:46px; }
+button:disabled { opacity:.4; }
+button.on { background:#3a4048; border-color:#6a727c; font-weight:600; }
+.hide { display:none !important; }
+#login { max-width:340px; margin:18vh auto 0; text-align:center; }
+#login input { width:100%; padding:14px; font-size:22px; letter-spacing:3px; text-align:center; text-transform:uppercase; color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:10px; margin:14px 0; }
+#login button { width:100%; }
+.top { display:flex; align-items:center; gap:8px; padding:8px 0; font-size:14px; color:var(--dim); }
+.dot { width:10px; height:10px; border-radius:50%; background:#666; flex:none; }
+.grow { flex:1; }
+#tabs { display:flex; gap:6px; margin-bottom:8px; }
+#tabs button { flex:1; min-height:38px; padding:6px; }
+#frame { position:relative; background:#000; border:3px solid transparent; border-radius:6px; overflow:hidden; display:flex; justify-content:center; align-items:center; min-height:200px; }
+#frame.rec { border-color:var(--rec); }
+#pic { display:block; max-width:100%; max-height:62vh; }
+#nosig { position:absolute; color:var(--dim); font-size:14px; padding:12px; text-align:center; }
+#mark { position:absolute; width:52px; height:52px; margin:-26px; border:2px solid #f2c94c; display:none; pointer-events:none; }
+#alert { position:absolute; top:8px; left:8px; right:8px; padding:6px 10px; border-radius:6px; background:var(--rec); text-align:center; font-weight:700; font-size:14px; }
+#guides { display:flex; gap:6px; margin-top:8px; }
+#guides button { flex:1; min-height:36px; padding:4px; font-size:13px; }
+#readout { display:flex; align-items:center; gap:8px; margin-top:8px; font-size:12px; color:var(--dim); }
+#hist { width:128px; height:40px; background:#1e1e1e; flex:none; }
+#scale { display:block; position:relative; height:24px; background:linear-gradient(#777,#777) center/1px 100% no-repeat, linear-gradient(#444,#444) center/100% 1px no-repeat; }
+#needle { position:absolute; top:0; width:3px; height:24px; margin-left:-1px; background:#fff; }
+#wheel { position:relative; height:52px; margin-bottom:8px; overflow:hidden; background:repeating-linear-gradient(90deg,#666 0 1px,transparent 1px 14px) 0 50%/auto 40% repeat-x #191919; border:1px solid var(--line); border-radius:8px; touch-action:none; }
+#rec { width:100%; margin-top:10px; font-size:20px; font-weight:600; min-height:60px; }
+#rec.rec { background:var(--rec); border-color:var(--rec); }
+h2 { font-size:12px; letter-spacing:1px; color:var(--dim); margin:18px 0 6px; font-weight:600; }
+.row { margin-bottom:10px; }
+.lbl { font-size:12px; color:var(--dim); margin-bottom:3px; }
+.step { display:grid; grid-template-columns:56px 1fr 56px; gap:6px; }
+.step .val { font-size:20px; font-weight:600; }
+.btns { display:flex; gap:6px; }
+.btns button { flex:1; }
+.wide { width:100%; }
+.ring { display:grid; grid-template-columns:repeat(6,1fr); gap:4px; }
+.ring button { padding:12px 0; font-size:13px; }
+details summary { color:var(--dim); padding:14px 0 8px; font-size:14px; }
+#sheet { position:fixed; inset:0; background:#000a; display:flex; align-items:flex-end; z-index:5; }
+#sheetIn { width:100%; max-height:72vh; overflow:auto; background:var(--panel); border-radius:14px 14px 0 0; padding:14px 12px calc(env(safe-area-inset-bottom) + 14px); }
+#sheetGrid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px; }
+#toast { position:fixed; left:12px; right:12px; bottom:calc(env(safe-area-inset-bottom) + 12px); background:#000d; border:1px solid var(--line); border-radius:10px; padding:10px; text-align:center; font-size:14px; z-index:9; }
+</style>
+</head>
+<body>
+<div id="login" class="hide">
+  <h1>CamRemote</h1>
+  <div style="color:var(--dim)">Enter the phone access code shown in the app on your PC.</div>
+  <input id="code" autocomplete="off" autocapitalize="characters" spellcheck="false">
+  <button id="loginBtn">Connect</button>
+</div>
+
+<div id="main" class="hide">
+  <div class="top">
+    <span id="linkDot" class="dot"></span><span id="linkTxt" class="grow">Connecting…</span>
+    <span id="battery"></span><span id="card"></span>
+  </div>
+  <div id="tabs"></div>
+  <div id="frame">
+    <canvas id="pic" width="16" height="9"></canvas>
+    <div id="nosig">Waiting for the picture…</div>
+    <div id="mark"></div>
+    <div id="alert" class="hide"></div>
+  </div>
+  <div id="guides"><button data-g="hist">Histogram</button><button data-g="zebra">Zebras</button><button data-g="peak">Peaking</button><button data-g="grid">Grid</button></div>
+  <div id="readout"><canvas id="hist" width="256" height="40"></canvas><span id="over"></span><span id="scaleBox" class="grow"><span id="scale"><span id="needle"></span></span></span><span id="ev"></span></div>
+  <button id="rec">● Record</button>
+
+  <h2>EXPOSURE</h2><div id="exposure"></div>
+  <div class="btns row"><button data-iso="640">Base ISO 640</button><button data-iso="12800">Base ISO 12800</button></div>
+  <h2>FOCUS</h2><div id="focus"></div>
+  <div id="ringBox" class="row">
+    <div class="lbl">Focus ring: drag. Near ← → far</div>
+    <div id="wheel"></div>
+    <div class="ring" id="ring"></div>
+  </div>
+  <div class="lbl">Focus magnifier</div>
+  <div id="mag" class="btns row"></div>
+  <button id="stopTrack" class="wide row hide">Stop tracking</button>
+  <h2>AUDIO</h2><div id="audio"></div>
+  <details><summary>More camera settings</summary><div id="more"></div></details>
+</div>
+
+<div id="sheet" class="hide"><div id="sheetIn"><div id="sheetTitle" class="lbl"></div><div id="sheetGrid"></div></div></div>
+<div id="toast" class="hide"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let cam = 'sony', state = null, rotation = 0, lastFrame = '', busyUntil = 0;
+
+async function api(path, body) {
+  const r = await fetch('/api/' + path, body === undefined ? {} : {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CamRemote': '1' }, body: JSON.stringify(body),
+  });
+  if (r.status === 401) { showLogin(); throw new Error('login'); }
+  return r;
+}
+async function act(path, body) {
+  try {
+    const r = await api(cam + '/' + path, body);
+    if (r.status === 409) toast((await r.json()).message);
+    else if (!r.ok) toast('The PC refused that.');
+  } catch (e) { if (e.message !== 'login') toast("Can't reach the PC."); }
+  refresh();
+}
+function toast(msg) {
+  $('toast').textContent = msg; $('toast').classList.remove('hide');
+  clearTimeout(toast.t); toast.t = setTimeout(() => $('toast').classList.add('hide'), 3500);
+}
+function showLogin() { $('login').classList.remove('hide'); $('main').classList.add('hide'); }
+function showMain() { $('login').classList.add('hide'); $('main').classList.remove('hide'); }
+
+$('loginBtn').onclick = async () => {
+  const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: $('code').value }) });
+  if (r.ok) start(); else toast("That code isn't right.");
+};
+
+function chooser(row) {
+  $('sheetTitle').textContent = row.label;
+  const grid = $('sheetGrid'); grid.textContent = '';
+  for (const c of row.choices) {
+    const b = document.createElement('button');
+    b.textContent = c.text; b.className = c.value === row.value ? 'on' : '';
+    b.onclick = () => { $('sheet').classList.add('hide'); act('set', { id: row.id, value: c.value }); };
+    grid.append(b);
+  }
+  $('sheet').classList.remove('hide');
+}
+$('sheet').onclick = e => { if (e.target === $('sheet')) $('sheet').classList.add('hide'); };
+
+function draw(row) {
+  const box = document.createElement('div'); box.className = 'row';
+  const lbl = document.createElement('div'); lbl.className = 'lbl'; lbl.textContent = row.label; box.append(lbl);
+  const off = !row.enabled;
+  if (row.kind === 'Buttons') {
+    const line = document.createElement('div'); line.className = 'btns';
+    for (const c of row.choices) {
+      const b = document.createElement('button');
+      b.textContent = c.text; b.disabled = off; b.className = c.value === row.value ? 'on' : '';
+      b.onclick = () => act('set', { id: row.id, value: c.value });
+      line.append(b);
+    }
+    box.append(line);
+  } else if (row.kind === 'Stepper') {
+    const i = row.choices.findIndex(c => c.value === row.value);
+    const line = document.createElement('div'); line.className = 'step';
+    const prev = document.createElement('button'), val = document.createElement('button'), next = document.createElement('button');
+    prev.textContent = '◀'; next.textContent = '▶'; val.textContent = row.text; val.className = 'val';
+    prev.disabled = off || i <= 0; next.disabled = off || i < 0 || i >= row.choices.length - 1; val.disabled = off;
+    prev.onclick = () => act('set', { id: row.id, value: row.choices[i - 1].value });
+    next.onclick = () => act('set', { id: row.id, value: row.choices[i + 1].value });
+    val.onclick = () => chooser(row);
+    line.append(prev, val, next); box.append(line);
+  } else {
+    const b = document.createElement('button');
+    b.className = 'wide'; b.textContent = row.text; b.disabled = off; b.onclick = () => chooser(row);
+    box.append(b);
+  }
+  return box;
+}
+
+function render(s) {
+  const connected = s.link === 'connected';
+  $('linkDot').style.background = connected ? 'var(--ok)' : s.link === 'connecting' ? 'var(--warn)' : '#666';
+  $('linkTxt').textContent = connected ? 'Camera connected' : s.link === 'connecting' ? 'Connecting…' : 'Camera not connected';
+  $('battery').textContent = s.battery; $('card').textContent = s.card;
+  $('alert').textContent = s.alert; $('alert').classList.toggle('hide', !s.alert);
+  $('frame').classList.toggle('rec', s.recording);
+  const rec = $('rec'); rec.classList.toggle('rec', s.recording); rec.textContent = s.recording ? '■ Stop' : '● Record';
+  rec.disabled = !connected;
+  rotation = s.rotation;
+  const metered = connected && s.meter != null;
+  $('scaleBox').style.visibility = metered ? '' : 'hidden';
+  $('ev').textContent = !metered ? '' : (s.meter > 0 ? '+' : '') + s.meter.toFixed(1);
+  if (metered) {
+    const m = Math.max(-3.1, Math.min(3.1, s.meter)), a = Math.abs(s.meter);
+    $('needle').style.left = (50 + m * 16) + '%';
+    $('needle').style.background = a <= .35 ? 'var(--ok)' : a >= 2 ? 'var(--warn)' : '#fff';
+  }
+  for (const b of document.querySelectorAll('[data-iso]')) b.disabled = !connected;
+  $('ringBox').style.opacity = s.manualFocus ? 1 : .4;
+  $('stopTrack').classList.toggle('hide', !s.tracking);
+  const mags = [0, ...s.magnifyChoices];
+  if ($('mag').children.length !== mags.length) {
+    $('mag').textContent = '';
+    for (const r of mags) {
+      const b = document.createElement('button'); b.dataset.r = r; b.textContent = r ? '×' + r / 10 : 'Off';
+      b.onclick = () => act('set', { id: 'magnify', value: String(r) });
+      $('mag').append(b);
+    }
+  }
+  for (const b of $('mag').children) { b.className = +b.dataset.r === s.magnify ? 'on' : ''; b.disabled = !connected; }
+  for (const b of $('ring').children) b.disabled = !s.manualFocus;
+  if (!$('sheet').classList.contains('hide')) return; // don't redraw under an open chooser
+  for (const section of ['exposure', 'focus', 'audio', 'more']) {
+    const box = $(section); box.textContent = '';
+    for (const row of s.rows.filter(r => r.section === section)) box.append(draw(row));
+  }
+}
+
+async function refresh() {
+  try {
+    const r = await api(cam + '/state');
+    if (r.ok) { state = await r.json(); render(state); }
+  } catch { $('linkTxt').textContent = "Can't reach the PC"; $('linkDot').style.background = 'var(--rec)'; }
+}
+
+$('rec').onclick = () => {
+  if (Date.now() < busyUntil || !state) return;
+  busyUntil = Date.now() + 1500;
+  act('record', { on: !state.recording });
+};
+for (const b of document.querySelectorAll('[data-iso]')) b.onclick = () => act('set', { id: 'baseiso', value: b.dataset.iso });
+for (const [t, step] of [['◀◀◀', -7], ['◀◀', -3], ['◀', -1], ['▶', 1], ['▶▶', 3], ['▶▶▶', 7]]) {
+  const b = document.createElement('button'); b.textContent = t;
+  let hold;
+  const stop = () => clearInterval(hold);
+  b.onpointerdown = () => { act('focusstep', { step }); hold = setInterval(() => act('focusstep', { step }), 200); };
+  b.onpointerup = b.onpointerleave = b.onpointercancel = stop;
+  $('ring').append(b);
+}
+
+$('stopTrack').onclick = () => act('set', { id: 'stoptracking', value: '0' });
+{
+  // Drag like a ring. One request at a time, so a slow link doesn't queue up focus moves.
+  const wheel = $('wheel'), perStep = 5;
+  let lastX = null, owed = 0, turned = 0, sending = false;
+  const send = async () => {
+    const step = Math.max(-7, Math.min(7, Math.trunc(owed / perStep)));
+    if (sending || !step) return;
+    sending = true; owed -= step * perStep;
+    try { await api(cam + '/focusstep', { step }); } catch {}
+    sending = false; send();
+  };
+  wheel.onpointerdown = e => { if (state?.manualFocus) { lastX = e.clientX; owed = 0; wheel.setPointerCapture(e.pointerId); } };
+  wheel.onpointermove = e => {
+    if (lastX === null) return;
+    const d = e.clientX - lastX; lastX = e.clientX; turned += d;
+    owed = Math.max(-35, Math.min(35, owed + d));
+    wheel.style.backgroundPositionX = turned + 'px';
+    send();
+  };
+  wheel.onpointerup = wheel.onpointercancel = () => { lastX = null; };
+}
+
+// Shooting guides, worked out here from the picture on the same rules as the PC app.
+const guides = { hist: true, zebra: false, peak: false, grid: false };
+try { Object.assign(guides, JSON.parse(localStorage.getItem('guides') || '{}')); } catch {}
+function showGuides() {
+  for (const b of document.querySelectorAll('[data-g]')) b.className = guides[b.dataset.g] ? 'on' : '';
+  $('hist').classList.toggle('hide', !guides.hist);
+  $('over').classList.toggle('hide', !guides.hist);
+}
+for (const b of document.querySelectorAll('[data-g]')) b.onclick = () => {
+  guides[b.dataset.g] = !guides[b.dataset.g];
+  try { localStorage.setItem('guides', JSON.stringify(guides)); } catch {}
+  showGuides();
+};
+showGuides();
+
+function applyGuides(ctx, w, h) {
+  if (guides.hist || guides.zebra || guides.peak) {
+    const img = ctx.getImageData(0, 0, w, h), px = img.data, n = w * h;
+    const luma = new Uint8Array(n), bins = new Int32Array(256);
+    for (let i = 0; i < n; i++) {
+      const y = (px[i * 4] * 54 + px[i * 4 + 1] * 183 + px[i * 4 + 2] * 19) >> 8;
+      luma[i] = y; bins[y]++;
+    }
+    const levelPct = state?.zebraLevel ?? 90, level = Math.floor(levelPct * 255 / 100);
+    if (guides.hist) drawHist(bins, level, levelPct, n);
+    if (guides.zebra || guides.peak) {
+      const marks = new Uint8Array(n);
+      if (guides.peak) markPeaks(luma, w, h, marks);
+      if (guides.zebra) {
+        const period = Math.max(10, Math.floor(w / 110)), half = period >> 1;
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+          const i = y * w + x;
+          if (luma[i] >= level && (x + y) % period < half) { px[i * 4] *= .22; px[i * 4 + 1] *= .22; px[i * 4 + 2] *= .22; }
+        }
+      }
+      const c = state?.peakColor ?? 0xFF3030;
+      for (let i = 0; i < n; i++) if (marks[i]) { px[i * 4] = c >> 16 & 255; px[i * 4 + 1] = c >> 8 & 255; px[i * 4 + 2] = c & 255; }
+      ctx.putImageData(img, 0, 0);
+    }
+  }
+  if (guides.grid) {
+    ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = Math.max(1, w / 900); ctx.beginPath();
+    for (const t of [1 / 3, 2 / 3]) { ctx.moveTo(w * t, 0); ctx.lineTo(w * t, h); ctx.moveTo(0, h * t); ctx.lineTo(w, h * t); }
+    const c = h * .025;
+    ctx.moveTo(w / 2 - c, h / 2); ctx.lineTo(w / 2 + c, h / 2); ctx.moveTo(w / 2, h / 2 - c); ctx.lineTo(w / 2, h / 2 + c);
+    ctx.stroke();
+  }
+}
+// Marks edges by how crisp they are, not how strong, so a soft edge against bright sky stays clear.
+// Only connected runs are kept: sky through distant leaves also looks like crisp dots, but real focus shows up as lines.
+function markPeaks(l, w, h, marks) {
+  const share = .4, reach = 3, minRun = 24, minContrast = [48, 30, 18][state?.peakSensitivity ?? 1], minStep = Math.floor(minContrast * share);
+  const crisp = new Uint8Array(w * h);
+  for (let y = reach; y < h - reach - 1; y++) for (let x = reach; x < w - reach - 1; x++) {
+    const i = y * w + x, across = Math.abs(l[i + 1] - l[i]), down = Math.abs(l[i + w] - l[i]), step = Math.max(across, down);
+    if (step < minStep) continue;
+    const stride = across >= down ? 1 : w;
+    let low = 255, high = 0;
+    for (let k = -reach; k <= reach + 1; k++) { const v = l[i + k * stride]; if (v < low) low = v; if (v > high) high = v; }
+    const contrast = high - low;
+    if (contrast >= minContrast && step >= contrast * share) crisp[i] = 1;
+  }
+  const seen = new Uint8Array(w * h);
+  for (let start = 0; start < crisp.length; start++) {
+    if (!crisp[start] || seen[start]) continue;
+    const run = [], todo = [start];
+    seen[start] = 1;
+    let left = w, right = 0, top = h, bottom = 0;
+    while (todo.length) {
+      const i = todo.pop(), x = i % w, y = (i - x) / w;
+      run.push(i);
+      left = Math.min(left, x); right = Math.max(right, x); top = Math.min(top, y); bottom = Math.max(bottom, y);
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const n = ny * w + nx;
+        if (crisp[n] && !seen[n]) { seen[n] = 1; todo.push(n); }
+      }
+    }
+    if (Math.max(right - left, bottom - top) < minRun) continue;
+    for (const i of run) marks[i] = marks[i + 1] = marks[i + w] = marks[i + w + 1] = 1;
+  }
+}
+function drawHist(bins, level, levelPct, pixels) {
+  const c = $('hist'), g = c.getContext('2d'), H = c.height;
+  let peak = 1, over = 0;
+  for (let i = 2; i < 254; i++) peak = Math.max(peak, bins[i]);
+  for (let i = level; i < 256; i++) over += bins[i];
+  g.clearRect(0, 0, 256, H);
+  for (let x = 0; x < 256; x++) {
+    g.fillStyle = x >= level ? '#e8b339' : '#d0d0d0';
+    const v = Math.min(H, Math.sqrt(bins[x] / peak) * H);
+    g.fillRect(x, H - v, 1, v);
+  }
+  g.fillStyle = '#e8b339'; g.fillRect(level, 0, 1, H);
+  const pct = 100 * over / pixels;
+  $('over').textContent = `Over ${levelPct}%: ${pct.toFixed(1)}%`;
+  $('over').style.color = pct >= .5 ? 'var(--warn)' : '';
+}
+
+// The picture is drawn on a canvas so it can be turned for a camera on its side.
+$('pic').onclick = e => {
+  const r = $('pic').getBoundingClientRect();
+  const u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
+  const [x, y] = rotation === 90 ? [v, 1 - u] : rotation === 180 ? [1 - u, 1 - v] : rotation === 270 ? [1 - v, u] : [u, v];
+  const m = $('mark'), f = $('frame').getBoundingClientRect();
+  m.style.left = (e.clientX - f.left) + 'px'; m.style.top = (e.clientY - f.top) + 'px'; m.style.display = 'block';
+  clearTimeout(m.t); m.t = setTimeout(() => m.style.display = 'none', 2000);
+  act('focus', { x, y });
+};
+
+async function pictureLoop() {
+  const canvas = $('pic'), ctx = canvas.getContext('2d', { willReadFrequently: true });
+  for (;;) {
+    try {
+      const r = await api(`${cam}/frame?after=${lastFrame}`);
+      if (r.status === 200) {
+        lastFrame = r.headers.get('X-Frame');
+        const bmp = await createImageBitmap(await r.blob());
+        const side = rotation === 90 || rotation === 270;
+        const w = side ? bmp.height : bmp.width, h = side ? bmp.width : bmp.height;
+        if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+        ctx.save(); ctx.translate(w / 2, h / 2); ctx.rotate(rotation * Math.PI / 180);
+        ctx.drawImage(bmp, -bmp.width / 2, -bmp.height / 2); ctx.restore();
+        bmp.close();
+        applyGuides(ctx, w, h);
+        $('nosig').classList.add('hide');
+      } else if (r.status === 204) {
+        $('nosig').classList.remove('hide');
+      } else await new Promise(d => setTimeout(d, 1000));
+    } catch (e) {
+      if (e.message === 'login') return;
+      await new Promise(d => setTimeout(d, 1000));
+    }
+  }
+}
+
+let started = false;
+async function start() {
+  try {
+    const r = await api('cameras');
+    if (!r.ok) return;
+    const cameras = await r.json();
+    showMain();
+    $('tabs').classList.toggle('hide', cameras.length < 2);
+    $('tabs').textContent = '';
+    for (const c of cameras) {
+      const b = document.createElement('button'); b.textContent = c.name; b.className = c.id === cam ? 'on' : '';
+      b.onclick = () => { cam = c.id; lastFrame = ''; for (const x of $('tabs').children) x.className = x === b ? 'on' : ''; refresh(); };
+      $('tabs').append(b);
+    }
+    refresh();
+    if (!started) { started = true; setInterval(() => { if (!document.hidden) refresh(); }, 1000); pictureLoop(); }
+  } catch (e) { if (e.message !== 'login') toast("Can't reach the PC."); }
+}
+start();
+</script>
+</body>
+</html>

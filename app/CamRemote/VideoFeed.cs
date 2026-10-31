@@ -29,6 +29,7 @@ public sealed class VideoFeed : IAsyncDisposable
     public string Format { get; private set; } = "";
 
     public event Action? BitmapChanged;
+    public event Action? Drew;
 
     /// <summary>Frames drawn since the last call.</summary>
     public int TakeFrameCount() => Interlocked.Exchange(ref _frames, 0);
@@ -114,6 +115,7 @@ public sealed class VideoFeed : IAsyncDisposable
             }
             Bitmap.WritePixels(new Int32Rect(0, 0, w, h), _back, w * 4, 0);
             Interlocked.Increment(ref _frames);
+            Drew?.Invoke();
         }
         finally
         {

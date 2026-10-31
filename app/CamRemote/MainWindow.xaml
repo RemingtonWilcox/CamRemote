@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Icon="CamRemote.ico"
-        Title="CamRemote — A7S III" Width="1500" Height="900" MinWidth="900" MinHeight="560"
+        Title="CamRemote — A7S III" Width="1500" Height="900" MinWidth="980" MinHeight="600"
         Loaded="OnLoaded" Closing="OnClosing" KeyDown="OnKeyDown">
     <Grid>
         <Grid.ColumnDefinitions>
@@ -10,6 +10,7 @@
             <ColumnDefinition Width="310" />
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
@@ -26,8 +27,34 @@
             <TextBlock x:Name="BatteryText" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="16,0,0,0" />
         </DockPanel>
 
+        <!-- Shooting guides: quick toggles, then the meter and histogram. Click the histogram for detail. -->
+        <DockPanel Grid.Row="1" Grid.Column="0" Margin="12,0,12,8" Height="38" LastChildFill="False">
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                <ToggleButton x:Name="HistogramChip" Content="Histogram" Style="{StaticResource Chip}" Click="OnAssistToggle" ToolTip="Show the histogram (H)" />
+                <ToggleButton x:Name="ZebraChip" Content="Zebras" Style="{StaticResource Chip}" Click="OnAssistToggle" ToolTip="Stripe the brightest parts of the picture (Z)" />
+                <ToggleButton x:Name="PeakingChip" Content="Peaking" Style="{StaticResource Chip}" Click="OnAssistToggle" ToolTip="Colour the parts in focus (P)" />
+                <ToggleButton x:Name="GridChip" Content="Grid" Style="{StaticResource Chip}" Click="OnAssistToggle" ToolTip="Rule of thirds and centre mark (G)" />
+                <Button Content="⋯" Padding="9,3" MinHeight="26" Focusable="False" Click="OnAssistDetailClick" ToolTip="Levels, colours and the full histogram" />
+            </StackPanel>
+            <Grid x:Name="HistogramBox" DockPanel.Dock="Right" Width="128" Background="#1E1E1E" Cursor="Hand"
+                  MouseLeftButtonDown="OnAssistDetailClick" ToolTip="Brightness of the picture. Amber is past the zebra level. Click for detail.">
+                <Image x:Name="HistogramSmall" Stretch="Fill" />
+            </Grid>
+            <StackPanel x:Name="ClipBox" DockPanel.Dock="Right" Margin="0,0,8,0" VerticalAlignment="Center">
+                <TextBlock x:Name="OverText" FontSize="11" TextAlignment="Right" />
+                <TextBlock x:Name="UnderText" FontSize="11" TextAlignment="Right" Foreground="{StaticResource Dim}" />
+            </StackPanel>
+            <StackPanel x:Name="MeterBox" DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center"
+                        ToolTip="The camera's exposure meter, in stops.">
+                <TextBlock x:Name="ExposureText" Width="34" FontSize="12" TextAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <Canvas x:Name="ExposureScale" Width="150" Height="24">
+                    <Rectangle x:Name="ExposureNeedle" Width="3" Height="24" Fill="White" />
+                </Canvas>
+            </StackPanel>
+        </DockPanel>
+
         <!-- Live picture from the capture card. Click to focus, right-click to cancel. -->
-        <Border Grid.Row="1" Grid.Column="0" Background="Black">
+        <Border Grid.Row="2" Grid.Column="0" Background="Black">
             <Grid>
                 <TextBlock x:Name="NoSignal" Text="No video — pick a picture source on the right"
                            Foreground="{StaticResource Dim}" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -40,6 +67,19 @@
                     </Grid.LayoutTransform>
                     <Image x:Name="Picture" Stretch="Uniform" Cursor="Cross"
                            MouseLeftButtonDown="OnPictureClick" MouseRightButtonDown="OnPictureRightClick" />
+                    <Image x:Name="AssistLayer" Stretch="Uniform" IsHitTestVisible="False" Visibility="Collapsed" />
+                    <Grid x:Name="GuideGrid" IsHitTestVisible="False" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition /><ColumnDefinition /><ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition /><RowDefinition /><RowDefinition />
+                        </Grid.RowDefinitions>
+                        <Border Grid.Column="1" Grid.RowSpan="3" BorderBrush="#80FFFFFF" BorderThickness="1,0" />
+                        <Border Grid.Row="1" Grid.ColumnSpan="3" BorderBrush="#80FFFFFF" BorderThickness="0,1" />
+                        <Rectangle Grid.Row="1" Grid.Column="1" Width="24" Height="1" Fill="#B0FFFFFF" />
+                        <Rectangle Grid.Row="1" Grid.Column="1" Width="1" Height="24" Fill="#B0FFFFFF" />
+                    </Grid>
                     <Canvas x:Name="Overlay" IsHitTestVisible="False">
                         <Rectangle x:Name="FocusMark" Width="56" Height="56" Stroke="#FFF2C94C" StrokeThickness="2"
                                    Visibility="Collapsed" />
@@ -54,13 +94,13 @@
         </Border>
 
         <!-- Messages -->
-        <DockPanel Grid.Row="2" Grid.Column="0" Margin="12,6">
+        <DockPanel Grid.Row="3" Grid.Column="0" Margin="12,6">
             <TextBlock x:Name="VideoInfo" DockPanel.Dock="Right" Foreground="{StaticResource Dim}" />
             <TextBlock x:Name="MessageText" Foreground="{StaticResource Dim}" TextTrimming="CharacterEllipsis" />
         </DockPanel>
 
         <!-- Controls -->
-        <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" BorderBrush="#333" BorderThickness="1,0,0,0">
+        <Border Grid.Row="0" Grid.RowSpan="4" Grid.Column="1" BorderBrush="#333" BorderThickness="1,0,0,0">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="16,10,16,16">
                     <DockPanel>
@@ -90,7 +130,12 @@
                     <TextBlock Text="FOCUS" Style="{StaticResource Section}" />
                     <StackPanel x:Name="FocusPanel" />
                     <StackPanel x:Name="ManualFocus" Margin="0,2,0,0">
-                        <TextBlock Text="Focus ring (hold to keep turning)" FontSize="12" Foreground="Gray" Margin="0,0,0,3" />
+                        <TextBlock Text="Focus ring: drag or scroll" FontSize="12" Foreground="Gray" Margin="0,0,0,3" />
+                        <Border x:Name="FocusWheel" Height="44" Margin="0,0,0,6" Background="#191919" BorderBrush="#444" BorderThickness="1"
+                                CornerRadius="4" ClipToBounds="True" Cursor="SizeWE" MouseLeftButtonDown="OnWheelDown" MouseMove="OnWheelMove"
+                                MouseLeftButtonUp="OnWheelUp" MouseWheel="OnWheelScroll" ToolTip="Drag like a focus ring. Faster moves focus further.">
+                            <Canvas x:Name="WheelTicks" />
+                        </Border>
                         <UniformGrid Rows="1">
                             <RepeatButton Content="◀◀◀" Tag="-7" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="0,0,2,0" ToolTip="Nearer, big step" />
                             <RepeatButton Content="◀◀" Tag="-3" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="0,0,2,0" ToolTip="Nearer" />
@@ -104,10 +149,12 @@
                             <TextBlock Text="far" FontSize="11" Foreground="{StaticResource Dim}" DockPanel.Dock="Right" />
                             <TextBlock />
                         </DockPanel>
-                        <StackPanel x:Name="MagnifierPanel" />
                     </StackPanel>
+                    <TextBlock Text="Focus magnifier" FontSize="12" Foreground="Gray" Margin="0,8,0,3" />
+                    <StackPanel x:Name="MagnifierButtons" Orientation="Horizontal" />
+                    <Button x:Name="StopTracking" Content="Stop tracking" Margin="0,8,0,0" HorizontalAlignment="Stretch" Click="OnStopTrackingClick" Visibility="Collapsed" />
                     <TextBlock x:Name="TouchHint" TextWrapping="Wrap" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,6,0,0"
-                               Text="Click the picture to focus there. Right-click cancels." />
+                               Text="" />
 
                     <TextBlock Text="AUDIO" Style="{StaticResource Section}" />
                     <Grid x:Name="Meters" Margin="0,0,0,4">
@@ -159,8 +206,41 @@
                     </DockPanel>
                     <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,6,0,0"
                                Text="Wi-Fi live view works with no cable. For the sharpest, smoothest picture, run HDMI into a capture card (camera HDMI Resolution: 1080p)." />
+
+                    <TextBlock Text="PHONE" Style="{StaticResource Section}" />
+                    <CheckBox x:Name="PhoneEnabled" Content="Allow phone control" Click="OnPhoneToggle"
+                              ToolTip="Serves a control page to your home network and Tailscale. Keeps the PC awake while on." />
+                    <TextBlock x:Name="PhoneInfo" TextWrapping="Wrap" FontSize="12" Margin="0,6,0,0" Visibility="Collapsed" />
                 </StackPanel>
             </ScrollViewer>
         </Border>
+
+        <Popup x:Name="AssistDetail" PlacementTarget="{Binding ElementName=HistogramBox}" Placement="Bottom" StaysOpen="False"
+               AllowsTransparency="True" Closed="OnAssistDetailClosed">
+            <Border Width="340" Padding="14" Background="#1B1E22" BorderBrush="#444" BorderThickness="1" CornerRadius="6">
+                <StackPanel>
+                    <Border Height="130" Background="#111">
+                        <Image x:Name="HistogramLarge" Stretch="Fill" />
+                    </Border>
+                    <TextBlock x:Name="DetailText" FontSize="12" Foreground="{StaticResource Dim}" Margin="0,6,0,10" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="130" /><ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition /><RowDefinition /><RowDefinition />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Zebra level" Style="{StaticResource Label}" />
+                        <ComboBox x:Name="ZebraLevelBox" Grid.Column="1" Margin="0,0,0,6" SelectionChanged="OnAssistSettingChanged" />
+                        <TextBlock Text="Peaking sensitivity" Grid.Row="1" Style="{StaticResource Label}" />
+                        <ComboBox x:Name="PeakSensitivityBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" SelectionChanged="OnAssistSettingChanged" />
+                        <TextBlock Text="Peaking colour" Grid.Row="2" Style="{StaticResource Label}" />
+                        <ComboBox x:Name="PeakColorBox" Grid.Row="2" Grid.Column="1" SelectionChanged="OnAssistSettingChanged" />
+                    </Grid>
+                    <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Dim}" Margin="0,10,0,0"
+                               Text="These read the picture you see here, not the recorded file. A Monitor LUT or Gamma Display Assist changes what they show." />
+                </StackPanel>
+            </Border>
+        </Popup>
     </Grid>
 </Window>

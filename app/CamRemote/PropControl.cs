@@ -34,6 +34,7 @@ public sealed class PropControl
     private long _current;
 
     public PropCode Code { get; }
+    public string Section { get; init; } = ""; // where the phone page shows it
     public StackPanel Root { get; } = new() { Margin = new Thickness(0, 4, 0, 6) };
 
     public PropControl(CameraService cam, string label, PropCode code, Func<long, string> fmt, Kind kind,
@@ -100,7 +101,7 @@ public sealed class PropControl
         if (_choices.Length > 0 && j != i) Pick(_choices[j]);
     }
 
-    private void Pick(long v)
+    public void Pick(long v)
     {
         if (_popup != null) _popup.IsOpen = false;
         if (v == _current) return;
@@ -108,6 +109,21 @@ public sealed class PropControl
         Show();
         _cam.Set(Code, v);
     }
+
+    public bool Allows(long v) => _cam.Get(Code) is { Writable: true } && _choices.Contains(v);
+
+    /// <summary>This row for the phone page. Values are strings because some are too big for JavaScript numbers.</summary>
+    public object? Snapshot() => _cam.Get(Code) is not { } p ? null : new
+    {
+        id = Code.ToString(),
+        label = _label.Text,
+        section = Section,
+        kind = _kind.ToString(),
+        value = _current.ToString(),
+        text = _fmt(_current),
+        enabled = p.Writable && _choices.Length > 1,
+        choices = _choices.Select(v => new { value = v.ToString(), text = _fmt(v) }).ToList(),
+    };
 
     public void Update(Prop? p)
     {

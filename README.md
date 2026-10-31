@@ -111,12 +111,17 @@ After this, the app connects by itself every time you open it, and reconnects wh
 
 - **ISO / Shutter / Iris:** ◀ ▶ step through values (▶ is always the bigger number). Click the value to see every choice.
 - **Base ISO 640 / 12800:** the A7S III's two native ISOs in S-Log3. 12800 is the cleanest choice in low light.
-- **Focus ring:** works in MF (or DMF). ◀◀◀ ◀◀ ◀ go nearer, ▶ ▶▶ ▶▶▶ go farther. Hold a button to keep turning.
-- **Click the picture** to focus there (AF with Touch Operation on, movie mode). Right-click cancels.
+- **Focus ring:** works in MF (or DMF). Drag or scroll the wheel like a real ring, or use the arrows for set steps. Right is farther, left is nearer.
+- **Focus magnifier:** Off / ×4 / ×8, or whatever ratios the camera lists. While magnified, click the picture to move the magnified area.
+- **Click the picture** to focus there (movie mode). Right-click cancels. In MF it autofocuses once, then returns to MF.
+- **Tap does:** Focus or Tracking. Sony's SDK doesn't offer the setting for a remote tap's function on the A7S III, so Tracking may only focus; the app tells you if the camera didn't report tracking.
 - **Picture source:** **Camera over Wi-Fi** needs no cable. Any HDMI capture card Windows sees is listed too, at its highest resolution. Plugged one in after opening the app? Click **↻**.
 - **Rotate:** ⟲ / ⟳ under **Picture**, for a camera mounted in portrait. Remembered next time.
 - **Record:** the big button or **F9**.
-- **Nothing reacts to the mouse wheel,** so you can't change a setting by accident while scrolling.
+- **Only the focus wheel reacts to the mouse wheel,** so you can't change a setting by accident while scrolling.
+- **Shooting guides:** the bar above the picture toggles Histogram (**H**), Zebras (**Z**), Peaking (**P**) and Grid (**G**). Click the histogram or **⋯** for levels, colours and an RGB histogram. These are worked out by the app from the preview, not the recorded file, so a Monitor LUT changes them. Peaking at Wi-Fi preview size shows the plane of focus; use the magnifier for critical focus. The exposure meter comes from the camera.
+- **Recording timer:** keeps counting through a dropped link or an app restart. A take already rolling when the app first sees it counts from then, shown with a **+**.
+- **Phone control:** tick **Allow phone control** under **Phone**, then open one of the addresses shown there in your phone's browser and enter the access code. It works on your home network and over Tailscale, and only answers those addresses. The PC must stay on with the app open, and stays awake while this is on. On an iPhone, use Share › Add to Home Screen for a full-screen app.
 - **More camera settings** holds everything else, collapsed.
 - While connected, the app's settings win over the camera dials. The camera goes back to normal when you disconnect.
 

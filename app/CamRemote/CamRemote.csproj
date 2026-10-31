@@ -28,8 +28,11 @@
     <None Include="$(CrRuntime)CrAdapter\*.dll" Link="CrAdapter\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="NAudio.Wasapi" Version="3.3.0" />
     <Resource Include="CamRemote.ico" />
+    <EmbeddedResource Include="phone.html" LogicalName="phone.html" />
+    <EmbeddedResource Include="phone-icon.png" LogicalName="phone-icon.png" />
   </ItemGroup>
 
 </Project>

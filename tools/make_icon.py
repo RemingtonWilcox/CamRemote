@@ -62,4 +62,5 @@ def draw(size):
 
 images = [draw(n) for n in SIZES]
 images[-1].save(OUT, format="ICO", sizes=[(n, n) for n in SIZES], append_images=images[:-1])
+draw(180).convert("RGB").save(OUT.with_name("phone-icon.png"))  # iPhone home screen
 print(f"wrote {OUT}")

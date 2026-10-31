@@ -262,8 +262,10 @@ CB_API int cb_get_props(const uint32_t* codes, int n, char* out, int cap)
             j += ",\"s\":";
             jsonStr(j, str);
         }
-        auto values = p.GetSetValueSize() > 0 ? decodeValues(type, p.GetSetValues(), p.GetSetValueSize())
-                                              : decodeValues(type, p.GetValues(), p.GetValueSize());
+        // Sony's guide reads the magnifier's ratios from GetValues, not the settable list.
+        bool preferAll = p.GetCode() == SDK::CrDevicePropertyCode::CrDeviceProperty_Focus_Magnifier_Setting;
+        auto values = p.GetSetValueSize() > 0 && !preferAll ? decodeValues(type, p.GetSetValues(), p.GetSetValueSize())
+                                                            : decodeValues(type, p.GetValues(), p.GetValueSize());
         j += ",\"p\":[";
         for (size_t k = 0; k < values.size(); ++k) {
             if (k) j += ',';

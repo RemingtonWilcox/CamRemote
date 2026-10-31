@@ -1,4 +1,5 @@
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
@@ -15,6 +16,10 @@ public sealed class LiveViewFeed
     private int _frames;
 
     public string Format { get; private set; } = "";
+
+    /// <summary>The newest JPEG as it came from the camera, for the phone page.</summary>
+    public (byte[] Jpeg, long No)? Latest => _latest?.Value;
+    private volatile StrongBox<(byte[] Jpeg, long No)>? _latest;
 
     public event Action<BitmapSource>? Frame;
 
@@ -39,6 +44,7 @@ public sealed class LiveViewFeed
         _thread?.Join(2000);
         _thread = null;
         Format = "";
+        _latest = null;
     }
 
     private void Loop()
@@ -53,7 +59,11 @@ public sealed class LiveViewFeed
                 Thread.Sleep(5);
                 continue;
             }
-            if (n > 0) lastFrame = frameNo;
+            if (n > 0)
+            {
+                lastFrame = frameNo;
+                _latest = new((_buf.AsSpan(0, n).ToArray(), frameNo));
+            }
             if (n < 0)
             {
                 Thread.Sleep(250); // not connected yet, or the camera is busy

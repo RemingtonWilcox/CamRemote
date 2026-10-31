@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace CamRemote;
@@ -12,6 +13,10 @@ public partial class MainWindow : Window
     private readonly CameraService _cam;
     private readonly VideoFeed _video;
     private readonly LiveViewFeed _live;
+    private readonly PictureAssist _assist;
+    private WriteableBitmap? _assistBitmap;
+    private bool _loadingAssist;
+    private DateTime _assistDetailClosed;
     private readonly AudioMeter _meter = new();
     private readonly DispatcherTimer _meterTick;
     private readonly double[] _hold = [-100, -100];
@@ -23,9 +28,14 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _tick;
     private readonly DispatcherTimer _hideFocusMark;
     private DateTime? _recStart;
+    private bool _sawNotRecording; // this run saw the take begin, so its start time is exact
+    private DateTime? _idleSince; // when the camera first said it wasn't recording
+    private long? _lastMode;
     private DateTime _linkSince = DateTime.Now; // when the link last changed state
     private bool _reconnecting;
     private bool _wasConnected; // connected at some point this run, so a drop is worth a banner
+    private PhoneServer? _phone;
+    private bool _phoneWatching; // a phone wants the live view, even if this window shows a capture card
 
     public MainWindow()
     {
@@ -38,12 +48,19 @@ public partial class MainWindow : Window
             Picture.Source = _video.Bitmap;
             NoSignal.Visibility = Visibility.Collapsed;
         };
+        _assist = new PictureAssist(Dispatcher);
+        _assist.Done += ShowAssist;
+        _video.Drew += () =>
+        {
+            if (!_useWifi && _video.Bitmap != null) _assist.Offer(_video.Bitmap);
+        };
         _live = new LiveViewFeed(Dispatcher);
         _live.Frame += bmp =>
         {
             if (!_useWifi) return;
             Picture.Source = bmp;
             NoSignal.Visibility = Visibility.Collapsed;
+            _assist.Offer(bmp);
         };
         _cam.Message += ShowMessage;
         _cam.StateChanged += OnLinkChanged;
@@ -55,7 +72,7 @@ public partial class MainWindow : Window
         Add(ExposurePanel, "Shutter", PropCode.ShutterSpeed, Format.Shutter, big, v => -Format.ShutterSeconds(v));
         Add(ExposurePanel, "Iris", PropCode.FNumber, Format.FNumber, big, v => v);
         Add(FocusPanel, "Focus mode", PropCode.FocusMode, Format.Named("FocusMode"), PropControl.Kind.Buttons);
-        Add(MagnifierPanel, "Focus magnifier", PropCode.Focus_Magnifier_Setting, Format.Magnifier, pick);
+        Add(FocusPanel, "Tap does", PropCode.FunctionOfTouchOperation, Format.Named("TouchFunction"), PropControl.Kind.Buttons);
         Add(AudioPanel, "Record level", PropCode.AudioInputMasterLevel, v => v.ToString(), big, v => v);
         Add(AudioPanel, "Audio recording", PropCode.AudioRecording, Format.Named("AudioRecording"), PropControl.Kind.Buttons);
         Add(AudioPanel, "Wind noise reduction", PropCode.WindNoiseReduct, Format.Named("WindNoise"), PropControl.Kind.Buttons);
@@ -64,7 +81,6 @@ public partial class MainWindow : Window
         Add(MorePanel, "Color temp", PropCode.Colortemp, Format.ColorTemp, pick, v => v);
         Add(MorePanel, "Focus area", PropCode.FocusArea, Format.Named("FocusArea"), pick);
         Add(MorePanel, "Touch operation", PropCode.TouchOperation, Format.Named("TouchOperation"), PropControl.Kind.Buttons);
-        Add(MorePanel, "Touch does", PropCode.FunctionOfTouchOperation, Format.Named("TouchFunction"), pick);
         Add(MorePanel, "Shooting mode", PropCode.MovieShootingMode, Format.Named("MovieShootingMode"), pick);
         Add(MorePanel, "Monitor LUT", PropCode.MonitorLUTSetting, Format.Named("MonitorLut"), PropControl.Kind.Buttons);
         Add(MorePanel, "File format", PropCode.Movie_File_Format, Format.Named("MovieFileFormat"), pick);
@@ -73,6 +89,8 @@ public partial class MainWindow : Window
         Add(MorePanel, "HDMI out", PropCode.Movie_HDMIOutputResolution, Format.Named("HdmiResolution"), pick);
         OnPropsChanged();
         ApplyRotation();
+        SetUpAssist();
+        DrawWheel();
 
         _tick = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Normal, (_, _) => Tick(), Dispatcher);
         _tick.Start();
@@ -85,6 +103,7 @@ public partial class MainWindow : Window
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         await LoadSourcesAsync();
+        await SetPhoneAsync(_settings.PhoneEnabled);
         await TryReconnectAsync(first: true);
     }
 
@@ -139,8 +158,9 @@ public partial class MainWindow : Window
         _tick.Stop();
         _live.Stop();
         _meter.Dispose();
+        _cam.Dispose(); // before any await: the window may be gone by the time an await resumes, and this thread would keep the app alive
+        if (_phone != null) await _phone.DisposeAsync();
         await _video.DisposeAsync();
-        _cam.Dispose();
     }
 
     // ---- Video ----
@@ -153,6 +173,7 @@ public partial class MainWindow : Window
         _settings.VideoDeviceId = dev.Id;
         _settings.Save();
         Picture.Source = null;
+        ClearAssist();
         _useWifi = dev == WifiSource;
         UpdateLiveView();
         UpdateMeter(_useWifi ? null : dev);
@@ -173,7 +194,7 @@ public partial class MainWindow : Window
     /// <summary>Runs the live-view reader only while it's the chosen picture and the camera is connected.</summary>
     private void UpdateLiveView()
     {
-        if (_useWifi && _cam.State == LinkState.Connected) _live.Start();
+        if ((_useWifi || _phoneWatching) && _cam.State == LinkState.Connected) _live.Start();
         else _live.Stop();
         NoSignal.Text = _useWifi
             ? _cam.State == LinkState.Connected ? "Waiting for the camera's picture…" : "Connect the camera to see its picture"
@@ -259,13 +280,20 @@ public partial class MainWindow : Window
             ShowMessage("Saved camera properties to " + path);
             e.Handled = true;
         }
+        else if (Keyboard.Modifiers == ModifierKeys.None && e.Key is Key.H or Key.Z or Key.P or Key.G)
+        {
+            var chip = e.Key switch { Key.H => HistogramChip, Key.Z => ZebraChip, Key.P => PeakingChip, _ => GridChip };
+            chip.IsChecked = chip.IsChecked != true;
+            ApplyAssist();
+            e.Handled = true;
+        }
     }
 
     private void OnLinkChanged()
     {
         _linkSince = DateTime.Now;
         if (_cam.State == LinkState.Connected) _wasConnected = true;
-        KeepAwake(_cam.State == LinkState.Connected);
+        KeepAwake();
         var (color, text, button) = _cam.State switch
         {
             LinkState.Connected => ((Brush)FindResource("Ok"), "Camera connected", "Disconnect"),
@@ -280,6 +308,7 @@ public partial class MainWindow : Window
         if (_useWifi && _cam.State != LinkState.Connected)
         {
             Picture.Source = null;
+            ClearAssist();
             NoSignal.Visibility = Visibility.Visible;
         }
         OnPropsChanged();
@@ -303,8 +332,7 @@ public partial class MainWindow : Window
         ManualFocus.ToolTip = manual ? null : "Switch Focus mode to MF (or DMF) to use the focus ring.";
 
         bool recording = _cam.IsRecording;
-        if (recording && _recStart == null) _recStart = DateTime.Now;
-        if (!recording) _recStart = null;
+        TrackRecordingTime(recording);
         RecBadge.Visibility = recording ? Visibility.Visible : Visibility.Collapsed;
         RecFrame.BorderBrush = recording ? (Brush)FindResource("Rec") : Brushes.Transparent;
         RecLabel.Text = recording ? "Stop" : "Record";
@@ -347,19 +375,59 @@ public partial class MainWindow : Window
         AlertText.Foreground = alertColor == FindResource("Warn") ? Brushes.Black : Brushes.White;
         AlertText.Text = alert ?? "";
 
+        // The camera is the truth: a dial or Memory Recall can change everything at once, so say so when it does.
+        long? mode = _cam.State == LinkState.Connected ? _cam.Get(PropCode.ExposureProgramMode)?.Value : null;
+        if (mode != null && _lastMode != null && mode != _lastMode)
+            ShowMessage($"The camera changed to {Format.Named("ExposureProgram")(mode.Value)}. Settings here now show what it reports.");
+        if (mode != null) _lastMode = mode;
+
         CamSummary.Text = _cam.State != LinkState.Connected ? "" : string.Join("   ", new[]
         {
+            Show(PropCode.ExposureProgramMode, Format.Named("ExposureProgram")),
             Show(PropCode.Movie_Recording_Setting, Format.Named("MovieRecordingSetting")),
             Show(PropCode.ShutterSpeed, Format.Shutter),
             Show(PropCode.FNumber, Format.FNumber),
             Show(PropCode.IsoSensitivity, Format.Iso),
         }.Where(s => s.Length > 0));
 
-        bool touchReady = _cam.Get(PropCode.RemoteTouchOperationEnableStatus)?.Value == 1
-                          || _cam.Get(PropCode.AF_Area_Position) is { Writable: true };
-        TouchHint.Text = _cam.State != LinkState.Connected || touchReady
-            ? "Click the picture to focus there. Right-click cancels."
-            : "Touch focus is off on the camera right now (needs movie mode and Touch Operation on, or a Spot focus area).";
+        ShowMeter();
+
+        ShowFocusTools();
+    }
+
+    /// <summary>
+    /// Keeps the take's start time in settings, so the timer carries on after a dropped link or a restart.
+    /// The camera doesn't report how long it has been recording, so a take this app never saw begin
+    /// counts from when it was found, shown with a "+".
+    /// </summary>
+    private void TrackRecordingTime(bool recording)
+    {
+        if (_cam.State != LinkState.Connected || _cam.Props.Count == 0) return;
+        if (!recording)
+        {
+            // Just after connecting the camera can say "not recording" mid-take, so only believe it once it holds.
+            _idleSince ??= DateTime.Now;
+            if (DateTime.Now - _idleSince < TimeSpan.FromSeconds(5)) return;
+            _recStart = null;
+            _sawNotRecording = true;
+            if (_settings.RecordingSince != null)
+            {
+                _settings.RecordingSince = null;
+                _settings.Save();
+            }
+        }
+        else
+        {
+            _idleSince = null;
+            if (_recStart != null) return;
+            if (_settings.RecordingSince == null || _sawNotRecording)
+            {
+                _settings.RecordingSince = DateTime.UtcNow;
+                _settings.RecordingJoined = !_sawNotRecording;
+                _settings.Save();
+            }
+            _recStart = _settings.RecordingSince.Value.ToLocalTime();
+        }
     }
 
     private string Show(PropCode code, Func<long, string> fmt)
@@ -371,8 +439,14 @@ public partial class MainWindow : Window
     private void Tick()
     {
         _ = TryReconnectAsync();
+        bool watching = _phone?.Watching("sony") == true;
+        if (watching != _phoneWatching)
+        {
+            _phoneWatching = watching;
+            UpdateLiveView();
+        }
         if (_recStart is DateTime start)
-            RecTime.Text = "● REC " + (DateTime.Now - start).ToString(@"hh\:mm\:ss");
+            RecTime.Text = "● REC " + (DateTime.Now - start).ToString(@"hh\:mm\:ss") + (_settings.RecordingJoined ? "+" : "");
         int frames = _useWifi ? _live.TakeFrameCount() : _video.TakeFrameCount();
         string format = _useWifi ? _live.Format : _video.Format;
         VideoInfo.Text = format.Length == 0 ? "" : $"{format}   {frames} fps shown";
@@ -385,7 +459,10 @@ public partial class MainWindow : Window
     private void Add(Panel panel, string label, PropCode code, Func<long, string> fmt, PropControl.Kind kind,
         Func<long, double>? order = null)
     {
-        var c = new PropControl(_cam, label, code, fmt, kind, order);
+        var c = new PropControl(_cam, label, code, fmt, kind, order)
+        {
+            Section = panel == ExposurePanel ? "exposure" : panel == AudioPanel ? "audio" : panel == MorePanel ? "more" : "focus",
+        };
         panel.Children.Add(c.Root);
         _rows.Add(c);
     }
@@ -393,32 +470,274 @@ public partial class MainWindow : Window
     /// <summary>Jumps to one of the A7S III's two native ISOs (640 / 12800 in S-Log3).</summary>
     private void OnBaseIsoClick(object sender, RoutedEventArgs e)
     {
-        long want = long.Parse((string)((Button)sender).Tag);
-        var p = _cam.Get(PropCode.IsoSensitivity);
-        if (p == null) return;
-        var choices = p.Choices().Where(v => (v & 0xFFFFFF) == want).ToList();
-        if (choices.Count == 0)
+        if (_cam.SetBaseIso(long.Parse((string)((Button)sender).Tag)) is { } problem) ShowMessage(problem);
+    }
+
+    private void ShowFocusTools()
+    {
+        bool connected = _cam.State == LinkState.Connected;
+        long ratio = connected ? _cam.MagnifyRatio : 0;
+        var choices = connected ? _cam.MagnifyChoices() : [];
+        var wanted = new List<long> { 0 };
+        wanted.AddRange(choices);
+        if (!wanted.SequenceEqual(MagnifierButtons.Children.OfType<Button>().Select(b => (long)b.Tag)))
         {
-            ShowMessage($"The camera isn't offering ISO {want} right now (check the shooting mode).");
-            return;
+            MagnifierButtons.Children.Clear();
+            foreach (long r in wanted)
+            {
+                var b = new Button { Tag = r, Content = r == 0 ? "Off" : $"×{r / 10.0:0.#}", Padding = new Thickness(12, 5, 12, 5), Margin = new Thickness(0, 0, 4, 0) };
+                b.Click += (_, _) => _cam.Magnify((long)b.Tag);
+                MagnifierButtons.Children.Add(b);
+            }
         }
-        // Prefer the plain value over an "expanded" variant with flag bits set.
-        _cam.Set(PropCode.IsoSensitivity, choices.OrderBy(v => v >> 24).First());
+        foreach (Button b in MagnifierButtons.Children)
+        {
+            b.IsEnabled = connected;
+            b.FontWeight = (long)b.Tag == ratio ? FontWeights.Bold : FontWeights.Normal;
+        }
+        bool tracking = connected && _cam.IsTracking;
+        StopTracking.Visibility = tracking ? Visibility.Visible : Visibility.Collapsed;
+        TouchHint.Text = !connected ? ""
+            : ratio > 0 ? "Magnified: click the picture to move the magnified area."
+            : _cam.IsManualFocus ? "Click the picture to autofocus once. It stays in manual."
+            : tracking ? "Tracking. Right-click the picture to stop."
+            : _cam.TapTracks ? "Click a subject to track it. Right-click cancels."
+            : "Click the picture to focus there. Right-click cancels.";
+    }
+
+    private void OnStopTrackingClick(object sender, RoutedEventArgs e) => _cam.CancelTouch();
+
+    // ---- Focus wheel ----
+
+    private const double WheelPixelsPerStep = 5, WheelTickGap = 14;
+    private double _wheelLastX, _wheelOwed, _wheelTurned;
+
+    private void DrawWheel()
+    {
+        WheelTicks.Children.Clear();
+        for (int i = -1; i < 40; i++)
+        {
+            bool major = i % 5 == 0;
+            var tick = new System.Windows.Shapes.Rectangle { Width = 1, Height = major ? 24 : 12, Fill = major ? Brushes.Gray : Brushes.DimGray };
+            Canvas.SetLeft(tick, i * WheelTickGap + _wheelTurned % (WheelTickGap * 5));
+            Canvas.SetTop(tick, major ? 10 : 16);
+            WheelTicks.Children.Add(tick);
+        }
+    }
+
+    private void TurnWheel(double pixels)
+    {
+        _wheelTurned += pixels;
+        _wheelOwed = Math.Clamp(_wheelOwed + pixels, -7 * WheelPixelsPerStep, 7 * WheelPixelsPerStep);
+        DrawWheel();
+        int step = (int)Math.Clamp(_wheelOwed / WheelPixelsPerStep, -7, 7);
+        if (step != 0 && _cam.FocusStep(step)) _wheelOwed -= step * WheelPixelsPerStep;
+    }
+
+    private void OnWheelDown(object sender, MouseButtonEventArgs e)
+    {
+        _wheelLastX = e.GetPosition(FocusWheel).X;
+        _wheelOwed = 0;
+        FocusWheel.CaptureMouse();
+    }
+
+    private void OnWheelMove(object sender, MouseEventArgs e)
+    {
+        if (!FocusWheel.IsMouseCaptured) return;
+        double x = e.GetPosition(FocusWheel).X;
+        TurnWheel(x - _wheelLastX);
+        _wheelLastX = x;
+    }
+
+    private void OnWheelUp(object sender, MouseButtonEventArgs e) => FocusWheel.ReleaseMouseCapture();
+
+    private void OnWheelScroll(object sender, MouseWheelEventArgs e)
+    {
+        TurnWheel(e.Delta > 0 ? WheelPixelsPerStep : -WheelPixelsPerStep);
+        e.Handled = true;
     }
 
     private void OnFocusStep(object sender, RoutedEventArgs e) =>
         _cam.FocusStep(int.Parse((string)((FrameworkElement)sender).Tag));
+
+    // ---- Shooting guides ----
+
+    private void SetUpAssist()
+    {
+        for (int stop = -3; stop <= 3; stop++)
+        {
+            double h = stop == 0 ? 24 : 10;
+            var tick = new System.Windows.Shapes.Rectangle { Width = 1, Height = h, Fill = (Brush)FindResource("Dim") };
+            Canvas.SetLeft(tick, 75 + stop * 24);
+            Canvas.SetTop(tick, (24 - h) / 2);
+            ExposureScale.Children.Insert(0, tick);
+        }
+
+        _loadingAssist = true;
+        HistogramChip.IsChecked = _settings.ShowHistogram;
+        ZebraChip.IsChecked = _settings.ShowZebras;
+        PeakingChip.IsChecked = _settings.ShowPeaking;
+        GridChip.IsChecked = _settings.ShowGrid;
+        ZebraLevelBox.ItemsSource = new[] { 70, 80, 90, 95, 100 }.Select(v => new KeyValuePair<string, int>($"{v}%", v)).ToList();
+        PeakSensitivityBox.ItemsSource = new[] { "Low", "Medium", "High" }.Select((n, i) => new KeyValuePair<string, int>(n, i)).ToList();
+        PeakColorBox.ItemsSource = new[] { ("Red", 0xFF3030u), ("Yellow", 0xFFE030u), ("Cyan", 0x30E0FFu), ("White", 0xFFFFFFu) }
+            .Select(c => new KeyValuePair<string, uint>(c.Item1, c.Item2)).ToList();
+        foreach (var box in new[] { ZebraLevelBox, PeakSensitivityBox, PeakColorBox })
+        {
+            box.DisplayMemberPath = "Key";
+            box.SelectedValuePath = "Value";
+        }
+        ZebraLevelBox.SelectedValue = _settings.ZebraLevel;
+        PeakSensitivityBox.SelectedValue = _settings.PeakSensitivity;
+        PeakColorBox.SelectedValue = _settings.PeakColor;
+        _loadingAssist = false;
+        ApplyAssist();
+    }
+
+    private void OnAssistToggle(object sender, RoutedEventArgs e) => ApplyAssist();
+
+    private void OnAssistSettingChanged(object sender, SelectionChangedEventArgs e) => ApplyAssist();
+
+    /// <summary>Saves the guide settings, and only reads the picture while something needs it.</summary>
+    private void ApplyAssist()
+    {
+        if (_loadingAssist) return;
+        _settings.ShowHistogram = HistogramChip.IsChecked == true;
+        _settings.ShowZebras = ZebraChip.IsChecked == true;
+        _settings.ShowPeaking = PeakingChip.IsChecked == true;
+        _settings.ShowGrid = GridChip.IsChecked == true;
+        if (ZebraLevelBox.SelectedValue is int level) _settings.ZebraLevel = level;
+        if (PeakSensitivityBox.SelectedValue is int sensitivity) _settings.PeakSensitivity = sensitivity;
+        if (PeakColorBox.SelectedValue is uint color) _settings.PeakColor = color;
+        _settings.Save();
+
+        bool layer = _settings.ShowZebras || _settings.ShowPeaking;
+        _assist.Options = new AssistOptions(_settings.ShowHistogram || layer || AssistDetail.IsOpen, _settings.ShowZebras,
+            _settings.ZebraLevel, _settings.ShowPeaking, _settings.PeakSensitivity, _settings.PeakColor);
+        var show = _settings.ShowHistogram ? Visibility.Visible : Visibility.Collapsed;
+        HistogramBox.Visibility = ClipBox.Visibility = show;
+        AssistLayer.Visibility = layer ? Visibility.Visible : Visibility.Collapsed;
+        GuideGrid.Visibility = _settings.ShowGrid ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OnAssistDetailClick(object sender, RoutedEventArgs e)
+    {
+        if ((DateTime.Now - _assistDetailClosed).TotalMilliseconds < 250) return; // that click just closed it
+        AssistDetail.PlacementTarget = HistogramBox.IsVisible ? HistogramBox : (UIElement)sender;
+        AssistDetail.IsOpen = true;
+        ApplyAssist();
+    }
+
+    private void OnAssistDetailClosed(object? sender, EventArgs e)
+    {
+        _assistDetailClosed = DateTime.Now;
+        ApplyAssist();
+    }
+
+    private void ShowAssist(AssistResult r)
+    {
+        const double Clipping = 0.5; // percent of the picture worth flagging
+        if (_settings.ShowHistogram)
+        {
+            HistogramSmall.Source = BitmapSource.Create(256, 40, 96, 96, PixelFormats.Pbgra32, null,
+                PictureAssist.DrawHistogram(r, 40, false, _settings.ZebraLevel), 256 * 4);
+            OverText.Text = $"Over {_settings.ZebraLevel}%: {r.OverPercent:0.0}%";
+            OverText.Foreground = r.OverPercent >= Clipping ? (Brush)FindResource("Warn") : (Brush)FindResource("Dim");
+            UnderText.Text = $"Under 3%: {r.UnderPercent:0.0}%";
+        }
+        if (AssistDetail.IsOpen)
+        {
+            HistogramLarge.Source = BitmapSource.Create(256, 130, 96, 96, PixelFormats.Pbgra32, null,
+                PictureAssist.DrawHistogram(r, 130, true, _settings.ZebraLevel), 256 * 4);
+            DetailText.Text = $"{r.OverPercent:0.0}% over {_settings.ZebraLevel}%     {r.UnderPercent:0.0}% under 3%";
+        }
+        if (r.Overlay.Length > 0)
+        {
+            if (_assistBitmap == null || _assistBitmap.PixelWidth != r.Width || _assistBitmap.PixelHeight != r.Height)
+            {
+                _assistBitmap = new WriteableBitmap(r.Width, r.Height, 96, 96, PixelFormats.Pbgra32, null);
+                AssistLayer.Source = _assistBitmap;
+            }
+            _assistBitmap.WritePixels(new Int32Rect(0, 0, r.Width, r.Height), r.Overlay, r.Width * 4, 0);
+        }
+        else if (_assistBitmap != null)
+        {
+            _assistBitmap = null;
+            AssistLayer.Source = null;
+        }
+    }
+
+    private void ClearAssist()
+    {
+        _assistBitmap = null;
+        AssistLayer.Source = null;
+        HistogramSmall.Source = HistogramLarge.Source = null;
+        OverText.Text = UnderText.Text = DetailText.Text = "";
+    }
+
+    private void ShowMeter()
+    {
+        var stops = _cam.State == LinkState.Connected ? _cam.MeterStops : null;
+        MeterBox.Visibility = stops == null ? Visibility.Collapsed : Visibility.Visible;
+        if (stops is not double s) return;
+        Canvas.SetLeft(ExposureNeedle, 74 + Math.Clamp(s, -3.1, 3.1) * 24);
+        ExposureText.Text = Math.Abs(s) > 3 ? (s > 0 ? "+3 ▶" : "◀ -3") : $"{s:+0.0;-0.0;0.0}";
+        ExposureNeedle.Fill = Math.Abs(s) <= 0.35 ? (Brush)FindResource("Ok") : Math.Abs(s) >= 2 ? (Brush)FindResource("Warn") : Brushes.White;
+    }
 
     // ---- Keep the PC awake ----
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll")]
     private static extern uint SetThreadExecutionState(uint flags);
 
-    /// <summary>Stops Windows sleeping or blanking the screen while the camera is connected.</summary>
-    private static void KeepAwake(bool on)
+    /// <summary>
+    /// Stops Windows sleeping or blanking the screen while the camera is connected. With phone control on,
+    /// the PC also stays awake with the camera off, so a phone can still reach it.
+    /// </summary>
+    private void KeepAwake()
     {
         const uint Continuous = 0x80000000, System = 0x1, Display = 0x2;
-        SetThreadExecutionState(on ? Continuous | System | Display : Continuous);
+        SetThreadExecutionState(_cam.State == LinkState.Connected ? Continuous | System | Display
+            : _phone != null ? Continuous | System : Continuous);
+    }
+
+    // ---- Phone control ----
+
+    private async void OnPhoneToggle(object sender, RoutedEventArgs e)
+    {
+        _settings.PhoneEnabled = PhoneEnabled.IsChecked == true;
+        _settings.Save();
+        await SetPhoneAsync(_settings.PhoneEnabled);
+    }
+
+    private async Task SetPhoneAsync(bool on)
+    {
+        PhoneEnabled.IsChecked = on;
+        if (_phone != null)
+        {
+            await _phone.DisposeAsync();
+            _phone = null;
+        }
+        if (on)
+        {
+            _settings.EnsurePhoneSecrets();
+            _settings.Save();
+            var sony = new SonyRemote(Dispatcher, _cam, _live, _settings, _rows, () =>
+                (BatteryText.Text, CardText.Text, AlertBanner.Visibility == Visibility.Visible ? AlertText.Text : ""));
+            var server = new PhoneServer(_settings, [sony]);
+            try
+            {
+                await server.StartAsync();
+                _phone = server;
+            }
+            catch (Exception ex)
+            {
+                ShowMessage($"Phone control couldn't start: {ex.Message}");
+            }
+        }
+        PhoneInfo.Visibility = _phone != null ? Visibility.Visible : Visibility.Collapsed;
+        PhoneInfo.Text = _phone == null ? "" : string.Join("\n", PhoneServer.Addresses(_settings.PhonePort)) + $"\nAccess code: {_settings.PhoneCode}";
+        KeepAwake();
     }
 
     // ---- Audio meters ----
