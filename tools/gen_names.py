@@ -42,19 +42,27 @@ def parse_enums(text):
     enums, known = {}, {}
     for m in re.finditer(r"enum\s*(\w*)\s*(?::\s*[\w\s]+)?\{(.*?)\}", text, flags=re.S):
         name, body = m.group(1), m.group(2)
-        members, nxt = [], 0
+        members, nxt, skipping = [], 0, False
         for item in body.split(","):
             item = item.strip()
             if not item:
                 continue
             if "=" in item:
                 key, expr = (s.strip() for s in item.split("=", 1))
-                expr = re.sub(r"(?<=[0-9a-fA-F])[uUlL]+\b", "", expr)
+                # Drop C suffixes from number literals only (0x10u, 5UL), not from names like CrError_Level.
+                expr = re.sub(r"\b(0[xX][0-9a-fA-F]+|\d+)[uUlL]+\b", r"\1", expr)
                 try:
                     val = int(eval(expr, {"__builtins__": {}}, known))
                 except Exception:
+                    # Skipping it quietly would also shift every member after it that has no "=".
+                    print(f"warning: couldn't work out {key} = {expr} in enum {name or '(unnamed)'}; skipped it and the members counting on from it",
+                          file=sys.stderr)
+                    skipping = True
                     continue
+                skipping = False
             else:
+                if skipping:
+                    continue  # its value depends on the one that couldn't be worked out
                 key, val = item, nxt
             known[key] = val
             members.append((key, val))

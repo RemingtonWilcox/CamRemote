@@ -60,6 +60,18 @@ enum CrWarning { CrWarning_Unknown = 0x00020000, CrWarning_Connect_Reconnected }
         self.assertIn('[0x8201] = "CrError_Connect_Next",', cs)
         self.assertIn('[0x20001] = "CrWarning_Connect_Reconnected",', cs)
 
+    def test_a_member_defined_from_a_name_ending_like_a_hex_suffix_keeps_its_value(self):
+        # "CrError_Level" ends in "eL", which looks like a hex digit plus an L suffix. Only number
+        # suffixes (0x10u, 5UL) may be stripped, or the name breaks and later members shift.
+        cs, _ = generate(BASE + "enum CrError { CrError_Base = 0x8000UL, CrError_Level = 0x8100, CrError_Later = CrError_Level + 0x10, CrError_Next };")
+        self.assertIn('[0x8000] = "CrError_Base",', cs)
+        self.assertIn('[0x8110] = "CrError_Later",', cs)
+        self.assertIn('[0x8111] = "CrError_Next",', cs)
+
+    def test_a_member_that_cannot_be_worked_out_is_reported_not_silently_shifted(self):
+        _, err = generate(BASE + "enum CrError { CrError_A = 0x8200, CrError_B = sizeof(int), CrError_C };")
+        self.assertIn("CrError_B", err)
+
 
 if __name__ == "__main__":
     unittest.main()
