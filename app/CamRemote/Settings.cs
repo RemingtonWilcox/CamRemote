@@ -58,10 +58,16 @@ public sealed class Settings
         if (PhoneToken.Length == 0) PhoneToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     }
 
+    /// <summary>
+    /// Writes a new file and then swaps it in, so a crash or power cut mid-save can't leave half a file.
+    /// (A broken file would load as defaults and forget the camera's trusted fingerprint.)
+    /// </summary>
     public void Save()
     {
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path)!);
-        File.WriteAllText(Path, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+        string temp = Path + ".new";
+        File.WriteAllText(temp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+        File.Move(temp, Path, overwrite: true);
     }
 
 #if WINDOWS

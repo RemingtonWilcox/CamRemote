@@ -2,6 +2,7 @@ using Xunit;
 
 namespace CamRemote.Tests;
 
+[Collection("settings file")] // these save settings.json, so they take turns
 public class CameraConnectTests
 {
     private static Settings Saved() => new() { CameraIp = "192.168.1.50", CameraMac = "AA:BB", CameraUser = "user1", Fingerprint = "SHA256:fake" };
@@ -79,6 +80,7 @@ public class CameraConnectTests
     }
 }
 
+[Collection("settings file")]
 public class SettingsTests
 {
     [Fact]
@@ -91,6 +93,16 @@ public class SettingsTests
         Assert.Equal(90, back.Rotation);
         Assert.Equal("fp", back.Fingerprint);
         Assert.Equal(s.RecordingSince, back.RecordingSince);
+    }
+
+    [Fact]
+    public void Saving_replaces_the_whole_file_and_leaves_nothing_behind()
+    {
+        string file = Path.Combine(Settings.Folder, "settings.json");
+        new Settings { CameraIp = "10.0.0.1", Fingerprint = "a-much-longer-fingerprint-than-the-next-one" }.Save();
+        new Settings { CameraIp = "10.0.0.2", Fingerprint = "short" }.Save();
+        Assert.Equal("short", Settings.Load().Fingerprint); // valid JSON, no tail left from the longer file
+        Assert.False(File.Exists(file + ".new"));
     }
 
     [Fact]
