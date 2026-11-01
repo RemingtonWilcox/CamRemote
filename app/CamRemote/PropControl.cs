@@ -21,6 +21,8 @@ public sealed class PropControl : IPropRow
     private static readonly Brush PopupBg = new SolidColorBrush(Color.FromRgb(0x26, 0x26, 0x26));
     private static readonly Brush PopupLine = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44));
 
+    private static readonly TimeSpan WantedWait = TimeSpan.FromSeconds(2);
+
     private readonly CameraService _cam;
     private readonly Func<long, string> _fmt;
     private readonly Func<long, double>? _order;
@@ -32,6 +34,8 @@ public sealed class PropControl : IPropRow
     private readonly UniformGrid? _grid;
     private long[] _choices = [];
     private long _current;
+    private long? _wanted; // what the user last asked for, until the camera reports it
+    private DateTime _wantedUntil;
 
     public PropCode Code { get; }
     public string Section { get; init; } = ""; // where the phone page shows it
@@ -106,6 +110,8 @@ public sealed class PropControl : IPropRow
         if (_popup != null) _popup.IsOpen = false;
         if (v == _current) return;
         _current = v; // show it right away; the camera's answer follows
+        _wanted = v;
+        _wantedUntil = DateTime.Now + WantedWait;
         Show();
         _cam.Set(Code, v);
     }
@@ -131,6 +137,7 @@ public sealed class PropControl : IPropRow
         Root.Opacity = p == null ? 0.45 : 1;
         if (p == null)
         {
+            _wanted = null;
             _choices = [];
             Rebuild();
             if (_value != null) _value.Content = "—";
@@ -146,7 +153,10 @@ public sealed class PropControl : IPropRow
             _choices = values.ToArray();
             Rebuild();
         }
-        _current = p.Value;
+        // A read taken before a quick click finished still shows the old value. If the camera never
+        // gets there, it refused, so go back to what it really has.
+        if (p.Value == _wanted || DateTime.Now > _wantedUntil) _wanted = null;
+        _current = _wanted ?? p.Value;
         Show();
         SetEnabled(usable && _choices.Length > 1);
     }

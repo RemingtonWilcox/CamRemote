@@ -120,7 +120,11 @@ public sealed class CameraService : IDisposable
     private void Safe(Action a)
     {
         try { a(); }
-        catch (Exception ex) { Say("Camera error: " + ex.Message); }
+        catch (Exception ex)
+        {
+            Log.Write("Camera error: " + ex);
+            Say("Something went wrong talking to the camera.");
+        }
     }
 
     /// <summary>Queues camera work. Anything arriving after the app starts closing is dropped.</summary>
@@ -146,6 +150,36 @@ public sealed class CameraService : IDisposable
         Log.Write(msg);
         _ui.Post(() => Message?.Invoke(msg));
     }
+
+    /// <summary>Shows plain words, and keeps Sony's exact error in the log.</summary>
+    private void SayFailed(string msg, int err)
+    {
+        Log.Write($"{msg} {Native.ErrorName(err)}");
+        _ui.Post(() => Message?.Invoke(msg));
+    }
+
+    /// <summary>What a Sony connection error means for the person using the app.</summary>
+    private static string Explain(int err) => Math.Abs((long)err) switch
+    {
+        0x8202 => "Couldn't reach the camera. It may be off, or another app like Imaging Edge or Monitor & Control may be using it.",
+        0x820B or 0x8210 => "Another app is using the camera. Close Imaging Edge or Monitor & Control, then CamRemote can connect.",
+        0x820A => "The camera refused the connection. Check that Remote Shooting is on.",
+        0x8207 or 0x8208 or 0x8209 => "Lost contact with the camera. Check that it's on and on the same Wi-Fi.",
+        0x8212 or 0x8213 or 0x8214 or 0x8215 => "Couldn't make a secure connection to the camera. Turn it off and on, then try again.",
+        _ => $"Something went wrong talking to the camera (error 0x{Math.Abs((long)err):X}).",
+    };
+
+    /// <summary>The camera notices worth interrupting someone for. The rest only go in the log.</summary>
+    private static string? ExplainNotice(uint notice) => notice switch
+    {
+        0x20002 => "Lost the camera for a moment. Reconnecting…",
+        0x20001 => "Back in touch with the camera.",
+        0x20003 => "The camera's memory card is full.",
+        0x20007 => "The Wi-Fi connection to the camera is having trouble.",
+        0x20008 => "The Wi-Fi connection to the camera is back.",
+        0x2006A => "The camera couldn't start or stop recording.",
+        _ => null,
+    };
 
     private void SetState(LinkState s) => _ui.Post(() =>
     {
@@ -181,7 +215,7 @@ public sealed class CameraService : IDisposable
             int err = Native.cb_connect(index, user, password, fingerprint);
             if (err != 0)
             {
-                Say("Connect failed: " + Native.ErrorName(err));
+                SayFailed(Explain(err), err);
                 SetState(LinkState.Disconnected);
             }
         });
@@ -220,7 +254,8 @@ public sealed class CameraService : IDisposable
             case Native.EvDisconnected:
                 _ui.Post(() => Props = new()); // stale values (like "recording") would mislead
                 SetState(LinkState.Disconnected);
-                Say(a == 0 ? "Disconnected." : "Disconnected: " + Native.ErrorName((int)a));
+                if (a == 0) Say("Disconnected.");
+                else SayFailed("Disconnected. " + Explain((int)a), (int)a);
                 break;
             case Native.EvPropertyChanged:
                 _propsDirty = true;
@@ -231,22 +266,25 @@ public sealed class CameraService : IDisposable
             case Native.EvError:
                 Log.Write("Camera error event: " + Native.ErrorName((int)a));
                 if (a == 0x8216) _ui.Post(() => HoldReconnect = true);
-                Say(a == 0x8216
-                    ? "The camera rejected the user or password. Check MENU › Network › Network Option › Access Authen. Info (case-sensitive)."
-                    : "Camera error: " + Native.ErrorName((int)a));
+                if (a == 0x8216) Say("The camera rejected the user or password. Check MENU › Network › Network Option › Access Authen. Info (case-sensitive).");
+                else SayFailed(Explain((int)a), (int)a);
                 if (State == LinkState.Connecting) SetState(LinkState.Disconnected);
                 break;
             case Native.EvWarning:
-                if (a != _lastWarning) Log.Write("Camera notice: " + Native.ErrorName((int)a));
+                if (a != _lastWarning)
+                {
+                    Log.Write("Camera notice: " + Native.ErrorName((int)a));
+                    if (ExplainNotice(a) is { } notice) Say(notice);
+                }
                 _lastWarning = a;
                 _propsDirty = true; // a resumed session sends no connect event of its own on every camera
-                // 0x6xxxx are routine status notices (AF status and the like), not problems.
-                if (a is < 0x60000 or >= 0x70000) Say("Camera: " + Native.ErrorName((int)a));
                 break;
         }
     }
 
     private uint _lastWarning;
+    private readonly ConcurrentDictionary<PropCode, long> _latestSet = new();
+    private const string RefusedSetting = "The camera didn't accept that setting. It may be locked in this mode or while recording.";
 
     /// <summary>
     /// Runs on the camera thread. Asks for control of the settings. The camera hands control back to its dials
@@ -366,10 +404,13 @@ public sealed class CameraService : IDisposable
             return;
         }
         Log.Write($"Set {code} to {value} (writable {p.Writable}).");
+        _latestSet[code] = value;
         Run(() =>
         {
-            int err = Native.cb_set_prop((uint)code, (ulong)value, p.Type);
-            if (err != 0) Say($"Couldn't set {code}: " + Native.ErrorName(err));
+            // Quick clicks queue up: send the newest value once rather than walking through each one.
+            if (!_latestSet.TryRemove(code, out var latest)) return;
+            int err = Native.cb_set_prop((uint)code, (ulong)latest, p.Type);
+            if (err != 0) SayFailed(RefusedSetting, err);
         });
         RequestRefresh();
     }
@@ -384,7 +425,7 @@ public sealed class CameraService : IDisposable
         int err = Native.cb_command(CmdMovieRecord, ParamDown);
         Thread.Sleep(80);
         Native.cb_command(CmdMovieRecord, ParamUp);
-        if (err != 0) Say("Record button failed: " + Native.ErrorName(err));
+        if (err != 0) SayFailed("The camera didn't respond to the record button.", err);
     });
 
     public bool IsManualFocus => Get(PropCode.FocusMode)?.Value is FocusManual or 6;
@@ -429,7 +470,8 @@ public sealed class CameraService : IDisposable
                 SetNow(PropCode.FocusMode, mode);
                 if (function != TouchFnFocus) SetNow(PropCode.FunctionOfTouchOperation, function);
                 _focusOnceBusy = 0;
-                Say(err == 0 ? "Focused. Back in manual." : "Tap focus failed: " + Native.ErrorName(err));
+                if (err == 0) Say("Focused. Back in manual.");
+                else SayFailed("The camera couldn't focus there.", err);
                 RequestRefresh();
             });
             return null;
@@ -442,7 +484,7 @@ public sealed class CameraService : IDisposable
             {
                 EnableTouch(track ? TouchFnTracking : TouchFnFocus);
                 int err = Native.cb_set_prop((uint)PropCode.RemoteTouchOperation, xy, TypeUInt32);
-                if (err != 0) Say("Touch focus failed: " + Native.ErrorName(err));
+                if (err != 0) SayFailed("The camera couldn't focus there.", err);
                 else if (track)
                 {
                     Thread.Sleep(1200);
@@ -461,7 +503,7 @@ public sealed class CameraService : IDisposable
             Run(() =>
             {
                 int err = Native.cb_set_prop((uint)PropCode.AF_Area_Position, xy, TypeUInt32);
-                if (err != 0) Say("Moving the AF frame failed: " + Native.ErrorName(err));
+                if (err != 0) SayFailed("The camera couldn't move its focus area there.", err);
             });
             return null;
         }
@@ -488,7 +530,7 @@ public sealed class CameraService : IDisposable
     {
         if (Get(code) is not { } p) return;
         int err = Native.cb_set_prop((uint)code, (ulong)value, p.Type);
-        if (err != 0) Say($"Couldn't set {code}: " + Native.ErrorName(err));
+        if (err != 0) SayFailed(RefusedSetting, err);
     }
 
     private int _focusOnceBusy;
@@ -567,7 +609,7 @@ public sealed class CameraService : IDisposable
     {
         int err = Native.cb_set_prop((uint)PropCode.Focus_Magnifier_Setting, (ulong)value, TypeUInt64);
         Log.Write($"Magnifier set 0x{value:X}: {(err == 0 ? "sent" : Native.ErrorName(err))}");
-        if (err != 0) Say("The camera refused the focus magnifier: " + Native.ErrorName(err));
+        if (err != 0) SayFailed("The camera refused the focus magnifier.", err);
     }
 
     private int _magX = 320, _magY = 240;
@@ -673,7 +715,7 @@ public sealed class CameraService : IDisposable
                     continue;
                 }
                 int err = Native.cb_set_prop((uint)PropCode.NearFar, (ulong)(long)step, TypeInt16);
-                if (err != 0) Say("Focus step failed: " + Native.ErrorName(err));
+                if (err != 0) SayFailed("The camera didn't move its focus.", err);
             }
         }
     }

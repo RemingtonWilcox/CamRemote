@@ -61,7 +61,7 @@ public static class CameraConnect
             fingerprint = await cam.FingerprintAsync(index) ?? "";
             if (fingerprint.Length == 0)
             {
-                say("Couldn't reach the camera to read its security fingerprint. Is it on, on Wi-Fi, with PC Remote on?");
+                say("Couldn't reach the camera to read its security fingerprint. Is it on, on Wi-Fi, with Remote Shooting on?");
                 return false;
             }
             if (settings.Fingerprint.Length > 0 && settings.Fingerprint != fingerprint)
