@@ -22,7 +22,7 @@ Work on R1 and R2, plus R21. Nothing on `main` or `claude/camremote-review` was 
 | `971c201` | **R1: Sony's errors are now explained by name, not by hand-typed numbers.** The new `SdkCodes.cs` looks each code up in `SdkNames.Errors`, which `gen_names.py` builds from the SDK the app is compiled with, so the numbers always come from Sony's real headers. When `Connect` itself returns the wrong-password error, auto-reconnect is now held too, not only when the error arrives as an event. |
 | `c733288` | **R2, native part:** `cb_enum` refused to search whenever a session handle existed. It now refuses only while connected, and releases a handle left over from a dropped link first. |
 | `cb8f461` | **The saved camera is known by its MAC address before its IP.** Before, a different camera that took the old IP would have been picked (only the fingerprint prompt stood in the way). Now it's skipped. |
-| `19b061e` | **R2: `AutoReconnect`, a shared and tested reconnect loop.** After a drop it waits 15 s for the SDK's own resume. Then it searches, which releases the stale session, and reconnects to the same camera by MAC at its new IP. It backs off 10 → 20 → 40 → 60 s, retries a connect stuck for 45 s, and reports its status. |
+| `3720822` | **R2: `AutoReconnect`, a shared and tested reconnect loop.** After a drop it waits 15 s for the SDK's own resume. Then it searches, which releases the stale session, and reconnects to the same camera by MAC at its new IP. It backs off 10 → 20 → 40 → 60 s, retries a connect stuck for 45 s, and reports its status. |
 | `0cc3be0` | Both windows use `AutoReconnect`. The drop banner shows the try number and when the next try is. Also fixes R21 (the misplaced doc comment). |
 
 ### How far the error codes could be verified (R1)
