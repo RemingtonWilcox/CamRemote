@@ -13,6 +13,46 @@ The Mac app *was* compiled on Linux with stand-in names, and CI now does the sam
 
 ---
 
+## Follow-ups (branch `claude/camremote-followups`, from `claude/camremote-review`)
+
+Work on R1 and R2, plus R21. Nothing on `main` or `claude/camremote-review` was changed.
+
+| Commit | What changed |
+|---|---|
+| `971c201` | **R1: Sony's errors are now explained by name, not by hand-typed numbers.** The new `SdkCodes.cs` looks each code up in `SdkNames.Errors`, which `gen_names.py` builds from the SDK the app is compiled with, so the numbers always come from Sony's real headers. When `Connect` itself returns the wrong-password error, auto-reconnect is now held too, not only when the error arrives as an event. |
+| `c733288` | **R2, native part:** `cb_enum` refused to search whenever a session handle existed. It now refuses only while connected, and releases a handle left over from a dropped link first. |
+| `cb8f461` | **The saved camera is known by its MAC address before its IP.** Before, a different camera that took the old IP would have been picked (only the fingerprint prompt stood in the way). Now it's skipped. |
+| `19b061e` | **R2: `AutoReconnect`, a shared and tested reconnect loop.** After a drop it waits 15 s for the SDK's own resume. Then it searches, which releases the stale session, and reconnects to the same camera by MAC at its new IP. It backs off 10 → 20 → 40 → 60 s, retries a connect stuck for 45 s, and reports its status. |
+| `0cc3be0` | Both windows use `AutoReconnect`. The drop banner shows the try number and when the next try is. Also fixes R21 (the misplaced doc comment). |
+
+### How far the error codes could be verified (R1)
+
+- **Sony's headers and API reference aren't public.** They come only in the SDK download, behind Sony's licence. Unofficial copies on GitHub were deliberately not used, so no number could be checked against `CrError.h` here.
+- **So the app no longer depends on the numbers at all.** `SdkCodes` matches Sony's *names*, such as `CrError_Connect_FailBusy`, and the generator supplies the numbers from the real headers at build time.
+- **The names themselves are marked UNVERIFIED in `SdkCodes.cs`.** They follow Sony's naming as recalled from the SDK. To check them:
+  - `gen_names.py` now prints `warning: <name> (used in SdkCodes.cs) is not in the SDK headers` for each name that's missing.
+  - The app writes the same list to its log at startup.
+  - **Next step for someone with the SDK:** run `build.ps1` or `build-mac.sh` and fix any name that warning reports.
+- **One code is confirmed from a public source:** `CrError_Connect_RemoteTransfer_NotSupported` = 0x8219, in a CrSDK 2.01 log in [goudvuur/sonshell issue #2](https://github.com/goudvuur/sonshell/issues/2). It now gets its own message.
+- **A wrong name can't give wrong advice.** That error just gets the general message with its number. The old numbers are kept only as a fallback for codes the headers give no name at all, so a correct name always wins.
+- **Tests:** the fake header gives these names made-up numbers, away from the old ones. It also puts an unrelated name on 0x8216, the number that used to mean "wrong password". So the tests pass only if the lookup really goes by name.
+
+### Rediscovery: what's still unproven (R2)
+
+- `CamBridge.cpp` can't be compiled without the SDK. The change is three lines in `cb_enum`.
+- **Camera identity is the MAC address from enumeration plus the pinned SSH fingerprint.** That's what the app already reads through the SDK. A serial number or GUID would need SDK calls that can't be checked here, so none were added.
+- **Hardware test still needed:**
+  1. Connect over Wi-Fi.
+  2. Make the router hand the camera a new address: a short DHCP lease, or a reservation change while the camera is off.
+  3. Power-cycle the camera, or walk out of range.
+  4. Expect the banner to show the tries, then "The camera moved to …" in the log, then the connection.
+  5. Also check that a quick drop at the same IP still resumes through the SDK, with no search in the log.
+- **R5 is partly addressed.** The app now waits 15 s after a drop before acting, and its retries back off. The SDK's own reconnect is still on, and the app takes over after the grace period.
+
+Tests now: **193 C#** (was 156) and **9 Python** (was 7). Both suites pass on Linux. The Mac app compiles against the made-up names. The WPF app's C# also compiles on Linux with `-p:EnableWindowsTargeting=true`; only copying the native DLL fails, which needs the SDK.
+
+---
+
 ## Summary
 
 | | |
@@ -52,10 +92,10 @@ Also in the test-suite commit, with no behaviour change:
 
 ### High
 
-- **R1. Check the hard-coded Sony codes against the real headers, or look them up by name.**
+- **R1. Check the hard-coded Sony codes against the real headers, or look them up by name.** *Done on `claude/camremote-followups`: looked up by name, and the names are checked at build time. See Follow-ups.*
   - **The issue:** `CameraService.Explain` maps 0x8202, 0x8207–0x820B, 0x8210 and 0x8212–0x8215 to plain-language advice. `ExplainNotice` does the same for 0x20001–0x2006A. `OnNativeEvent` uses 0x8216 for "wrong password". All these numbers were typed in by hand. If one is off by one, someone gets "Close Monitor & Control" for a password error, or a wrong password never pauses auto-reconnect, so the camera's lockout keeps getting hit.
   - **The fix:** `SdkNames.Errors` already maps codes to names from the headers. Turn that around and switch on names (`"CrError_Connect_FailBusy"`), so the generator keeps the numbers right. Or check each value once against `CrError.h`. The Explain tests in `CameraServiceTests` would then need the fake header to carry those names.
-- **R2. "Find the camera by MAC address" doesn't work after a Wi-Fi drop, only at startup.**
+- **R2. "Find the camera by MAC address" doesn't work after a Wi-Fi drop, only at startup.** *Done on `claude/camremote-followups`; still needs a hardware test. See Follow-ups.*
   - **Why:** `cb_enum` returns `-2` whenever `g_handle` is set. `OnDisconnected` doesn't clear the handle, because the SDK is asked to reconnect by itself (`CrReconnecting_ON`). The app's 15-second retry then gets an empty camera list and keeps trying the old IP. If the router gave the camera a new address while it was away, the app never finds it again until it restarts.
   - **The fix:** in `cb_enum`, if `g_handle && !g_connected`, disconnect and release the stale handle before enumerating. Do this only after the SDK's own reconnect has had its chance; the app already waits 15 s. It needs testing on hardware with a DHCP change.
 - **R3. Capture-card start and stop can overlap.** *(UI review)*
@@ -93,7 +133,7 @@ Also in the test-suite commit, with no behaviour change:
 - **R18.** `MacSupport.mm`: `copyOut` calls `strlen(nil)` if JSON serialization fails, and an early return in `cb_cap_start` skips `commitConfiguration`. *(UI review)*
 - **R19.** On Windows, `AskFingerprint`'s MessageBox has no owner, so it can open behind the dialog. On the Mac it passes an owner. *(UI review)*
 - **R20.** `AudioMeter` reads 24-bit PCM as silence. *(UI review)*
-- **R21.** The XML doc comment that belongs to `TryReconnectAsync` sits on `ShowUpdateAsync` in `MainWindow.xaml.cs`.
+- **R21.** *(Fixed on `claude/camremote-followups`.)* The XML doc comment that belongs to `TryReconnectAsync` sits on `ShowUpdateAsync` in `MainWindow.xaml.cs`.
 
 ---
 
