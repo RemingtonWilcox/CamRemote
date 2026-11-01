@@ -28,3 +28,18 @@ jobs:
         run: python -m unittest discover -s tests -p "test_*.py" -v
       - name: Shared camera code
         run: dotnet test tests/CamRemote.Tests/CamRemote.Tests.csproj
+
+  # The Mac window code is plain .NET (Avalonia), so it can be compiled anywhere. This catches a broken
+  # shared-code change before it reaches a Mac. The SDK names come from the test's made-up header,
+  # and the native bridge isn't built, so the result can't run: it's a compile check only.
+  mac-app-compiles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Generate stand-in SDK names
+        run: python3 -I tools/gen_names.py tests/CamRemote.Tests/FakeSdk app/CamRemote/SdkNames.g.cs
+      - name: Compile the Mac app
+        run: dotnet build app/CamRemote.Mac/CamRemote.Mac.csproj

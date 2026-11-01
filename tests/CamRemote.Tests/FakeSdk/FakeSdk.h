@@ -29,6 +29,26 @@ enum CrDevicePropertyCode : CrInt32u
     CrDeviceProperty_ShutterSpeed = 0x0200,
     CrDeviceProperty_FNumber,
     CrDeviceProperty_ExposureProgramMode,
+    // Used by the two windows, so the Mac app can be compiled without the SDK too.
+    CrDeviceProperty_FirstForTheWindows = 0x0300,
+    CrDeviceProperty_AudioInputMasterLevel,
+    CrDeviceProperty_AudioRecording,
+    CrDeviceProperty_BatteryLevel,
+    CrDeviceProperty_BatteryRemain,
+    CrDeviceProperty_Colortemp,
+    CrDeviceProperty_FocusArea,
+    CrDeviceProperty_MediaSLOT1_RemainingTime,
+    CrDeviceProperty_MediaSLOT1_Status,
+    CrDeviceProperty_MediaSLOT2_RemainingTime,
+    CrDeviceProperty_MediaSLOT2_Status,
+    CrDeviceProperty_MonitorLUTSetting,
+    CrDeviceProperty_MovieShootingMode,
+    CrDeviceProperty_Movie_File_Format,
+    CrDeviceProperty_Movie_HDMIOutputResolution,
+    CrDeviceProperty_Movie_Recording_FrameRateSetting,
+    CrDeviceProperty_Movie_Recording_Setting,
+    CrDeviceProperty_WhiteBalance,
+    CrDeviceProperty_WindNoiseReduct,
 };
 
 enum CrExposureProgram : CrInt32u
