@@ -41,8 +41,7 @@ public partial class MainWindow : Window
     private bool _sawNotRecording; // this run saw the take begin, so its start time is exact
     private DateTime? _idleSince; // when the camera first said it wasn't recording
     private long? _lastMode;
-    private DateTime _linkSince = DateTime.Now; // when the link last changed state
-    private bool _reconnecting;
+    private readonly AutoReconnect _auto;
     private bool _connectingByHand; // the Connect dialog is open or its connect is running
     private bool _wasConnected; // connected at some point this run, so a drop is worth a banner
     private PhoneServer? _phone;
@@ -55,6 +54,8 @@ public partial class MainWindow : Window
         var ui = new AvaloniaUi();
         _ui = ui;
         _cam = new CameraService(ui);
+        _auto = new AutoReconnect(_cam, _settings, ShowMessage, AskFingerprint);
+        _auto.StatusChanged += OnReconnectStatus;
         _video = new VideoFeed(ui);
         _video.Frame += (pixels, w, h) =>
         {
@@ -161,7 +162,7 @@ public partial class MainWindow : Window
         await LoadSourcesAsync();
         await SetPhoneAsync(_settings.PhoneEnabled);
         _ = ShowUpdateAsync();
-        await TryReconnectAsync(first: true);
+        await TryReconnectAsync();
     }
 
     /// <summary>Lists Wi-Fi plus every capture card the Mac sees, and selects the saved one (Wi-Fi if it's gone).</summary>
@@ -183,10 +184,6 @@ public partial class MainWindow : Window
 
     private async void OnRefreshSourcesClick(object? sender, RoutedEventArgs e) => await LoadSourcesAsync();
 
-    /// <summary>
-    /// With auto-connect on, keeps trying the saved camera while it's off or out of range, and after a
-    /// drop. Waits a little after a drop first, since the SDK tries to resume the session itself.
-    /// </summary>
     private async Task ShowUpdateAsync()
     {
         if (await UpdateCheck.NewerVersionAsync() is not { } version) return;
@@ -196,28 +193,18 @@ public partial class MainWindow : Window
 
     private void OnUpdateClick(object? sender, RoutedEventArgs e) => UpdateCheck.OpenDownloadPage();
 
-    private async Task TryReconnectAsync(bool first = false)
+    /// <summary>
+    /// With auto-connect on, keeps trying the saved camera while it's off or out of range, and after a drop,
+    /// including at a new IP. <see cref="AutoReconnect"/> decides when; this says whether it may.
+    /// </summary>
+    private Task TryReconnectAsync() =>
+        _auto.TickAsync(_settings.AgreedVersion >= Agreement.Version && !_connectingByHand && _settings.AutoConnect);
+
+    /// <summary>Before the camera has ever connected, the reconnect status goes in the message line; after, in the banner.</summary>
+    private void OnReconnectStatus()
     {
-        if (_settings.AgreedVersion < Agreement.Version || _reconnecting || _connectingByHand || _cam.HoldReconnect || !_settings.AutoConnect || _settings.CameraIp.Length == 0) return;
-        var idle = DateTime.Now - _linkSince;
-        bool due = _cam.State switch
-        {
-            LinkState.Disconnected => first || idle > TimeSpan.FromSeconds(15),
-            LinkState.Connecting => idle > TimeSpan.FromSeconds(45), // stuck
-            _ => false,
-        };
-        if (!due) return;
-        _reconnecting = true;
-        try
-        {
-            _linkSince = DateTime.Now;
-            if (!await CameraConnect.SavedAsync(_cam, _settings, ShowMessage, AskFingerprint, quiet: !first))
-                ShowMessage("Waiting for the camera (on, on Wi-Fi, Remote Shooting on). Trying again every 15 s…");
-        }
-        finally
-        {
-            _reconnecting = false;
-        }
+        if (!_wasConnected && _auto.Status is { } status) ShowMessage(status);
+        OnPropsChanged();
     }
 
     private Task<bool> AskFingerprint() => ConnectWindow.AskAsync(this, "CamRemote", CameraConnect.FingerprintWarning, "Connect anyway", "Don't connect");
@@ -389,7 +376,6 @@ public partial class MainWindow : Window
             var dlg = new ConnectWindow(_cam, _settings);
             if (!await dlg.ShowDialog<bool>(this)) return;
             _cam.HoldReconnect = false;
-            _linkSince = DateTime.Now;
             await dlg.ConnectAsync(ShowMessage, AskFingerprint);
         }
         finally
@@ -444,7 +430,6 @@ public partial class MainWindow : Window
 
     private void OnLinkChanged()
     {
-        _linkSince = DateTime.Now;
         if (_cam.State == LinkState.Connected) _wasConnected = true;
         KeepAwake();
         ShowCameraModel();
@@ -521,7 +506,7 @@ public partial class MainWindow : Window
         }
         else if (_wasConnected && !_cam.HoldReconnect)
         {
-            alert = "Camera connection lost — reconnecting…   (the camera keeps recording if it was)";
+            alert = _auto.Status ?? "Camera connection lost — reconnecting…   (the camera keeps recording if it was)";
             alertColor = Warn;
         }
         AlertBanner.IsVisible = alert != null;
