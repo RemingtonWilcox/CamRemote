@@ -46,6 +46,7 @@ public partial class MainWindow : Window
     private bool _connectingByHand; // the Connect dialog is open or its connect is running
     private bool _wasConnected; // connected at some point this run, so a drop is worth a banner
     private PhoneServer? _phone;
+    private int _phoneCall; // the latest SetPhoneAsync, so an older one that finishes late steps aside
     private bool _phoneWatching; // a phone wants the live view, even if this window shows a capture card
 
     public MainWindow()
@@ -911,6 +912,7 @@ public partial class MainWindow : Window
 
     private async Task SetPhoneAsync(bool on)
     {
+        int call = ++_phoneCall;
         PhoneEnabled.IsChecked = on;
         if (_phone != null)
         {
@@ -927,6 +929,11 @@ public partial class MainWindow : Window
             try
             {
                 await server.StartAsync();
+                if (call != _phoneCall)
+                {
+                    await server.DisposeAsync(); // switched off (or on again) while starting: this one isn't wanted
+                    return;
+                }
                 _phone = server;
             }
             catch (Exception ex)
