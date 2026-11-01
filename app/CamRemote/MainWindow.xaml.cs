@@ -633,8 +633,8 @@ public partial class MainWindow : Window
                 b.ClearValue(ForegroundProperty);
             }
         }
-        ZoomBadge.Content = $"🔍  ×{ratio / 10.0:0.#} ZOOM    ✕";
-        ZoomBadge.Visibility = ZoomFrame.Visibility = ratio > 0 ? Visibility.Visible : Visibility.Collapsed;
+        ZoomBadge.Content = $"🔍 ×{ratio / 10.0:0.#}  ✕";
+        ZoomBadge.Visibility = ratio > 0 ? Visibility.Visible : Visibility.Collapsed;
         ShowFocusBar();
         bool tracking = connected && _cam.IsTracking;
         _showedTracking = tracking;

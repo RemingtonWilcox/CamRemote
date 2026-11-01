@@ -60,7 +60,6 @@
                                 <Rectangle Grid.Row="1" Grid.Column="1" Width="24" Height="1" Fill="#B0FFFFFF" />
                                 <Rectangle Grid.Row="1" Grid.Column="1" Width="1" Height="24" Fill="#B0FFFFFF" />
                             </Grid>
-                            <Border x:Name="ZoomFrame" BorderBrush="#F2C94C" BorderThickness="4" IsHitTestVisible="False" IsVisible="False" />
                             <!-- The boxes the camera reports -->
                             <Canvas x:Name="FrameLayer" IsHitTestVisible="False" />
                             <Canvas x:Name="Overlay" IsHitTestVisible="False">
@@ -70,8 +69,8 @@
                         </Panel>
                     </LayoutTransformControl>
                 </Border>
-                <Button x:Name="ZoomBadge" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14" Padding="12,6" Background="#F2C94C"
-                        Foreground="Black" FontWeight="Bold" FontSize="15" IsVisible="False" Click="OnZoomBadgeClick"
+                <Button x:Name="ZoomBadge" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Padding="8,2" Background="#F2C94C"
+                        Foreground="Black" FontWeight="Bold" FontSize="12" IsVisible="False" Click="OnZoomBadgeClick"
                         ToolTip.Tip="The picture is enlarged. Click here to go back to the whole picture." />
                 <Border x:Name="AlertBanner" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,14,0,0"
                         CornerRadius="6" Padding="16,8" Background="{StaticResource Rec}" IsVisible="False" IsHitTestVisible="False">
