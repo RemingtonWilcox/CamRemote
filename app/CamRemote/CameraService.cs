@@ -425,13 +425,36 @@ public sealed class CameraService : IDisposable
     public bool IsRecording => Get(PropCode.RecordingState)?.Value == 1;
 
     /// <summary>The camera toggles recording on "Down"; Sony asks for "Up" right after.</summary>
-    public void ToggleRecord() => Run(() =>
+    public void ToggleRecord()
     {
-        int err = _bridge.Command(CmdMovieRecord, ParamDown);
-        Thread.Sleep(80);
-        _bridge.Command(CmdMovieRecord, ParamUp);
-        if (err != 0) SayFailed("The camera didn't respond to the record button.", err);
-    });
+        _recordWant = !(_recordWant is { } want && RecordPending ? want : IsRecording);
+        _recordAskedAt = Environment.TickCount64;
+        Run(() =>
+        {
+            int err = _bridge.Command(CmdMovieRecord, ParamDown);
+            Thread.Sleep(80);
+            _bridge.Command(CmdMovieRecord, ParamUp);
+            if (err == 0) return;
+            _ui.Post(() => _recordWant = null); // nothing changed, so the next press must go through
+            SayFailed("The camera didn't respond to the record button.", err);
+        });
+    }
+
+    /// <summary>
+    /// Starts or stops recording. Unlike <see cref="ToggleRecord"/>, asking twice for the same thing sends one press,
+    /// even before the camera has reported the first, so a repeated tap on a slow link can't flip the take back.
+    /// </summary>
+    public void SetRecording(bool on)
+    {
+        bool expected = _recordWant is { } want && RecordPending ? want : IsRecording;
+        if (expected != on) ToggleRecord();
+    }
+
+    /// <summary>What the last press asked for, until the camera has had time to report it.</summary>
+    private bool? _recordWant;
+    private long _recordAskedAt;
+    private const int RecordSettleMs = 4000; // two full reads at the 2 s poll
+    private bool RecordPending => Environment.TickCount64 - _recordAskedAt < RecordSettleMs && _recordWant != IsRecording;
 
     public bool IsManualFocus => Get(PropCode.FocusMode)?.Value is FocusManual or 6;
     public bool IsTracking => Get(PropCode.FocusTrackingStatus)?.Value == TrackingActive || Frames.Any(f => f.Kind == FrameKind.Tracking);

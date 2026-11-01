@@ -48,7 +48,7 @@ public sealed class SonyRemote(IUi ui, CameraService cam, Func<(byte[] Jpeg, lon
     public string? Record(bool on) => ui.Invoke<string?>(() =>
     {
         if (cam.State != LinkState.Connected) return "The camera isn't connected.";
-        if (cam.IsRecording != on) cam.ToggleRecord(); // a repeated tap on a slow link can't flip it back
+        cam.SetRecording(on); // a repeated tap on a slow link can't flip it back
         return (string?)null;
     });
 

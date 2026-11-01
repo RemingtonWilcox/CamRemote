@@ -54,6 +54,49 @@ public class SonyRemoteTests
     }
 
     [Fact]
+    public void A_second_record_tap_before_the_camera_reports_does_not_stop_the_take()
+    {
+        using var rig = new Rig();
+        rig.ConnectAndRead();
+        var remote = Remote(rig, new());
+        Assert.Null(remote.Record(true));
+        Assert.Null(remote.Record(true)); // a slow phone link: the same tap again, before the next settings read
+        rig.Settle();
+        Assert.Single(rig.Camera.Commands, c => c == (FakeCamera.CmdMovieRecord, 1u));
+        rig.Refresh();
+        Assert.True(rig.Ui.Invoke(() => rig.Cam.IsRecording));
+    }
+
+    [Fact]
+    public void Stop_right_after_start_still_stops()
+    {
+        using var rig = new Rig();
+        rig.ConnectAndRead();
+        var remote = Remote(rig, new());
+        remote.Record(true);
+        remote.Record(false);
+        rig.Settle();
+        Assert.Equal(2, rig.Camera.Commands.Count(c => c == (FakeCamera.CmdMovieRecord, 1u)));
+        rig.Refresh();
+        Assert.False(rig.Ui.Invoke(() => rig.Cam.IsRecording));
+    }
+
+    [Fact]
+    public void A_record_press_the_camera_refused_can_be_retried_at_once()
+    {
+        using var rig = new Rig();
+        rig.ConnectAndRead();
+        var remote = Remote(rig, new());
+        rig.Camera.CommandResult = -0x8402;
+        remote.Record(true);
+        rig.Settle();
+        rig.Camera.CommandResult = 0;
+        remote.Record(true);
+        rig.Settle();
+        Assert.Equal(2, rig.Camera.Commands.Count(c => c == (FakeCamera.CmdMovieRecord, 1u)));
+    }
+
+    [Fact]
     public void The_state_reports_the_link_and_recording()
     {
         using var rig = new Rig();
