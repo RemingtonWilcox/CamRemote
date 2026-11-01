@@ -235,10 +235,15 @@ $('rec').onclick = () => {
 for (const b of document.querySelectorAll('[data-iso]')) b.onclick = () => act('set', { id: 'baseiso', value: b.dataset.iso });
 for (const [t, step] of [['◀◀◀', -7], ['◀◀', -3], ['◀', -1], ['▶', 1], ['▶▶', 3], ['▶▶▶', 7]]) {
   const b = document.createElement('button'); b.textContent = t;
-  let hold;
-  const stop = () => clearInterval(hold);
-  b.onpointerdown = () => { act('focusstep', { step }); hold = setInterval(() => act('focusstep', { step }), 200); };
-  b.onpointerup = b.onpointerleave = b.onpointercancel = stop;
+  let hold = null;
+  const stop = () => { clearInterval(hold); hold = null; };
+  b.onpointerdown = e => {
+    stop(); // a second finger must not leave the first repeat running
+    try { b.setPointerCapture(e.pointerId); } catch {}
+    act('focusstep', { step });
+    hold = setInterval(() => { if (b.disabled || document.hidden) stop(); else act('focusstep', { step }); }, 200);
+  };
+  b.onpointerup = b.onpointerleave = b.onpointercancel = b.onlostpointercapture = stop;
   $('ring').append(b);
 }
 
@@ -376,7 +381,13 @@ $('pic').onclick = e => {
   act('focus', { x, y });
 };
 
+let looping = false;
 async function pictureLoop() {
+  if (looping) return;
+  looping = true;
+  try { await pictureFrames(); } finally { looping = false; }
+}
+async function pictureFrames() {
   const canvas = $('pic'), ctx = canvas.getContext('2d', { willReadFrequently: true });
   for (;;) {
     try {
@@ -417,7 +428,8 @@ async function start() {
       $('tabs').append(b);
     }
     refresh();
-    if (!started) { started = true; setInterval(() => { if (!document.hidden) refresh(); }, 1000); pictureLoop(); }
+    if (!started) { started = true; setInterval(() => { if (!document.hidden) refresh(); }, 1000); }
+    pictureLoop(); // again after a new login: the old loop stopped when the code was asked for
   } catch (e) { if (e.message !== 'login') toast("Can't reach the PC."); }
 }
 start();
