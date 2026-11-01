@@ -1,4 +1,5 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 
@@ -23,8 +24,20 @@ public sealed class BirdModel : IDisposable
         ? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Resources", FileName))
         : Path.Combine(AppContext.BaseDirectory, FileName);
 
+    [DllImport("libc")]
+    private static extern int setenv(string name, string value, int overwrite);
+
+    // ONNX Runtime reports its use to Microsoft unless this is set before it loads.
+    // .NET's own call doesn't reach native code on a Mac, which is why that one goes through libc.
+    static BirdModel()
+    {
+        if (OperatingSystem.IsMacOS()) setenv("ORT_DISABLE_TELEMETRY", "1", 1);
+        else Environment.SetEnvironmentVariable("ORT_DISABLE_TELEMETRY", "1");
+    }
+
     public BirdModel()
     {
+        OrtEnv.Instance().DisableTelemetryEvents();
         var options = new SessionOptions { IntraOpNumThreads = Math.Clamp(Environment.ProcessorCount / 2, 1, 4), InterOpNumThreads = 1 };
         _session = new InferenceSession(FilePath, options);
         _input = _session.InputMetadata.Keys.First();
@@ -94,7 +107,6 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
     private const float NewSpot = 0.1f;
     private const int SpotHits = 12; // this many hits on one spot within SpotTime makes it scenery
     private const int StartHits = 2;
-    private const int KeptPictures = 1500;
     private static readonly TimeSpan Between = TimeSpan.FromSeconds(0.5);
     private static readonly TimeSpan StartWithin = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan SpotTime = TimeSpan.FromSeconds(40);
@@ -108,7 +120,6 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
     private static readonly TimeSpan SureFor = TimeSpan.FromMinutes(5); // an animal can sit a long time scoring low
     private static readonly TimeSpan RefusedRest = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan FocusGap = TimeSpan.FromSeconds(5);
-    private static readonly TimeSpan SampleEvery = TimeSpan.FromMinutes(1);
 
     private Thread? _thread;
     private volatile bool _run;
@@ -117,8 +128,6 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
     private bool _rolled; // the camera has shown this take recording
     private DateTime _lastBird;
     private DateTime _restUntil;
-    private int _kept;
-    private DateTime _sampled;
     private readonly Queue<(float X, float Y, float Score, DateTime At)> _recent = new();
     private readonly List<(float X, float Y, DateTime Until)> _scenery = [];
     private readonly List<(float X, float Y, DateTime Until)> _animals = [];
@@ -131,9 +140,6 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
 
     public static bool Available => File.Exists(BirdModel.FilePath);
     public bool On => _run;
-
-    // The field test keeps what the model saw, so a wrong start can be looked at afterwards.
-    private static string TestFolder => Path.Combine(Settings.Folder, "bird-test");
 
     public void Start()
     {
@@ -164,7 +170,6 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
         BirdModel model;
         try
         {
-            Directory.CreateDirectory(TestFolder);
             model = new BirdModel();
         }
         catch (Exception ex)
@@ -186,8 +191,7 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
                     try
                     {
                         var (score, x, y, w, h) = model.Look(shrink(frame.Jpeg, BirdModel.Size), rotation());
-                        var ms = (DateTime.Now - began).TotalMilliseconds;
-                        ui.Post(() => Decide(score, x, y, w, h, ms, frame.Jpeg));
+                        ui.Post(() => Decide(score, x, y, w, h));
                     }
                     catch (Exception ex)
                     {
@@ -200,14 +204,13 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
         }
     }
 
-    private void Decide(float score, float x, float y, float w, float h, double ms, byte[] jpeg)
+    private void Decide(float score, float x, float y, float w, float h)
     {
         if (!_run) return;
         var now = DateTime.Now;
         bool seen = Counts(score, x, y, now);
         if (seen) _sightings.Enqueue(now);
         while (_sightings.TryPeek(out var old) && now - old > StartWithin) _sightings.Dequeue();
-        Keep(now, score, x, y, ms, seen, jpeg);
         Act(score, seen, now);
         if (seen && score >= WorthFocus) FocusOn(x, y, now); // after Act, so focusing never holds up the record button
         if (seen)
@@ -295,24 +298,5 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
         _focusedOn = (x, y);
         _focused = now;
         focus(x, y);
-    }
-
-    private void Keep(DateTime now, float score, float x, float y, double ms, bool seen, byte[] jpeg)
-    {
-        try
-        {
-            File.AppendAllText(Path.Combine(TestFolder, "checks.csv"), $"{now:yyyy-MM-dd HH:mm:ss},{score:0.000},{ms:0},{x:0.000},{y:0.000},{(seen ? 1 : 0)}\n");
-            bool sample = now - _sampled >= SampleEvery; // shows what it was looking at when it saw nothing
-            if ((seen || sample) && _kept < KeptPictures)
-            {
-                _kept++;
-                if (sample) _sampled = now;
-                File.WriteAllBytes(Path.Combine(TestFolder, $"{now:yyyyMMdd-HHmmss}-{score:0.00}.jpg"), jpeg);
-            }
-        }
-        catch (IOException)
-        {
-            // never let the test record get in the way of the trigger
-        }
     }
 }

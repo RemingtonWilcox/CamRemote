@@ -6,6 +6,8 @@ Set-Location $PSScriptRoot
 $iscc = @("$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) { throw "Inno Setup not found. Install it with: winget install JRSoftware.InnoSetup" }
 
+if (-not (Test-Path 'vendor\BirdModel\rfdetr_nano_fp16.onnx')) { throw "The animal detector's model is missing. See 'Build it yourself' in README.md." }
+
 $publish = 'build\win-publish'
 if (Test-Path $publish) { Remove-Item $publish -Recurse -Force }
 & .\build.ps1 -Output $publish -SelfContained

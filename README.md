@@ -152,6 +152,7 @@ Don't ask me for my camera password.
 | ☀️ **Check exposure** | Histogram, zebras and the camera's meter |
 | ⚙️ **Change settings** | ISO, shutter, iris, white balance and more |
 | 🔴 **Record** | One big button, with a red outline around the picture while rolling |
+| 🐦 **Film wildlife** | Tick **Record when an animal shows up** and it starts filming by itself, focuses on the animal, and stops 15 seconds after it leaves |
 | 🔋 **Stay informed** | Battery and card warnings before you run out |
 | 📱 **Use your phone** | Tick **Allow phone control** in the app, then open the address it shows |
 | 🔄 **Stop worrying** | Reconnects by itself, and the camera keeps recording if Wi-Fi drops |
@@ -256,6 +257,7 @@ That's normal after resetting the camera or changing its Access Authen. settings
 - **Tap does:** Focus, Tracking or Off. Off stops clicks doing anything. Sony's SDK doesn't offer the setting for a remote tap's function on the A7S III, so Tracking may only focus. The app tells you if the camera didn't start tracking.
 - **Picture source:** **Camera over Wi-Fi** needs no cable. Any HDMI capture card your computer sees is listed too. Plugged one in after opening the app? Click **↻**. Set the camera's **HDMI Resolution** to **1080p** and turn **HDMI Info. Display** off. On a Mac, the app asks for Camera and Microphone access the first time you pick one.
 - **Rotate:** ⟲ / ⟳ under **Picture**, for a camera mounted in portrait.
+- **Record when an animal shows up:** runs on your computer, and no pictures leave it. It knows birds and a few other animals (cats, dogs, horses, sheep, cows, elephants, bears, zebras and giraffes), and something it doesn't know, like a squirrel, may not set it off. A green box follows the animal while the option is on. Set **Rotate** to match how the camera is mounted first: it sees far better the right way up. Takes stop at 5 minutes and start again if the animal is still there. If it keeps being set off by something that isn't an animal, like splashing water, it learns to ignore that spot for 10 minutes. It only stops takes it started itself.
 - **Updates:** when the app opens, it asks GitHub once for the latest version number. If there's a newer one, a green button appears at the bottom of the window. It opens the download page and installs nothing by itself.
 - **Shooting guides:** worked out from the preview, not the recorded file, so a Monitor LUT changes them. At Wi-Fi preview size, peaking shows the plane of focus. Use the magnifier for critical focus.
 - **Recording timer:** keeps counting through a dropped link or an app restart. A take already rolling when the app first sees it shows a **+**.
@@ -271,6 +273,12 @@ That's normal after resetting the camera or changing its Access Authen. settings
 <br>
 
 You'll need Sony's Camera Remote SDK from [their site](https://support.d-imaging.sony.co.jp/app/sdk/en/index.html). Unzip the version for your system into `vendor/CrSDK` so `vendor/CrSDK/RemoteCli.zip` exists. Never commit anything under `vendor/`.
+
+The animal detector needs one more file, which the app can be built without (the option just won't appear). Save it as `vendor/BirdModel/rfdetr_nano_fp16.onnx`:
+
+```bash
+curl -L --create-dirs -o vendor/BirdModel/rfdetr_nano_fp16.onnx https://huggingface.co/onnx-community/rfdetr_nano-ONNX/resolve/main/onnx/model_fp16.onnx
+```
 
 **Windows:** install Git, CMake, the .NET 10 SDK, Python and Visual Studio's C++ tools, then:
 

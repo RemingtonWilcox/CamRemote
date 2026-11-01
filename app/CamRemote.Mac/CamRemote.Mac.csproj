@@ -37,7 +37,9 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <None Include="..\..\vendor\BirdModel\*.onnx" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" Visible="false" />
-    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.31.1" />
+    <!-- Microsoft stopped building ONNX Runtime for Intel Macs after this older version. -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.23.2" Condition="'$(RuntimeIdentifier)' == 'osx-x64'" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.31.1" Condition="'$(RuntimeIdentifier)' != 'osx-x64'" />
     <PackageReference Include="Avalonia" Version="12.1.4" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />

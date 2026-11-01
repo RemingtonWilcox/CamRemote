@@ -21,7 +21,8 @@ Only when someone asks to build it or change the code.
 2. **Install only what's missing,** and tell the person before you start. Visual Studio's C++ tools are large and slow.
 3. **The Sony SDK can't be downloaded by you:** it sits behind Sony's licence agreement. Send the person to https://support.d-imaging.sony.co.jp/app/sdk/en/index.html for the **Windows** or **Mac** zip and wait for them.
 4. It belongs in `vendor\CrSDK\` so that `vendor\CrSDK\RemoteCli.zip` (or an unpacked `vendor\CrSDK\RemoteCli\`) exists. If it was unzipped into a nested folder, move the contents up one level.
-5. **Build.** On Windows, `powershell -ExecutionPolicy Bypass -File .\build.ps1` ends with `Built dist\CamRemote.exe`. On a Mac, `./build-mac.sh` ends with `Built dist/CamRemote.app`.
+5. **The animal detector's model** is optional for a build: without it the app works, but the option doesn't appear. README.md's "Build it yourself" has the one line that fetches it into `vendor\BirdModel\`. The download scripts refuse to run without it.
+6. **Build.** On Windows, `powershell -ExecutionPolicy Bypass -File .\build.ps1` ends with `Built dist\CamRemote.exe`. On a Mac, `./build-mac.sh` ends with `Built dist/CamRemote.app`.
 
 Common failures:
 
@@ -38,5 +39,5 @@ Common failures:
 - Don't ask for, type or store the camera's Access Authen. password. The person types it into the app; the app keeps it in Windows Credential Manager or the macOS Keychain.
 - Don't change firewall rules, network settings or router settings. If a Windows Firewall or macOS privacy prompt appears, the person answers it.
 - Don't change camera firmware or camera settings for them.
-- Don't add telemetry, auto-updaters or background services. The app looks once at launch for a newer release on GitHub and only shows a button; keep it that way.
+- Don't add telemetry, auto-updaters or background services. ONNX Runtime reports to Microsoft by default, so keep the switch in `BirdModel` that turns it off. The app looks once at launch for a newer release on GitHub and only shows a button; keep it that way.
 - Don't remove the first-launch agreement. Sony's licence requires it for anyone distributing the app.
