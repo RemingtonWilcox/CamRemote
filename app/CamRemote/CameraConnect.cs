@@ -29,6 +29,16 @@ public static class CameraConnect
         return await PickedAsync(cam, settings, picked, settings.LoadPassword(), say, askFingerprint);
     }
 
+    /// <summary>
+    /// True for four numbers 0-255 with dots between, as the camera shows under Display Wi-Fi Info.
+    /// Sony's bridge reads the address loosely: "192.168.1.300" would quietly become 192.168.1.44.
+    /// </summary>
+    public static bool IsIPv4(string text)
+    {
+        string[] parts = text.Split('.');
+        return parts.Length == 4 && parts.All(p => p.Length is > 0 and <= 3 && p.All(char.IsAsciiDigit) && int.Parse(p) <= 255);
+    }
+
     /// <summary>Connects to a found camera, or to the saved IP when <paramref name="picked"/> is null.</summary>
     public static async Task<bool> PickedAsync(CameraService cam, Settings settings, FoundCamera? picked,
         string password, Action<string> say, Func<Task<bool>> askFingerprint)
@@ -45,6 +55,11 @@ public static class CameraConnect
         }
         else
         {
+            if (!IsIPv4(settings.CameraIp))
+            {
+                say($"\"{settings.CameraIp}\" isn't a usable IP address. It looks like 192.168.1.23.");
+                return false;
+            }
             int err = await cam.AddByIpAsync(settings.CameraIp, settings.CameraModel);
             if (err != 0)
             {

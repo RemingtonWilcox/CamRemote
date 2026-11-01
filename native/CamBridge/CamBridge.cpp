@@ -230,7 +230,9 @@ CB_API int cb_make_ip_camera(const char* ip, int ssh, const char* model)
 {
     std::unique_lock<std::shared_mutex> l(g_lock);
     unsigned a, b, c, d;
-    if (sscanf(ip, "%u.%u.%u.%u", &a, &b, &c, &d) != 4) return -1;
+    char extra;
+    // Each part must fit in a byte, or it would spill into the next one ("1.2.3.300" became 1.2.3.44).
+    if (!ip || sscanf(ip, "%u.%u.%u.%u%c", &a, &b, &c, &d, &extra) != 4 || a > 255 || b > 255 || c > 255 || d > 255) return -1;
     if (g_ipInfo) { g_ipInfo->Release(); g_ipInfo = nullptr; }
     CrInt32u addr = a | (b << 8) | (c << 16) | (d << 24);
     CrInt8u mac[6] = {0};

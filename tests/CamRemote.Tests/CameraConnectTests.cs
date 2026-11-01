@@ -69,6 +69,32 @@ public class CameraConnectTests
         Assert.Equal("SHA256:fake", settings.Fingerprint);
     }
 
+    [Theory]
+    [InlineData("192.168.1.23", true)]
+    [InlineData("10.0.0.255", true)]
+    [InlineData("192.168.1.300", false)]
+    [InlineData("192.168.1", false)]
+    [InlineData("192.168.1.2.3", false)]
+    [InlineData("192.168..2", false)]
+    [InlineData("192.168.1.2x", false)]
+    [InlineData("camera.local", false)]
+    [InlineData("", false)]
+    [InlineData("1234.1.1.1", false)]
+    public void Only_a_plain_ipv4_address_counts(string text, bool ok) => Assert.Equal(ok, CameraConnect.IsIPv4(text));
+
+    [Fact]
+    public async Task A_typed_address_with_a_part_over_255_is_refused_not_wrapped()
+    {
+        using var rig = new Rig();
+        var settings = Saved();
+        settings.CameraIp = "192.168.1.300";
+        var said = new List<string>();
+        Assert.False(await CameraConnect.SavedAsync(rig.Cam, settings, said.Add, () => Task.FromResult(true)));
+        Assert.Contains(said, s => s.Contains("isn't a usable IP address"));
+        rig.Settle();
+        Assert.DoesNotContain(rig.Camera.Calls, c => c.StartsWith("MakeIpCamera") || c.StartsWith("Connect"));
+    }
+
     [Fact]
     public async Task An_unreachable_camera_says_so_and_does_not_connect()
     {
