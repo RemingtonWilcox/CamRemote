@@ -104,6 +104,8 @@ public sealed class CameraService : IDisposable
         Run(() =>
         {
             if (_bridge.Init(_eventFn) != 0) Say("Sony SDK failed to start.");
+            var missing = SdkCodes.MissingNames().ToList();
+            if (missing.Count > 0) Log.Write("These Sony error names aren't in this SDK, so those errors get a general message: " + string.Join(", ", missing));
         });
         _poll = ui.Every(TimeSpan.FromSeconds(2), () =>
         {
@@ -163,28 +165,8 @@ public sealed class CameraService : IDisposable
         _ui.Post(() => Message?.Invoke(msg));
     }
 
-    /// <summary>What a Sony connection error means for the person using the app.</summary>
-    private static string Explain(int err) => Math.Abs((long)err) switch
-    {
-        0x8202 => "Couldn't reach the camera. It may be off, or another app like Imaging Edge or Monitor & Control may be using it.",
-        0x820B or 0x8210 => "Another app is using the camera. Close Imaging Edge or Monitor & Control, then CamRemote can connect.",
-        0x820A => "The camera refused the connection. Check that Remote Shooting is on.",
-        0x8207 or 0x8208 or 0x8209 => "Lost contact with the camera. Check that it's on and on the same Wi-Fi.",
-        0x8212 or 0x8213 or 0x8214 or 0x8215 => "Couldn't make a secure connection to the camera. Turn it off and on, then try again.",
-        _ => $"Something went wrong talking to the camera (error 0x{Math.Abs((long)err):X}).",
-    };
-
-    /// <summary>The camera notices worth interrupting someone for. The rest only go in the log.</summary>
-    private static string? ExplainNotice(uint notice) => notice switch
-    {
-        0x20002 => "Lost the camera for a moment. Reconnecting…",
-        0x20001 => "Back in touch with the camera.",
-        0x20003 => "The camera's memory card is full.",
-        0x20007 => "The Wi-Fi connection to the camera is having trouble.",
-        0x20008 => "The Wi-Fi connection to the camera is back.",
-        0x2006A => "The camera couldn't start or stop recording.",
-        _ => null,
-    };
+    /// <summary>What a Sony connection error means for the person using the app. See <see cref="SdkCodes"/>.</summary>
+    private static string Explain(int err) => SdkCodes.Explain(err);
 
     private void SetState(LinkState s) => _ui.Post(() =>
     {
@@ -220,6 +202,7 @@ public sealed class CameraService : IDisposable
             int err = _bridge.Connect(index, user, password, fingerprint);
             if (err != 0)
             {
+                if (SdkCodes.MeaningOf(err) == SdkCodes.Meaning.BadPassword) _ui.Post(() => HoldReconnect = true);
                 SayFailed(Explain(err), err);
                 SetState(LinkState.Disconnected);
             }
@@ -270,8 +253,11 @@ public sealed class CameraService : IDisposable
                 break;
             case Native.EvError:
                 Log.Write("Camera error event: " + Native.ErrorName((int)a));
-                if (a == 0x8216) _ui.Post(() => HoldReconnect = true);
-                if (a == 0x8216) Say("The camera rejected the user or password. Check MENU › Network › Network Option › Access Authen. Info (case-sensitive).");
+                if (SdkCodes.MeaningOf(a) == SdkCodes.Meaning.BadPassword)
+                {
+                    _ui.Post(() => HoldReconnect = true); // retrying would only run into the camera's lockout
+                    Say(SdkCodes.BadPasswordText);
+                }
                 else SayFailed(Explain((int)a), (int)a);
                 if (State == LinkState.Connecting) SetState(LinkState.Disconnected);
                 break;
@@ -279,7 +265,7 @@ public sealed class CameraService : IDisposable
                 if (a != _lastWarning)
                 {
                     Log.Write("Camera notice: " + Native.ErrorName((int)a));
-                    if (ExplainNotice(a) is { } notice) Say(notice);
+                    if (SdkCodes.ExplainNotice(a) is { } notice) Say(notice);
                 }
                 _lastWarning = a;
                 _propsDirty = true; // a resumed session sends no connect event of its own on every camera

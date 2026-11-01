@@ -73,5 +73,15 @@ enum CrWarning { CrWarning_Unknown = 0x00020000, CrWarning_Connect_Reconnected }
         self.assertIn("CrError_B", err)
 
 
+    def test_warns_about_error_names_the_app_uses_but_the_headers_lack(self):
+        _, err = generate(BASE + "enum CrError { CrError_Connect_FailBusy = 0x10 };")
+        self.assertIn("CrError_Connect_TimeOut (used in SdkCodes.cs) is not in the SDK headers", err)
+        self.assertNotIn("CrError_Connect_FailBusy (used", err)
+
+    def test_the_fake_sdk_has_every_name_the_app_uses(self):
+        fake = (Path(__file__).resolve().parent / "CamRemote.Tests" / "FakeSdk" / "FakeSdk.h").read_text(encoding="utf-8")
+        _, err = generate(fake)
+        self.assertNotIn("used in SdkCodes.cs", err)
+
 if __name__ == "__main__":
     unittest.main()

@@ -28,6 +28,7 @@
     <Compile Include="..\CamRemote\PhoneServer.cs" Link="Shared\PhoneServer.cs" />
     <Compile Include="..\CamRemote\PictureAssist.cs" Link="Shared\PictureAssist.cs" />
     <Compile Include="..\CamRemote\SdkNames.g.cs" Link="Shared\SdkNames.g.cs" />
+    <Compile Include="..\CamRemote\SdkCodes.cs" Link="Shared\SdkCodes.cs" />
     <Compile Include="..\CamRemote\Settings.cs" Link="Shared\Settings.cs" />
     <Compile Include="..\CamRemote\SonyRemote.cs" Link="Shared\SonyRemote.cs" />
     <EmbeddedResource Include="..\CamRemote\phone.html" LogicalName="phone.html" />

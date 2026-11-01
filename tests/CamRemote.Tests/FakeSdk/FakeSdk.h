@@ -63,4 +63,32 @@ enum CrError
     CrError_Connect = 0x8200,
     CrError_Connect_Unknown = CrError_Connect,
     CrError_Connect_Fake_One,
+    // The names app/CamRemote/SdkCodes.cs looks for. The numbers are made up, and kept away from the
+    // numbers the app used to hard-code, so a test passes only if the app goes by name.
+    CrError_Connect_Connect = 0x8700,
+    CrError_Connect_FailBusy,
+    CrError_Connect_SessionAlreadyOpened,
+    CrError_Connect_FailRejected,
+    CrError_Connect_Disconnected,
+    CrError_Connect_TimeOut,
+    CrError_Connect_Reconnect_TimeOut,
+    CrError_Connect_SSH_ServerConnectFailed,
+    CrError_Connect_SSH_ServerAuthenticationFailed,
+    CrError_Connect_SSH_PortForwardFailed,
+    CrError_Connect_SSH_GetFingerprintFailed,
+    CrError_Connect_SSH_UserAuthenticationFailed,
+    CrError_Connect_RemoteTransfer_NotSupported,
+    // Sits on the number the app used to treat as "wrong password", but means something else here.
+    CrError_Connect_Fake_OnOldPasswordNumber = 0x8216,
+};
+
+enum CrWarning
+{
+    CrWarning_Unknown = 0x27000,
+    CrWarning_Connect_Reconnected,
+    CrWarning_Connect_Reconnecting,
+    CrWarning_File_StorageFull,
+    CrWarning_NetworkErrorOccurred,
+    CrWarning_NetworkErrorRecovered,
+    CrWarning_MovieRecordingOperation_Result_NG,
 };

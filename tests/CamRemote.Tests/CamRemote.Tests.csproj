@@ -26,6 +26,7 @@
     <Compile Include="..\..\app\CamRemote\PhoneServer.cs" Link="Shared\PhoneServer.cs" />
     <Compile Include="..\..\app\CamRemote\PictureAssist.cs" Link="Shared\PictureAssist.cs" />
     <Compile Include="..\..\app\CamRemote\PictureZoom.cs" Link="Shared\PictureZoom.cs" />
+    <Compile Include="..\..\app\CamRemote\SdkCodes.cs" Link="Shared\SdkCodes.cs" />
     <Compile Include="..\..\app\CamRemote\Settings.cs" Link="Shared\Settings.cs" />
     <Compile Include="..\..\app\CamRemote\SonyRemote.cs" Link="Shared\SonyRemote.cs" />
     <Compile Include="..\..\app\CamRemote\UpdateCheck.cs" Link="Shared\UpdateCheck.cs" />

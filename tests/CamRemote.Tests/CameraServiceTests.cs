@@ -19,7 +19,7 @@ public class CameraServiceTests
     public void A_refused_connection_goes_back_to_disconnected_with_plain_words()
     {
         using var rig = new Rig();
-        rig.Camera.ConnectResult = -0x820B;
+        rig.Camera.ConnectResult = -(int)SdkCodesTests.Code("CrError_Connect_FailBusy");
         rig.Ui.Invoke(() => rig.Cam.Connect(0, "admin", "pw", "fp"));
         rig.Settle();
         Assert.Equal(LinkState.Disconnected, rig.Ui.Invoke(() => rig.Cam.State));
@@ -128,7 +128,7 @@ public class CameraServiceTests
         rig.Camera.Set(PropCode.RecordingState, 1);
         rig.ConnectAndRead();
         Assert.True(rig.Ui.Invoke(() => rig.Cam.IsRecording));
-        rig.Camera.Fire(Native.EvDisconnected, 0x8207);
+        rig.Camera.Fire(Native.EvDisconnected, SdkCodesTests.Code("CrError_Connect_TimeOut"));
         rig.Settle();
         Assert.False(rig.Ui.Invoke(() => rig.Cam.IsRecording)); // "recording" from before the drop would mislead
         Assert.Equal(LinkState.Disconnected, rig.Ui.Invoke(() => rig.Cam.State));
@@ -141,7 +141,7 @@ public class CameraServiceTests
         rig.Camera.ConnectFiresEvent = false;
         rig.Ui.Invoke(() => rig.Cam.Connect(0, "admin", "wrong", "fp"));
         rig.Settle();
-        rig.Camera.Fire(Native.EvError, 0x8216);
+        rig.Camera.Fire(Native.EvError, SdkCodesTests.Code("CrError_Connect_SSH_UserAuthenticationFailed"));
         rig.Settle();
         Assert.True(rig.Cam.HoldReconnect);
         Assert.True(rig.Said("rejected the user or password"));
@@ -151,8 +151,9 @@ public class CameraServiceTests
     public void The_same_notice_twice_in_a_row_is_shown_once()
     {
         using var rig = new Rig();
-        rig.Camera.Fire(Native.EvWarning, 0x20003);
-        rig.Camera.Fire(Native.EvWarning, 0x20003);
+        uint full = SdkCodesTests.Code("CrWarning_File_StorageFull");
+        rig.Camera.Fire(Native.EvWarning, full);
+        rig.Camera.Fire(Native.EvWarning, full);
         rig.Settle();
         lock (rig.Messages) Assert.Single(rig.Messages, m => m.Contains("memory card is full"));
     }

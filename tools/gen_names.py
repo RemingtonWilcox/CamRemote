@@ -123,4 +123,16 @@ for enum_name, members in enums.items():
 lines += ["    };", "}", ""]
 
 out_path.write_text("\n".join(lines), encoding="utf-8")
+
+# The app explains Sony's errors by name (app/CamRemote/SdkCodes.cs), so a name it quotes that these headers
+# don't have means that error only gets a general message. Say so at build time.
+codes_cs = Path(__file__).resolve().parent.parent / "app" / "CamRemote" / "SdkCodes.cs"
+if codes_cs.exists():
+    all_names = {key for members in enums.values() for key, _ in members}
+    wanted = sorted(set(re.findall(r'"(Cr(?:Error|Warning)_\w+)"', codes_cs.read_text(encoding="utf-8"))))
+    for name in wanted:
+        if name not in all_names:
+            print(f"warning: {name} (used in SdkCodes.cs) is not in the SDK headers; "
+                  "that error will get a general message. Find its new name in CrError.h and update SdkCodes.cs.",
+                  file=sys.stderr)
 print(f"wrote {out_path}: {len(enums['CrDevicePropertyCode'])} property codes")
