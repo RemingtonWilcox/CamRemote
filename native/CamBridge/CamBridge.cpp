@@ -170,10 +170,15 @@ CB_API void cb_release()
 }
 
 // Finds cameras on USB and the local network. Returns a JSON array.
+// While a camera is connected it returns -2: enumerating would invalidate the connected camera's info.
+// A handle left over from a dropped link is released first. The SDK keeps such a handle to resume the
+// session by itself (CrReconnecting_ON), but only at the old address, so a camera the router gave a new
+// IP would never be found again. The app calls this only after giving the SDK's own resume a while.
 CB_API int cb_enum(int timeoutSec, char* out, int cap)
 {
     std::unique_lock<std::shared_mutex> l(g_lock);
-    if (g_handle) return -2;  // enumerating would invalidate the connected camera's info
+    if (g_handle && g_connected) return -2;
+    if (g_handle) { SDK::Disconnect(g_handle); SDK::ReleaseDevice(g_handle); g_handle = 0; }
     if (g_enum) { g_enum->Release(); g_enum = nullptr; }
     SDK::CrError err = SDK::EnumCameraObjects(&g_enum, (CrInt8u)timeoutSec);
     std::string j = "[";

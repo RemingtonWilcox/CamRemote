@@ -115,6 +115,14 @@ internal sealed class FakeCamera : ICameraBridge
     public readonly List<(uint Command, uint Param)> Commands = new();
 
     public string EnumerateJson = "[]";
+    /// <summary>When not empty, the cameras a search finds (instead of <see cref="EnumerateJson"/>).</summary>
+    public readonly List<(string Ip, string Mac, string Model)> OnNetwork = new();
+    /// <summary>Holds a session handle, as CamBridge does from Connect until Disconnect, even after the link drops.</summary>
+    public bool Linked { get; private set; }
+    public int StaleReleases;
+    /// <summary>The address the last Connect went to: a found camera's, or the one added by IP.</summary>
+    public string? ConnectedIp { get; private set; }
+    private string? _ipCamera;
     public string? FingerprintText = "SHA256:fake";
     public int ConnectResult;
     public bool ConnectFiresEvent = true;
@@ -163,20 +171,45 @@ internal sealed class FakeCamera : ICameraBridge
 
     public int Init(Native.EventFn onEvent) { _event = onEvent; Note("Init"); return 0; }
     public void Release() { Note("Release"); Releases++; }
-    public string? Enumerate(int timeoutSec) { Note("Enumerate"); return EnumerateJson; }
-    public int MakeIpCamera(string ip, bool ssh, string model) { Note($"MakeIpCamera {ip} {model}"); return 0; }
+    public string? Enumerate(int timeoutSec)
+    {
+        Note("Enumerate");
+        lock (_gate)
+        {
+            // Like cb_enum: refused while connected, and a handle left from a dropped link is released first.
+            if (Linked && Connected) return null;
+            if (Linked) { Linked = false; StaleReleases++; }
+            if (OnNetwork.Count == 0) return EnumerateJson;
+            return "[" + string.Join(',', OnNetwork.Select((c, i) =>
+                $"{{\"index\":{i},\"model\":\"{c.Model}\",\"conn\":\"IP\",\"ip\":\"{c.Ip}\",\"mac\":\"{c.Mac}\",\"ssh\":true}}")) + "]";
+        }
+    }
+
+    public int MakeIpCamera(string ip, bool ssh, string model) { Note($"MakeIpCamera {ip} {model}"); _ipCamera = ip; return 0; }
+
+    /// <summary>The Wi-Fi drops: the SDK reports it and keeps its handle to try resuming.</summary>
+    public void DropLink(uint error = 0)
+    {
+        Connected = false;
+        Fire(Native.EvDisconnected, error);
+    }
     public string? Fingerprint(int index) { Note($"Fingerprint {index}"); return FingerprintText; }
 
     public int Connect(int index, string user, string password, string fingerprint)
     {
         Note($"Connect {index} {user} {fingerprint}");
-        if (ConnectResult != 0) return ConnectResult;
+        lock (_gate)
+        {
+            ConnectedIp = index == -1 ? _ipCamera : index < OnNetwork.Count ? OnNetwork[index].Ip : null;
+            if (ConnectResult != 0) return ConnectResult;
+            Linked = true;
+        }
         if (ConnectFiresEvent)
             ThreadPool.QueueUserWorkItem(_ => { Connected = true; Fire(Native.EvConnected); });
         return 0;
     }
 
-    public int Disconnect() { Note("Disconnect"); Disconnects++; Connected = false; return 0; }
+    public int Disconnect() { Note("Disconnect"); Disconnects++; Connected = false; Linked = false; return 0; }
 
     public string? GetProps(uint[]? codes)
     {
