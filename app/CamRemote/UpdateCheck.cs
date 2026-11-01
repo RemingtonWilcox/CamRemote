@@ -7,7 +7,7 @@ namespace CamRemote;
 /// <summary>Looks once at launch for a newer release on GitHub. It only tells the user: nothing is downloaded or installed.</summary>
 public static class UpdateCheck
 {
-    public const string Current = "1.0.3"; // also in tools/windows/CamRemote.iss and tools/mac/Info.plist
+    public const string Current = "1.0.4"; // also in tools/windows/CamRemote.iss and tools/mac/Info.plist
     private const string Latest = "https://api.github.com/repos/RemingtonWilcox/CamRemote/releases/latest";
     private const string Page = "https://github.com/RemingtonWilcox/CamRemote/releases/latest";
 

@@ -50,7 +50,7 @@ public sealed class CameraService : IDisposable
     private const long FocusManual = 1, FocusContinuous = 3;
     private const int FrameFocused = 2;
     private const long TouchOn = 2, TouchFnOff = 1, TouchFnFocus = 3, TouchFnTracking = 4, TrackingActive = 3;
-    private const uint CmdMovieRecord = 1, CmdCancelRemoteTouch = 12;
+    private const uint CmdMovieRecord = 1, CmdQuickFormat = 5, CmdCancelRemoteTouch = 12;
     private const uint ParamUp = 0, ParamDown = 1;
     private const long PriorityPcRemote = 2;
     private const long LiveViewQualityHigh = 1;
@@ -178,6 +178,9 @@ public sealed class CameraService : IDisposable
         0x20007 => "The Wi-Fi connection to the camera is having trouble.",
         0x20008 => "The Wi-Fi connection to the camera is back.",
         0x2006A => "The camera couldn't start or stop recording.",
+        0x2000B => "Card formatted.",
+        0x20009 or 0x2000A => "The camera couldn't format the card.",
+        0x2001B => "Formatting was cancelled.",
         _ => null,
     };
 
@@ -271,6 +274,7 @@ public sealed class CameraService : IDisposable
                 if (State == LinkState.Connecting) SetState(LinkState.Disconnected);
                 break;
             case Native.EvWarning:
+                if (a is 0x20009 or 0x2000A or 0x2000B or 0x2001B) _ui.Post(EndFormat);
                 if (a != _lastWarning)
                 {
                     Log.Write("Camera notice: " + Native.ErrorName((int)a));
@@ -310,7 +314,7 @@ public sealed class CameraService : IDisposable
         {
             if (_controlMisses > 0) Log.Write("The camera gave control of its settings back.");
             _controlMisses = 0;
-            if (!_hadControl) LogFocusOptions(props);
+            if (!_hadControl) LogOptions(props);
             _hadControl = true;
             _restartedLink = false;
             return true;
@@ -322,10 +326,11 @@ public sealed class CameraService : IDisposable
         return true;
     }
 
-    private static void LogFocusOptions(Dictionary<uint, Prop> props)
+    private static void LogOptions(Dictionary<uint, Prop> props)
     {
         foreach (var code in new[] { PropCode.FocusMode, PropCode.RecognitionTarget, PropCode.SubjectRecognitionInAF, PropCode.RightLeftEyeSelect, PropCode.Focus_Magnifier_Setting,
-                     PropCode.FocusPositionCurrentValue, PropCode.FocusPositionSetting, PropCode.FocalDistanceInMeter })
+                     PropCode.FocusPositionCurrentValue, PropCode.FocusPositionSetting, PropCode.FocalDistanceInMeter,
+                     PropCode.MediaSLOT1_QuickFormatEnableStatus, PropCode.MediaSLOT2_QuickFormatEnableStatus })
             Log.Write(props.TryGetValue((uint)code, out var p)
                 ? $"{code}: value 0x{p.Value:X}, writable {p.Writable}, choices {string.Join(' ', p.Candidates.Select(v => v.ToString("X")))}"
                 : $"{code}: not reported");
@@ -419,14 +424,77 @@ public sealed class CameraService : IDisposable
 
     public bool IsRecording => Get(PropCode.RecordingState)?.Value == 1;
 
+    private volatile bool _recordWaiting;
+
+    /// <summary>The record button is queued behind other camera work, such as a focus move.</summary>
+    public bool RecordWaiting => _recordWaiting;
+    public DateTime RecordSent { get; private set; }
+
     /// <summary>The camera toggles recording on "Down"; Sony asks for "Up" right after.</summary>
-    public void ToggleRecord() => Run(() =>
+    public void ToggleRecord()
     {
-        int err = Native.cb_command(CmdMovieRecord, ParamDown);
-        Thread.Sleep(80);
-        Native.cb_command(CmdMovieRecord, ParamUp);
-        if (err != 0) SayFailed("The camera didn't respond to the record button.", err);
-    });
+        _recordWaiting = true;
+        Run(() =>
+        {
+            try
+            {
+                int err = Native.cb_command(CmdMovieRecord, ParamDown);
+                Thread.Sleep(80);
+                Native.cb_command(CmdMovieRecord, ParamUp);
+                if (err != 0) SayFailed("The camera didn't respond to the record button.", err);
+            }
+            finally
+            {
+                RecordSent = DateTime.Now;
+                _recordWaiting = false;
+            }
+        });
+    }
+
+    // ---- Cards ----
+
+    private DateTime _formatHold;
+
+    /// <summary>True from when someone is asked about formatting until the format ends, so nothing starts recording meanwhile.</summary>
+    public bool IsFormatting => DateTime.Now < _formatHold;
+
+    private PropCode CardStatus(int slot) => slot == 1 ? PropCode.MediaSLOT1_Status : PropCode.MediaSLOT2_Status;
+    private PropCode CardFormat(int slot) => slot == 1 ? PropCode.MediaSLOT1_QuickFormatEnableStatus : PropCode.MediaSLOT2_QuickFormatEnableStatus;
+    private PropCode CardTime(int slot) => slot == 1 ? PropCode.MediaSLOT1_RemainingTime : PropCode.MediaSLOT2_RemainingTime;
+
+    /// <summary>The cards in the camera, on cameras that can format over the SDK.</summary>
+    public IEnumerable<int> CardSlots => new[] { 1, 2 }.Where(s => Get(CardStatus(s))?.Value == 0 && Get(CardFormat(s)) != null);
+
+    public bool CanFormat(int slot) => !IsRecording && Get(CardFormat(slot))?.Value == 1;
+
+    public string FormatQuestion(int slot) =>
+        $"Erase everything on Card {slot}?\n\nIt has {Format.Duration(Get(CardTime(slot))?.Value ?? 0)} of recording time left. "
+        + "This can't be undone, so copy anything you want to keep first.";
+
+    public void HoldForFormat() => _formatHold = DateTime.Now.AddMinutes(10);
+
+    public void EndFormat() => _formatHold = default;
+
+    /// <summary>Quick-formats a card, erasing all of it. Ask with FormatQuestion first.</summary>
+    public void FormatCard(int slot)
+    {
+        if (!CanFormat(slot))
+        {
+            EndFormat();
+            Say("The camera can't format that card right now.");
+            return;
+        }
+        _formatHold = DateTime.Now.AddMinutes(1); // in case the camera never says it finished
+        _lastWarning = 0; // the last format's result would hide this one's
+        Say($"Formatting Card {slot}…");
+        Run(() =>
+        {
+            int err = Native.cb_command(CmdQuickFormat, slot == 1 ? ParamUp : ParamDown);
+            if (err == 0) return;
+            SayFailed("The camera didn't start formatting the card.", err);
+            _ui.Post(EndFormat);
+        });
+    }
 
     public bool IsManualFocus => Get(PropCode.FocusMode)?.Value is FocusManual or 6;
     public bool IsTracking => Get(PropCode.FocusTrackingStatus)?.Value == TrackingActive || Frames.Any(f => f.Kind == FrameKind.Tracking);

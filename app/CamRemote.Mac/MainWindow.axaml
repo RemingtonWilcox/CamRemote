@@ -12,6 +12,8 @@
                 <TextBlock x:Name="RecTime" Text="● REC 00:00:00" FontWeight="Bold" Foreground="White" />
             </Border>
             <TextBlock x:Name="CamSummary" DockPanel.Dock="Left" VerticalAlignment="Center" FontSize="14" />
+            <Button x:Name="CardMenu" DockPanel.Dock="Right" Content="▾" Margin="4,0,0,0" Padding="6,0" VerticalAlignment="Center"
+                    Click="OnCardMenuClick" ToolTip.Tip="Card options" IsVisible="False" />
             <TextBlock x:Name="CardText" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="16,0,0,0" />
             <TextBlock x:Name="BatteryText" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="16,0,0,0" />
         </DockPanel>

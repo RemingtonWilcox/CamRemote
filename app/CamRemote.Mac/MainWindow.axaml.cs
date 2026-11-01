@@ -444,6 +444,25 @@ public partial class MainWindow : Window
 
     private void OnRecClick(object? sender, RoutedEventArgs e) => _cam.ToggleRecord();
 
+    private void OnCardMenuClick(object? sender, RoutedEventArgs e)
+    {
+        var menu = new ContextMenu();
+        foreach (int slot in _cam.CardSlots)
+        {
+            var item = new MenuItem { Header = $"Format Card {slot}…", IsEnabled = _cam.CanFormat(slot) };
+            item.Click += async (_, _) => await AskToFormatAsync(slot);
+            menu.Items.Add(item);
+        }
+        menu.Open(CardMenu);
+    }
+
+    private async Task AskToFormatAsync(int slot)
+    {
+        _cam.HoldForFormat();
+        if (await ConnectWindow.AskAsync(this, "Format card", _cam.FormatQuestion(slot), "Erase card", "Cancel")) _cam.FormatCard(slot);
+        else _cam.EndFormat();
+    }
+
     private void OnBirdWatchClick(object? sender, RoutedEventArgs e)
     {
         bool on = BirdWatch.IsChecked == true;
@@ -558,6 +577,7 @@ public partial class MainWindow : Window
         if (slot1 != null && _cam.Get(PropCode.MediaSLOT1_Status)?.Value == 0) { parts.Add("Card 1: " + Format.Duration(slot1.Value)); minutes.Add(slot1.Value / 60); }
         if (slot2 != null && _cam.Get(PropCode.MediaSLOT2_Status)?.Value == 0) { parts.Add("Card 2: " + Format.Duration(slot2.Value)); minutes.Add(slot2.Value / 60); }
         CardText.Text = _cam.State == LinkState.Connected && parts.Count == 0 && _cam.Props.Count > 0 ? "No card ready" : string.Join("    ", parts);
+        CardMenu.IsVisible = _cam.State == LinkState.Connected && _cam.CardSlots.Any();
         bool cardLow = minutes.Count > 0 && minutes.Max() < 10;
         CardText.Foreground = cardLow || CardText.Text == "No card ready" ? Rec : Brushes.White;
 

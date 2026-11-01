@@ -212,7 +212,7 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
         if (seen) _sightings.Enqueue(now);
         while (_sightings.TryPeek(out var old) && now - old > StartWithin) _sightings.Dequeue();
         Act(score, seen, now);
-        if (seen && score >= WorthFocus) FocusOn(x, y, now); // after Act, so focusing never holds up the record button
+        if (seen && score >= WorthFocus && _took != null && !cam.IsFormatting) FocusOn(x, y, now); // only once recording, so focusing never holds up the record button
         if (seen)
         {
             _boxShown = now;
@@ -227,7 +227,7 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
         {
             if (seen) _lastBird = now;
             _rolled |= cam.IsRecording;
-            if (now - began > Settle && !cam.IsRecording)
+            if (!cam.RecordWaiting && now - cam.RecordSent > Settle && !cam.IsRecording)
             {
                 _took = null; // stopped by hand, or the camera never started
                 _sightings.Clear();
@@ -257,7 +257,7 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
             return;
         }
         if (seen && _sightings.Count >= StartHits && now >= _restUntil
-            && cam.State == LinkState.Connected && !cam.IsRecording)
+            && cam.State == LinkState.Connected && !cam.IsRecording && !cam.IsFormatting)
         {
             cam.ToggleRecord();
             _took = _lastBird = now;
