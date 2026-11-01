@@ -38,5 +38,5 @@ Common failures:
 - Don't ask for, type or store the camera's Access Authen. password. The person types it into the app; the app keeps it in Windows Credential Manager or the macOS Keychain.
 - Don't change firewall rules, network settings or router settings. If a Windows Firewall or macOS privacy prompt appears, the person answers it.
 - Don't change camera firmware or camera settings for them.
-- Don't add telemetry, auto-updaters or background services.
+- Don't add telemetry, auto-updaters or background services. The app looks once at launch for a newer release on GitHub and only shows a button; keep it that way.
 - Don't remove the first-launch agreement. Sony's licence requires it for anyone distributing the app.

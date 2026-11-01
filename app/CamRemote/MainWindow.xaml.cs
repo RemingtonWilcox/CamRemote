@@ -68,6 +68,8 @@ public partial class MainWindow : Window
         _cam.Message += ShowMessage;
         _cam.StateChanged += OnLinkChanged;
         _cam.PropsChanged += OnPropsChanged;
+        _cam.FramesChanged += ShowFrames;
+        _cam.FocusMoved += ShowFocusBar;
 
         var big = PropControl.Kind.Stepper;
         var pick = PropControl.Kind.Picker;
@@ -76,6 +78,9 @@ public partial class MainWindow : Window
         Add(ExposurePanel, "Iris", PropCode.FNumber, Format.FNumber, big, v => v);
         Add(FocusPanel, "Focus mode", PropCode.FocusMode, Format.Named("FocusMode"), PropControl.Kind.Buttons);
         Add(FocusPanel, "Tap does", PropCode.FunctionOfTouchOperation, Format.Named("TouchFunction"), PropControl.Kind.Buttons);
+        Add(FocusPanel, "Detect", PropCode.RecognitionTarget, Format.Named("RecognitionTarget"), PropControl.Kind.Buttons);
+        Add(FocusPanel, "Face/eye priority", PropCode.SubjectRecognitionInAF, Format.Named("SubjectInAf"), PropControl.Kind.Buttons);
+        Add(FocusPanel, "Which eye", PropCode.RightLeftEyeSelect, Format.Named("EyeSelect"), PropControl.Kind.Buttons);
         Add(AudioPanel, "Record level", PropCode.AudioInputMasterLevel, v => v.ToString(), big, v => v);
         Add(AudioPanel, "Audio recording", PropCode.AudioRecording, Format.Named("AudioRecording"), PropControl.Kind.Buttons);
         Add(AudioPanel, "Wind noise reduction", PropCode.WindNoiseReduct, Format.Named("WindNoise"), PropControl.Kind.Buttons);
@@ -99,7 +104,7 @@ public partial class MainWindow : Window
         _tick.Start();
         _meterTick = new DispatcherTimer(TimeSpan.FromMilliseconds(50), DispatcherPriority.Render, (_, _) => DrawMeters(), Dispatcher);
         UpdateMeter(null);
-        _hideFocusMark = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
+        _hideFocusMark = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.8) };
         _hideFocusMark.Tick += (_, _) => { FocusMark.Visibility = Visibility.Collapsed; _hideFocusMark.Stop(); };
     }
 
@@ -138,6 +143,7 @@ public partial class MainWindow : Window
         }
         await LoadSourcesAsync();
         await SetPhoneAsync(_settings.PhoneEnabled);
+        _ = ShowUpdateAsync();
         await TryReconnectAsync(first: true);
     }
 
@@ -163,6 +169,15 @@ public partial class MainWindow : Window
     /// With auto-connect on, keeps trying the saved camera while it's off or out of range, and after a
     /// drop. Waits a little after a drop first, since the SDK tries to resume the session itself.
     /// </summary>
+    private async Task ShowUpdateAsync()
+    {
+        if (await UpdateCheck.NewerVersionAsync() is not { } version) return;
+        UpdateButton.Content = $"CamRemote {version} is out. Click to download";
+        UpdateButton.Visibility = Visibility.Visible;
+    }
+
+    private void OnUpdateClick(object sender, RoutedEventArgs e) => UpdateCheck.OpenDownloadPage();
+
     private async Task TryReconnectAsync(bool first = false)
     {
         if (_settings.AgreedVersion < Agreement.Version || _reconnecting || _cam.HoldReconnect || !_settings.AutoConnect || _settings.CameraIp.Length == 0) return;
@@ -240,6 +255,12 @@ public partial class MainWindow : Window
         if (_cam.State != LinkState.Connected || Picture.ActualWidth <= 0) return;
         var p = e.GetPosition(Picture);
         double fx = p.X / Picture.ActualWidth, fy = p.Y / Picture.ActualHeight;
+        if (_zoom.Ratio > 0)
+        {
+            _zoom.MoveTo(fx, fy);
+            ApplyZoom();
+            return;
+        }
         var problem = _cam.TouchFocus(fx, fy);
         if (problem != null)
         {
@@ -273,8 +294,61 @@ public partial class MainWindow : Window
     private void OnPictureRightClick(object sender, MouseButtonEventArgs e)
     {
         if (_cam.State != LinkState.Connected) return;
-        _cam.CancelTouch();
-        FocusMark.Visibility = Visibility.Collapsed;
+        if (_cam.CancelTouch() is { } problem) ShowMessage(problem);
+    }
+
+    private static readonly SolidColorBrush FrameFocusedBrush = new(Color.FromRgb(0x4C, 0xD9, 0x64)), FrameOtherBrush = new(Colors.White);
+
+    /// <summary>Draws the boxes the camera has on its own screen. While magnified they don't line up with the picture.</summary>
+    private void ShowFrames()
+    {
+        FrameLayer.Children.Clear();
+        double w = Picture.ActualWidth, h = Picture.ActualHeight;
+        if (_cam.MagnifyRatio == 0 && _zoom.Ratio == 0 && w > 0)
+        {
+            foreach (var f in _cam.FramesToShow)
+            {
+                var box = new System.Windows.Shapes.Rectangle
+                {
+                    Width = Math.Max(f.W * w, 6),
+                    Height = Math.Max(f.H * h, 6),
+                    Stroke = f.Focused ? FrameFocusedBrush : FrameOtherBrush,
+                    StrokeThickness = f.Kind == FrameKind.Focus ? 1.5 : 2.5,
+                };
+                Canvas.SetLeft(box, f.X * w - box.Width / 2);
+                Canvas.SetTop(box, f.Y * h - box.Height / 2);
+                FrameLayer.Children.Add(box);
+            }
+        }
+        if (_cam.IsTracking != _showedTracking) ShowFocusTools();
+    }
+
+    private static readonly SolidColorBrush ZoomBrush = new(Color.FromRgb(0xF2, 0xC9, 0x4C));
+    private bool _showedTracking;
+    private readonly PictureZoom _zoom = new();
+
+    private void ApplyZoom()
+    {
+        var (x, y) = _zoom.Origin;
+        foreach (var layer in new FrameworkElement[] { Picture, AssistLayer })
+        {
+            layer.RenderTransformOrigin = new Point(x, y);
+            layer.RenderTransform = new ScaleTransform(_zoom.Scale, _zoom.Scale);
+        }
+        ShowFrames();
+        ShowFocusTools();
+    }
+
+    private void OnZoomBadgeClick(object sender, RoutedEventArgs e) => OnMagnifyClick(0);
+
+    private void OnMagnifyClick(long ratio)
+    {
+        if (_cam.MagnifyChoices().Count > 0) _cam.Magnify(ratio);
+        else
+        {
+            _zoom.Set(ratio);
+            ApplyZoom();
+        }
     }
 
     // ---- Camera ----
@@ -527,8 +601,10 @@ public partial class MainWindow : Window
     private void ShowFocusTools()
     {
         bool connected = _cam.State == LinkState.Connected;
-        long ratio = connected ? _cam.MagnifyRatio : 0;
         var choices = connected ? _cam.MagnifyChoices() : [];
+        bool inApp = choices.Count == 0;
+        if (inApp) choices = [20, 40];
+        long ratio = inApp ? _zoom.Ratio : _cam.MagnifyRatio;
         var wanted = new List<long> { 0 };
         wanted.AddRange(choices);
         if (!wanted.SequenceEqual(MagnifierButtons.Children.OfType<Button>().Select(b => (long)b.Tag)))
@@ -537,31 +613,51 @@ public partial class MainWindow : Window
             foreach (long r in wanted)
             {
                 var b = new Button { Tag = r, Content = r == 0 ? "Off" : $"×{r / 10.0:0.#}", Padding = new Thickness(12, 5, 12, 5), Margin = new Thickness(0, 0, 4, 0) };
-                b.Click += (_, _) => _cam.Magnify((long)b.Tag);
+                b.Click += (_, _) => OnMagnifyClick((long)b.Tag);
                 MagnifierButtons.Children.Add(b);
             }
         }
         foreach (Button b in MagnifierButtons.Children)
         {
-            b.IsEnabled = connected;
+            b.IsEnabled = connected || inApp;
+            bool on = (long)b.Tag == ratio && ratio > 0;
             b.FontWeight = (long)b.Tag == ratio ? FontWeights.Bold : FontWeights.Normal;
+            if (on)
+            {
+                b.Background = ZoomBrush;
+                b.Foreground = Brushes.Black;
+            }
+            else
+            {
+                b.ClearValue(BackgroundProperty);
+                b.ClearValue(ForegroundProperty);
+            }
         }
+        ZoomBadge.Content = $"🔍  ×{ratio / 10.0:0.#} ZOOM    ✕";
+        ZoomBadge.Visibility = ZoomFrame.Visibility = ratio > 0 ? Visibility.Visible : Visibility.Collapsed;
+        ShowFocusBar();
         bool tracking = connected && _cam.IsTracking;
+        _showedTracking = tracking;
         StopTracking.Visibility = tracking ? Visibility.Visible : Visibility.Collapsed;
         TouchHint.Text = !connected ? ""
-            : ratio > 0 ? "Magnified: click the picture to move the magnified area."
+            : ratio > 0 ? "Zoomed in. Click the picture to move around. Off goes back to clicking to focus."
+            : _cam.Get(PropCode.FunctionOfTouchOperation)?.Value == 1 ? "Tap does is Off, so clicks do nothing."
             : _cam.IsManualFocus ? "Click the picture to autofocus once. It stays in manual."
-            : tracking ? "Tracking. Right-click the picture to stop."
-            : _cam.TapTracks ? "Click a subject to track it. Right-click cancels."
-            : "Click the picture to focus there. Right-click cancels.";
+            : tracking ? "The camera is tracking. Right-click the picture to stop."
+            : _cam.CanCancelTouch ? "Click to focus somewhere else. Right-click cancels."
+            : _cam.TapTracks ? "Click a subject to ask the camera to track it."
+            : "Click the picture to focus there.";
     }
 
-    private void OnStopTrackingClick(object sender, RoutedEventArgs e) => _cam.CancelTouch();
+    private void OnStopTrackingClick(object sender, RoutedEventArgs e)
+    {
+        if (_cam.CancelTouch() is { } problem) ShowMessage(problem);
+    }
 
     // ---- Focus wheel ----
 
-    private const double WheelPixelsPerStep = 5, WheelTickGap = 14;
-    private double _wheelLastX, _wheelOwed, _wheelTurned;
+    private const double WheelTickGap = 14;
+    private double _wheelLastX, _wheelTurned;
 
     private void DrawWheel()
     {
@@ -579,16 +675,13 @@ public partial class MainWindow : Window
     private void TurnWheel(double pixels)
     {
         _wheelTurned += pixels;
-        _wheelOwed = Math.Clamp(_wheelOwed + pixels, -7 * WheelPixelsPerStep, 7 * WheelPixelsPerStep);
         DrawWheel();
-        int step = (int)Math.Clamp(_wheelOwed / WheelPixelsPerStep, -7, 7);
-        if (step != 0 && _cam.FocusStep(step)) _wheelOwed -= step * WheelPixelsPerStep;
+        _cam.TurnRing(pixels);
     }
 
     private void OnWheelDown(object sender, MouseButtonEventArgs e)
     {
         _wheelLastX = e.GetPosition(FocusWheel).X;
-        _wheelOwed = 0;
         FocusWheel.CaptureMouse();
     }
 
@@ -604,8 +697,37 @@ public partial class MainWindow : Window
 
     private void OnWheelScroll(object sender, MouseWheelEventArgs e)
     {
-        TurnWheel(e.Delta > 0 ? WheelPixelsPerStep : -WheelPixelsPerStep);
+        _wheelTurned += e.Delta > 0 ? WheelTickGap : -WheelTickGap;
+        DrawWheel();
+        _cam.FocusStep(e.Delta > 0 ? 2 : -2);
         e.Handled = true;
+    }
+
+    /// <summary>Draws the range from close up to infinity, with a marker where focus is now.</summary>
+    private void ShowFocusBar()
+    {
+        double w = FocusBar.ActualWidth - 2, h = FocusBar.ActualHeight - 2;
+        FocusBarTicks.Children.Clear();
+        if (w <= 0) return;
+        for (int i = 0; i <= 20; i++)
+        {
+            bool major = i % 5 == 0;
+            var tick = new System.Windows.Shapes.Rectangle { Width = 1, Height = major ? 12 : 6, Fill = major ? Brushes.Gray : Brushes.DimGray };
+            Canvas.SetLeft(tick, i * (w - 1) / 20);
+            Canvas.SetTop(tick, h - tick.Height);
+            FocusBarTicks.Children.Add(tick);
+        }
+        if (_cam.FocusPosition is not { } spot) return;
+        var marker = new System.Windows.Shapes.Rectangle { Width = 3, Height = h, Fill = Brushes.Gold };
+        Canvas.SetLeft(marker, spot * (w - 3));
+        FocusBarTicks.Children.Add(marker);
+    }
+
+    private void OnFocusBarSized(object sender, SizeChangedEventArgs e) => ShowFocusBar();
+
+    private void OnFocusBarClick(object sender, MouseButtonEventArgs e)
+    {
+        if (_cam.FocusTo(e.GetPosition(FocusBar).X / FocusBar.ActualWidth) is { } problem) ShowMessage(problem);
     }
 
     private void OnFocusStep(object sender, RoutedEventArgs e) =>

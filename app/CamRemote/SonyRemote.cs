@@ -38,7 +38,7 @@ public sealed class SonyRemote(IUi ui, CameraService cam, Func<(byte[] Jpeg, lon
         if (!long.TryParse(value, out long v)) return "That value isn't valid.";
         if (id == "baseiso") return cam.SetBaseIso(v);
         if (id == "magnify") { cam.Magnify(v); return null; }
-        if (id == "stoptracking") { cam.CancelTouch(); return null; }
+        if (id == "stoptracking") return cam.CancelTouch();
         var row = rows.FirstOrDefault(r => r.Code.ToString() == id);
         if (row == null || !row.Allows(v)) return "The camera isn't offering that right now.";
         row.Pick(v);

@@ -8,7 +8,7 @@ internal static class Native
 {
     private const string Dll = "CamBridge"; // CamBridge.dll, or libCamBridge.dylib on a Mac
 
-    public const int EvConnected = 1, EvDisconnected = 2, EvPropertyChanged = 3, EvError = 4, EvWarning = 5;
+    public const int EvConnected = 1, EvDisconnected = 2, EvPropertyChanged = 3, EvError = 4, EvWarning = 5, EvLiveViewPropsChanged = 6;
 
     [UnmanagedFunctionPointer(CallingConvention.StdCall)]
     public delegate void EventFn(int kind, uint a, uint b);
@@ -27,6 +27,8 @@ internal static class Native
     [DllImport(Dll)] public static extern int cb_set_prop(uint code, ulong value, uint dataType);
     [DllImport(Dll)] public static extern int cb_command(uint command, uint param);
     [DllImport(Dll)] public static extern int cb_liveview(byte[] output, int cap, out uint frameNo);
+    [DllImport(Dll)] public static extern int cb_queue_count();
+    [DllImport(Dll)] private static extern int cb_focus_frames(byte[] output, int cap);
 
     // Property lists can be large; one buffer is reused (calls are serialized by CameraService).
     private static readonly byte[] Buffer = new byte[8 * 1024 * 1024];
@@ -37,6 +39,14 @@ internal static class Native
     public static string? Fingerprint(int index) => Text(cb_fingerprint(index, Buffer, Buffer.Length));
     public static string? GetProps(uint[]? codes) =>
         Text(cb_get_props(codes, codes?.Length ?? 0, Buffer, Buffer.Length));
+
+    private static readonly byte[] FrameBuffer = new byte[256 * 1024]; // read by the focus-frame thread only
+
+    public static string? FocusFrames()
+    {
+        int n = cb_focus_frames(FrameBuffer, FrameBuffer.Length);
+        return n >= 0 ? Encoding.UTF8.GetString(FrameBuffer, 0, n) : null;
+    }
 
     public static string ErrorName(int code)
     {

@@ -51,7 +51,7 @@
                 <Border x:Name="RecFrame" HorizontalAlignment="Center" VerticalAlignment="Center"
                         BorderThickness="3" BorderBrush="Transparent">
                     <LayoutTransformControl x:Name="PictureTurn">
-                        <Panel x:Name="PictureHost">
+                        <Panel x:Name="PictureHost" ClipToBounds="True">
                             <Image x:Name="Picture" Stretch="Uniform" Cursor="Cross" PointerPressed="OnPicturePressed" />
                             <Image x:Name="AssistLayer" Stretch="Uniform" IsHitTestVisible="False" IsVisible="False" />
                             <Grid x:Name="GuideGrid" IsHitTestVisible="False" IsVisible="False" ColumnDefinitions="*,*,*" RowDefinitions="*,*,*">
@@ -60,12 +60,19 @@
                                 <Rectangle Grid.Row="1" Grid.Column="1" Width="24" Height="1" Fill="#B0FFFFFF" />
                                 <Rectangle Grid.Row="1" Grid.Column="1" Width="1" Height="24" Fill="#B0FFFFFF" />
                             </Grid>
+                            <Border x:Name="ZoomFrame" BorderBrush="#F2C94C" BorderThickness="4" IsHitTestVisible="False" IsVisible="False" />
+                            <!-- The boxes the camera reports -->
+                            <Canvas x:Name="FrameLayer" IsHitTestVisible="False" />
                             <Canvas x:Name="Overlay" IsHitTestVisible="False">
-                                <Rectangle x:Name="FocusMark" Width="56" Height="56" Stroke="#FFF2C94C" StrokeThickness="2" IsVisible="False" />
+                                <!-- Where the click landed, not a focus box -->
+                                <Ellipse x:Name="FocusMark" Width="20" Height="20" Stroke="#C0FFFFFF" StrokeThickness="1.5" IsVisible="False" />
                             </Canvas>
                         </Panel>
                     </LayoutTransformControl>
                 </Border>
+                <Button x:Name="ZoomBadge" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14" Padding="12,6" Background="#F2C94C"
+                        Foreground="Black" FontWeight="Bold" FontSize="15" IsVisible="False" Click="OnZoomBadgeClick"
+                        ToolTip.Tip="The picture is enlarged. Click here to go back to the whole picture." />
                 <Border x:Name="AlertBanner" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,14,0,0"
                         CornerRadius="6" Padding="16,8" Background="{StaticResource Rec}" IsVisible="False" IsHitTestVisible="False">
                     <TextBlock x:Name="AlertText" Foreground="White" FontSize="16" FontWeight="Bold" TextAlignment="Center" />
@@ -75,6 +82,8 @@
 
         <!-- Messages -->
         <DockPanel Grid.Row="3" Grid.Column="0" Margin="12,6">
+            <Button x:Name="UpdateButton" DockPanel.Dock="Left" Margin="0,0,10,0" Padding="10,3" Background="#2E7D32" Foreground="White"
+                    IsVisible="False" Click="OnUpdateClick" ToolTip.Tip="Opens the download page in your browser." />
             <TextBlock x:Name="VideoInfo" DockPanel.Dock="Right" Foreground="{StaticResource Dim}" />
             <TextBlock x:Name="MessageText" Foreground="{StaticResource Dim}" TextTrimming="CharacterEllipsis" />
         </DockPanel>
@@ -113,21 +122,24 @@
                         <TextBlock Text="Focus ring: drag or scroll" FontSize="12" Foreground="Gray" Margin="0,0,0,3" />
                         <Border x:Name="FocusWheel" Height="44" Margin="0,0,0,6" Background="#191919" BorderBrush="#444" BorderThickness="1"
                                 CornerRadius="4" ClipToBounds="True" Cursor="SizeWestEast" PointerPressed="OnWheelDown" PointerMoved="OnWheelMove"
-                                PointerReleased="OnWheelUp" PointerWheelChanged="OnWheelScroll" ToolTip.Tip="Drag like a focus ring. Faster moves focus further.">
+                                PointerReleased="OnWheelUp" PointerWheelChanged="OnWheelScroll" ToolTip.Tip="Drag slowly for fine focus, faster for bigger moves.">
                             <Canvas x:Name="WheelTicks" />
                         </Border>
-                        <UniformGrid Rows="1">
-                            <RepeatButton Content="◀◀◀" Tag="-7" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="0,0,2,0" HorizontalAlignment="Stretch" ToolTip.Tip="Nearer, big step" />
-                            <RepeatButton Content="◀◀" Tag="-3" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="0,0,2,0" HorizontalAlignment="Stretch" ToolTip.Tip="Nearer" />
-                            <RepeatButton Content="◀" Tag="-1" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="0,0,2,0" HorizontalAlignment="Stretch" ToolTip.Tip="Nearer, fine" />
-                            <RepeatButton Content="▶" Tag="1" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="2,0,0,0" HorizontalAlignment="Stretch" ToolTip.Tip="Farther, fine" />
-                            <RepeatButton Content="▶▶" Tag="3" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="2,0,0,0" HorizontalAlignment="Stretch" ToolTip.Tip="Farther" />
-                            <RepeatButton Content="▶▶▶" Tag="7" Click="OnFocusStep" Delay="300" Interval="120" Padding="0,8" Margin="2,0,0,0" HorizontalAlignment="Stretch" ToolTip.Tip="Farther, big step" />
-                        </UniformGrid>
-                        <DockPanel Margin="0,2,0,0">
-                            <TextBlock Text="near" FontSize="11" Foreground="{StaticResource Dim}" DockPanel.Dock="Left" />
-                            <TextBlock Text="far" FontSize="11" Foreground="{StaticResource Dim}" DockPanel.Dock="Right" />
-                            <TextBlock />
+                        <DockPanel>
+                            <RepeatButton DockPanel.Dock="Left" Tag="-7" Click="OnFocusStep" Delay="300" Interval="120" Width="36" ToolTip.Tip="Hold to focus nearer">
+                                <TextBlock Text="✿" FontSize="15" />
+                            </RepeatButton>
+                            <RepeatButton DockPanel.Dock="Right" Tag="7" Click="OnFocusStep" Delay="300" Interval="120" Width="46" ToolTip.Tip="Hold to focus farther">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="M0,12 L5,3 L8,7 L10,5 L15,12 Z" Fill="#DDD" VerticalAlignment="Center" Margin="0,0,3,0" />
+                                    <TextBlock Text="∞" FontSize="15" />
+                                </StackPanel>
+                            </RepeatButton>
+                            <Border x:Name="FocusBar" Height="32" Margin="4,0" Background="#191919" BorderBrush="#444" BorderThickness="1" CornerRadius="4"
+                                    ClipToBounds="True" Cursor="Hand" PointerPressed="OnFocusBarClick" SizeChanged="OnFocusBarSized"
+                                    ToolTip.Tip="Where focus is now, from close up to infinity. Click to jump there.">
+                                <Canvas x:Name="FocusBarTicks" />
+                            </Border>
                         </DockPanel>
                     </StackPanel>
                     <TextBlock Text="Focus magnifier" FontSize="12" Foreground="Gray" Margin="0,8,0,3" />

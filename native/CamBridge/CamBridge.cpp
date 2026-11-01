@@ -35,6 +35,7 @@ enum CbEventKind : int {
     CbPropertyChanged = 3,
     CbError = 4,
     CbWarning = 5,
+    CbLiveViewPropsChanged = 6,
 };
 
 typedef void(__stdcall* CbEventFn)(int kind, uint32_t a, uint32_t b);
@@ -70,6 +71,8 @@ public:
     {
         for (CrInt32u i = 0; i < num; ++i) emit(CbPropertyChanged, codes[i], 1);
     }
+    void OnLvPropertyChanged() override { emit(CbLiveViewPropsChanged, 0); }
+    void OnLvPropertyChangedCodes(CrInt32u, CrInt32u*) override { emit(CbLiveViewPropsChanged, 0); }
     void OnError(CrInt32u error) override { emit(CbError, error); }
     void OnWarning(CrInt32u warning) override { emit(CbWarning, warning); }
     void OnWarningExt(CrInt32u warning, CrInt32, CrInt32, CrInt32) override { emit(CbWarning, warning); }
@@ -337,6 +340,66 @@ CB_API int cb_command(uint32_t command, uint32_t param)
 }
 
 CB_API int cb_is_connected() { return g_connected ? 1 : 0; }
+
+// Commands still waiting in the SDK. Sony: while these pile up, properties and live view stop updating.
+CB_API int cb_queue_count()
+{
+    std::shared_lock<std::shared_mutex> l(g_lock);
+    if (!g_handle) return 0;
+    CrInt32u count = 0;
+    return SDK::GetCommandQueueCount(g_handle, &count) ? 0 : (int)count;
+}
+
+template <typename T>
+static void addFrames(std::string& j, int kind, const SDK::CrLiveViewProperty& p)
+{
+    auto* frames = (const T*)p.GetValue();
+    for (CrInt32u i = 0; i < p.GetValueSize() / sizeof(T); ++i) {
+        const T& f = frames[i];
+        if (j.back() != '[') j += ',';
+        j += "[" + std::to_string(kind) + "," + std::to_string((int)f.type) + "," + std::to_string((int)f.state) + ","
+           + std::to_string(f.xNumerator) + "," + std::to_string(f.xDenominator) + ","
+           + std::to_string(f.yNumerator) + "," + std::to_string(f.yDenominator) + ","
+           + std::to_string(f.width) + "," + std::to_string(f.height) + "]";
+    }
+}
+
+// Reads the boxes the camera is drawing on its own screen, as JSON:
+// {"f":[[kind,type,state,x,xMax,y,yMax,width,height]...],"m":[x,xMax,y,yMax,width,height]}. x and y are frame centres.
+CB_API int cb_focus_frames(char* out, int cap)
+{
+    std::shared_lock<std::shared_mutex> l(g_lock);
+    if (!g_handle || !g_connected) return -1;
+    SDK::CrLiveViewProperty* list = nullptr;
+    CrInt32 count = 0;
+    SDK::CrError err = SDK::GetLiveViewProperties(g_handle, &list, &count);
+    if (err) return -(int)err;
+
+    std::string j = "{\"f\":[";
+    std::string mag;
+    for (CrInt32 i = 0; i < count; ++i) {
+        auto& p = list[i];
+        if (!p.GetValue() || !p.GetValueSize()) continue;
+        switch (p.GetFrameInfoType()) {
+        case SDK::CrFrameInfoType_FocusFrameInfo: addFrames<SDK::CrFocusFrameInfo>(j, 1, p); break;
+        case SDK::CrFrameInfoType_FaceFrameInfo: addFrames<SDK::CrFaceFrameInfo>(j, 2, p); break;
+        case SDK::CrFrameInfoType_TrackingFrameInfo: addFrames<SDK::CrTrackingFrameInfo>(j, 3, p); break;
+        case SDK::CrFrameInfoType_Magnifier_Position: {
+            auto* m = (const SDK::CrMagPosInfo*)p.GetValue();
+            mag = "[" + std::to_string(m->xNumerator) + "," + std::to_string(m->xDenominator) + ","
+                + std::to_string(m->yNumerator) + "," + std::to_string(m->yDenominator) + ","
+                + std::to_string(m->width) + "," + std::to_string(m->height) + "]";
+            break;
+        }
+        default: break;
+        }
+    }
+    j += "]";
+    if (!mag.empty()) j += ",\"m\":" + mag;
+    j += "}";
+    SDK::ReleaseLiveViewProperties(g_handle, list);
+    return copyOut(j, out, cap);
+}
 
 // Copies the newest live-view JPEG into out. Returns its size, 0 when the camera has no new
 // frame yet, -1 when out is too small, or -error.
