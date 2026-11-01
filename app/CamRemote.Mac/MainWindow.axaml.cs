@@ -43,6 +43,7 @@ public partial class MainWindow : Window
     private long? _lastMode;
     private DateTime _linkSince = DateTime.Now; // when the link last changed state
     private bool _reconnecting;
+    private bool _connectingByHand; // the Connect dialog is open or its connect is running
     private bool _wasConnected; // connected at some point this run, so a drop is worth a banner
     private PhoneServer? _phone;
     private bool _phoneWatching; // a phone wants the live view, even if this window shows a capture card
@@ -196,7 +197,7 @@ public partial class MainWindow : Window
 
     private async Task TryReconnectAsync(bool first = false)
     {
-        if (_settings.AgreedVersion < Agreement.Version || _reconnecting || _cam.HoldReconnect || !_settings.AutoConnect || _settings.CameraIp.Length == 0) return;
+        if (_settings.AgreedVersion < Agreement.Version || _reconnecting || _connectingByHand || _cam.HoldReconnect || !_settings.AutoConnect || _settings.CameraIp.Length == 0) return;
         var idle = DateTime.Now - _linkSince;
         bool due = _cam.State switch
         {
@@ -381,11 +382,19 @@ public partial class MainWindow : Window
             _cam.Disconnect();
             return;
         }
-        var dlg = new ConnectWindow(_cam, _settings);
-        if (!await dlg.ShowDialog<bool>(this)) return;
-        _cam.HoldReconnect = false;
-        _linkSince = DateTime.Now;
-        await dlg.ConnectAsync(ShowMessage, AskFingerprint);
+        _connectingByHand = true; // auto-reconnect waits, so it can't race the dialog or pop up over it
+        try
+        {
+            var dlg = new ConnectWindow(_cam, _settings);
+            if (!await dlg.ShowDialog<bool>(this)) return;
+            _cam.HoldReconnect = false;
+            _linkSince = DateTime.Now;
+            await dlg.ConnectAsync(ShowMessage, AskFingerprint);
+        }
+        finally
+        {
+            _connectingByHand = false;
+        }
     }
 
     private void OnRecClick(object? sender, RoutedEventArgs e) => _cam.ToggleRecord();
