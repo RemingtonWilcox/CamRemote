@@ -284,6 +284,15 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 ./build-mac.sh
 ```
 
+**Tests:** these need no camera and no Sony SDK, just the .NET 10 SDK and Python:
+
+```bash
+dotnet test tests/CamRemote.Tests/CamRemote.Tests.csproj
+python -m unittest discover -s tests -p "test_*.py"
+```
+
+A fake camera stands in for Sony's SDK, and the SDK names come from a made-up header in `tests/CamRemote.Tests/FakeSdk`. GitHub runs both on every push.
+
 **Making the downloads:** `package-windows.ps1` builds the installer with Inno Setup. `package-mac.sh` builds both notarized disk images, and its comments explain the one-time setup. Upload those files and `libusb-source.zip` to a GitHub release.
 
 **How it's put together:**

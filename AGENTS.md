@@ -23,6 +23,8 @@ Only when someone asks to build it or change the code.
 4. It belongs in `vendor\CrSDK\` so that `vendor\CrSDK\RemoteCli.zip` (or an unpacked `vendor\CrSDK\RemoteCli\`) exists. If it was unzipped into a nested folder, move the contents up one level.
 5. **Build.** On Windows, `powershell -ExecutionPolicy Bypass -File .\build.ps1` ends with `Built dist\CamRemote.exe`. On a Mac, `./build-mac.sh` ends with `Built dist/CamRemote.app`.
 
+6. **Test** after changing the shared camera code: `dotnet test tests/CamRemote.Tests/CamRemote.Tests.csproj` and `python -m unittest discover -s tests -p "test_*.py"`. Neither needs the Sony SDK or a camera.
+
 Common failures:
 
 - **CMake can't find a Visual Studio generator:** the C++ build tools are missing or CMake is older than Visual Studio. Update CMake or install the VC tools workload.
