@@ -6,3 +6,6 @@ obj/
 *.user
 dist/
 app/CamRemote/SdkNames.g.cs
+__pycache__/
+# Made by tools/gen_names.py from the made-up test header during a test build.
+tests/CamRemote.Tests/SdkNames.g.cs

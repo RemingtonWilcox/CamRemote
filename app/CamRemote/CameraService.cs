@@ -61,6 +61,7 @@ public sealed class CameraService : IDisposable
     private const int FrameHoldMs = 500;
 
     private readonly IUi _ui;
+    private readonly ICameraBridge _bridge;
     private readonly BlockingCollection<Action> _queue = new();
     private readonly Thread _worker;
     private readonly Native.EventFn _eventFn; // kept alive for the native side
@@ -89,16 +90,20 @@ public sealed class CameraService : IDisposable
     public event Action? FocusMoved;
     public event Action<string>? Message;
 
-    public CameraService(IUi ui)
+    public CameraService(IUi ui) : this(ui, null) { }
+
+    /// <summary>Tests pass a fake camera here; the app uses the real bridge.</summary>
+    internal CameraService(IUi ui, ICameraBridge? bridge)
     {
         _ui = ui;
+        _bridge = bridge ?? NativeBridge.Instance;
         _eventFn = OnNativeEvent;
         _worker = new Thread(() => { foreach (var a in _queue.GetConsumingEnumerable()) Safe(a); })
         { IsBackground = true, Name = "CameraSDK" };
         _worker.Start();
         Run(() =>
         {
-            if (Native.cb_init(_eventFn) != 0) Say("Sony SDK failed to start.");
+            if (_bridge.Init(_eventFn) != 0) Say("Sony SDK failed to start.");
         });
         _poll = ui.Every(TimeSpan.FromSeconds(2), () =>
         {
@@ -192,7 +197,7 @@ public sealed class CameraService : IDisposable
 
     public Task<List<FoundCamera>> DiscoverAsync() => Run(() =>
     {
-        var json = Native.Enumerate(3);
+        var json = _bridge.Enumerate(3);
         var list = new List<FoundCamera>();
         if (json == null) return list;
         foreach (var e in JsonDocument.Parse(json).RootElement.EnumerateArray())
@@ -203,16 +208,16 @@ public sealed class CameraService : IDisposable
     });
 
     /// <summary>Reads the camera's SSH fingerprint. Index -1 means a camera added by IP.</summary>
-    public Task<string?> FingerprintAsync(int index) => Run(() => Native.Fingerprint(index));
+    public Task<string?> FingerprintAsync(int index) => Run(() => _bridge.Fingerprint(index));
 
-    public Task<int> AddByIpAsync(string ip, string model) => Run(() => Native.cb_make_ip_camera(ip, 1, CameraModels.Find(model)?.Sdk ?? model));
+    public Task<int> AddByIpAsync(string ip, string model) => Run(() => _bridge.MakeIpCamera(ip, true, CameraModels.Find(model)?.Sdk ?? model));
 
     public void Connect(int index, string user, string password, string fingerprint)
     {
         SetState(LinkState.Connecting);
         Run(() =>
         {
-            int err = Native.cb_connect(index, user, password, fingerprint);
+            int err = _bridge.Connect(index, user, password, fingerprint);
             if (err != 0)
             {
                 SayFailed(Explain(err), err);
@@ -226,7 +231,7 @@ public sealed class CameraService : IDisposable
         HoldReconnect = true;
         Run(() =>
         {
-            Native.cb_disconnect();
+            _bridge.Disconnect();
             _ui.Post(() =>
             {
                 Props = new();
@@ -292,10 +297,10 @@ public sealed class CameraService : IDisposable
     /// </summary>
     private void TakeControl()
     {
-        int err = Native.cb_set_prop((uint)PropCode.PriorityKeySettings, PriorityPcRemote, 0x2002);
+        int err = _bridge.SetProp((uint)PropCode.PriorityKeySettings, PriorityPcRemote, 0x2002);
         Log.Write(err == 0 ? "Asked the camera for control of its settings." : "Asking for control failed: " + Native.ErrorName(err));
         // Ask for the sharper live-view stream; harmless if the camera ignores it.
-        Native.cb_set_prop((uint)PropCode.LiveView_Image_Quality, LiveViewQualityHigh, 0x2002);
+        _bridge.SetProp((uint)PropCode.LiveView_Image_Quality, LiveViewQualityHigh, 0x2002);
     }
 
     /// <summary>
@@ -341,7 +346,7 @@ public sealed class CameraService : IDisposable
         }
         _restartedLink = true;
         Say(why + " Reconnecting…");
-        Native.cb_disconnect();
+        _bridge.Disconnect();
         _ui.Post(() =>
         {
             Props = new();
@@ -361,7 +366,7 @@ public sealed class CameraService : IDisposable
         Run(() =>
         {
             _refreshQueued = false;
-            var json = Native.GetProps(null);
+            var json = _bridge.GetProps(null);
             if (json == null)
             {
                 Log.Write($"Couldn't read the camera's settings, try {++_refreshFails}.");
@@ -409,7 +414,7 @@ public sealed class CameraService : IDisposable
         {
             // Quick clicks queue up: send the newest value once rather than walking through each one.
             if (!_latestSet.TryRemove(code, out var latest)) return;
-            int err = Native.cb_set_prop((uint)code, (ulong)latest, p.Type);
+            int err = _bridge.SetProp((uint)code, (ulong)latest, p.Type);
             if (err != 0) SayFailed(RefusedSetting, err);
         });
         RequestRefresh();
@@ -422,9 +427,9 @@ public sealed class CameraService : IDisposable
     /// <summary>The camera toggles recording on "Down"; Sony asks for "Up" right after.</summary>
     public void ToggleRecord() => Run(() =>
     {
-        int err = Native.cb_command(CmdMovieRecord, ParamDown);
+        int err = _bridge.Command(CmdMovieRecord, ParamDown);
         Thread.Sleep(80);
-        Native.cb_command(CmdMovieRecord, ParamUp);
+        _bridge.Command(CmdMovieRecord, ParamUp);
         if (err != 0) SayFailed("The camera didn't respond to the record button.", err);
     });
 
@@ -462,11 +467,11 @@ public sealed class CameraService : IDisposable
                 EnableTouch(TouchFnFocus);
                 SetNow(PropCode.FocusMode, FocusContinuous);
                 Thread.Sleep(350); // the camera needs a moment to accept touch after leaving MF
-                int err = Native.cb_set_prop((uint)PropCode.RemoteTouchOperation, xy, TypeUInt32);
+                int err = _bridge.SetProp((uint)PropCode.RemoteTouchOperation, xy, TypeUInt32);
                 Thread.Sleep(1300);
-                Native.cb_command(CmdCancelRemoteTouch, ParamDown);
+                _bridge.Command(CmdCancelRemoteTouch, ParamDown);
                 Thread.Sleep(50);
-                Native.cb_command(CmdCancelRemoteTouch, ParamUp);
+                _bridge.Command(CmdCancelRemoteTouch, ParamUp);
                 SetNow(PropCode.FocusMode, mode);
                 if (function != TouchFnFocus) SetNow(PropCode.FunctionOfTouchOperation, function);
                 _focusOnceBusy = 0;
@@ -483,7 +488,7 @@ public sealed class CameraService : IDisposable
             Run(() =>
             {
                 EnableTouch(track ? TouchFnTracking : TouchFnFocus);
-                int err = Native.cb_set_prop((uint)PropCode.RemoteTouchOperation, xy, TypeUInt32);
+                int err = _bridge.SetProp((uint)PropCode.RemoteTouchOperation, xy, TypeUInt32);
                 if (err != 0) SayFailed("The camera couldn't focus there.", err);
                 else if (track)
                 {
@@ -502,7 +507,7 @@ public sealed class CameraService : IDisposable
         {
             Run(() =>
             {
-                int err = Native.cb_set_prop((uint)PropCode.AF_Area_Position, xy, TypeUInt32);
+                int err = _bridge.SetProp((uint)PropCode.AF_Area_Position, xy, TypeUInt32);
                 if (err != 0) SayFailed("The camera couldn't move its focus area there.", err);
             });
             return null;
@@ -529,7 +534,7 @@ public sealed class CameraService : IDisposable
     private void SetNow(PropCode code, long value)
     {
         if (Get(code) is not { } p) return;
-        int err = Native.cb_set_prop((uint)code, (ulong)value, p.Type);
+        int err = _bridge.SetProp((uint)code, (ulong)value, p.Type);
         if (err != 0) SayFailed(RefusedSetting, err);
     }
 
@@ -607,7 +612,7 @@ public sealed class CameraService : IDisposable
 
     private void SetMagnifier(long value)
     {
-        int err = Native.cb_set_prop((uint)PropCode.Focus_Magnifier_Setting, (ulong)value, TypeUInt64);
+        int err = _bridge.SetProp((uint)PropCode.Focus_Magnifier_Setting, (ulong)value, TypeUInt64);
         Log.Write($"Magnifier set 0x{value:X}: {(err == 0 ? "sent" : Native.ErrorName(err))}");
         if (err != 0) SayFailed("The camera refused the focus magnifier.", err);
     }
@@ -667,7 +672,7 @@ public sealed class CameraService : IDisposable
     /// <summary>Reads just the focus position, so the bar keeps moving while the full read is paused.</summary>
     private void ReadFocusPosition() => Run(() =>
     {
-        var json = Native.GetProps([(uint)PropCode.FocusPositionCurrentValue]);
+        var json = _bridge.GetProps([(uint)PropCode.FocusPositionCurrentValue]);
         if (json == null) return;
         var list = JsonDocument.Parse(json).RootElement;
         if (list.GetArrayLength() == 0) return;
@@ -689,10 +694,10 @@ public sealed class CameraService : IDisposable
     private bool Focusing => Environment.TickCount64 - Volatile.Read(ref _focusLastAt) < FocusQuietMs;
 
     /// <summary>Waits for the SDK to send what it has queued. Sony warns that a backlog stalls the picture and settings.</summary>
-    private static bool WaitForQueue(int maxMs = 600)
+    private bool WaitForQueue(int maxMs = 600)
     {
         long until = Environment.TickCount64 + maxMs;
-        while (Native.cb_queue_count() > 0)
+        while (_bridge.QueueCount() > 0)
         {
             if (Environment.TickCount64 > until) return false;
             Thread.Sleep(10);
@@ -714,7 +719,7 @@ public sealed class CameraService : IDisposable
                     Log.Write($"Focus step {step} dropped: the camera is still busy with the last one.");
                     continue;
                 }
-                int err = Native.cb_set_prop((uint)PropCode.NearFar, (ulong)(long)step, TypeInt16);
+                int err = _bridge.SetProp((uint)PropCode.NearFar, (ulong)(long)step, TypeInt16);
                 if (err != 0) SayFailed("The camera didn't move its focus.", err);
             }
         }
@@ -743,7 +748,7 @@ public sealed class CameraService : IDisposable
             if (_closing) return;
             try
             {
-                var json = (State == LinkState.Connected ? Native.FocusFrames() : null) ?? "";
+                var json = (State == LinkState.Connected ? _bridge.FocusFrames() : null) ?? "";
                 if (json != last)
                 {
                     last = json;
@@ -824,9 +829,9 @@ public sealed class CameraService : IDisposable
         if (!CanCancelTouch && !IsTracking) return "Nothing to cancel. The camera isn't holding a touch focus or tracking.";
         Run(() =>
         {
-            int down = Native.cb_command(CmdCancelRemoteTouch, ParamDown);
+            int down = _bridge.Command(CmdCancelRemoteTouch, ParamDown);
             Thread.Sleep(50);
-            Native.cb_command(CmdCancelRemoteTouch, ParamUp);
+            _bridge.Command(CmdCancelRemoteTouch, ParamUp);
             Log.Write(down == 0 ? "Touch focus cancelled." : "Cancelling touch focus failed: " + Native.ErrorName(down));
             _propsDirty = true;
             if (down != 0) ReleaseTouch();
@@ -864,7 +869,7 @@ public sealed class CameraService : IDisposable
         _frameWake.Set();
         _focusThread.Join(1000);
         _frameThread.Join(1000);
-        Run(Native.cb_release);
+        Run(_bridge.Release);
         _queue.CompleteAdding();
         _worker.Join(3000);
     }

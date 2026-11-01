@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Tests for the camera code both apps share. They run on Windows, Mac or Linux with no camera and no Sony SDK:
+       a fake camera stands in for CamBridge, and SdkNames.g.cs is generated from FakeSdk/FakeSdk.h. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>CamRemote.Tests</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <PythonExe Condition="'$(PythonExe)' == '' and '$(OS)' == 'Windows_NT'">python</PythonExe>
+    <PythonExe Condition="'$(PythonExe)' == ''">python3</PythonExe>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\app\CamRemote\Agreement.cs" Link="Shared\Agreement.cs" />
+    <Compile Include="..\..\app\CamRemote\CameraBridge.cs" Link="Shared\CameraBridge.cs" />
+    <Compile Include="..\..\app\CamRemote\CameraConnect.cs" Link="Shared\CameraConnect.cs" />
+    <Compile Include="..\..\app\CamRemote\CameraModels.cs" Link="Shared\CameraModels.cs" />
+    <Compile Include="..\..\app\CamRemote\CameraService.cs" Link="Shared\CameraService.cs" />
+    <Compile Include="..\..\app\CamRemote\Format.cs" Link="Shared\Format.cs" />
+    <Compile Include="..\..\app\CamRemote\IUi.cs" Link="Shared\IUi.cs" />
+    <Compile Include="..\..\app\CamRemote\Log.cs" Link="Shared\Log.cs" />
+    <Compile Include="..\..\app\CamRemote\Native.cs" Link="Shared\Native.cs" />
+    <Compile Include="..\..\app\CamRemote\PhoneServer.cs" Link="Shared\PhoneServer.cs" />
+    <Compile Include="..\..\app\CamRemote\PictureAssist.cs" Link="Shared\PictureAssist.cs" />
+    <Compile Include="..\..\app\CamRemote\PictureZoom.cs" Link="Shared\PictureZoom.cs" />
+    <Compile Include="..\..\app\CamRemote\Settings.cs" Link="Shared\Settings.cs" />
+    <Compile Include="..\..\app\CamRemote\SonyRemote.cs" Link="Shared\SonyRemote.cs" />
+    <Compile Include="..\..\app\CamRemote\UpdateCheck.cs" Link="Shared\UpdateCheck.cs" />
+    <EmbeddedResource Include="..\..\app\CamRemote\phone.html" LogicalName="phone.html" />
+    <EmbeddedResource Include="..\..\app\CamRemote\phone-icon.png" LogicalName="phone-icon.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <FakeSdkNames>$(MSBuildThisFileDirectory)$(BaseIntermediateOutputPath)SdkNames.g.cs</FakeSdkNames>
+  </PropertyGroup>
+
+  <Target Name="GenerateFakeSdkNames" BeforeTargets="CoreCompile" Inputs="FakeSdk\FakeSdk.h;..\..\tools\gen_names.py" Outputs="$(FakeSdkNames)">
+    <Exec Command="&quot;$(PythonExe)&quot; -I &quot;$(MSBuildThisFileDirectory)..\..\tools\gen_names.py&quot; &quot;$(MSBuildThisFileDirectory)FakeSdk&quot; &quot;$(FakeSdkNames)&quot;" />
+  </Target>
+  <Target Name="IncludeFakeSdkNames" BeforeTargets="CoreCompile" AfterTargets="GenerateFakeSdkNames">
+    <ItemGroup>
+      <Compile Include="$(FakeSdkNames)" />
+    </ItemGroup>
+  </Target>
+
+</Project>

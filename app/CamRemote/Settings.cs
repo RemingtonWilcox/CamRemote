@@ -36,9 +36,12 @@ public sealed class Settings
     public string PhoneToken { get; set; } = ""; // what the phone keeps afterwards
 
     /// <summary>%APPDATA%\CamRemote on Windows, ~/Library/Application Support/CamRemote on a Mac.</summary>
-    public static string Folder => System.IO.Path.Combine(OperatingSystem.IsMacOS()
+    public static string Folder => FolderOverride ?? System.IO.Path.Combine(OperatingSystem.IsMacOS()
         ? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Application Support")
         : Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CamRemote");
+
+    /// <summary>Set only by the tests, so they never touch the real settings, log or saved camera.</summary>
+    internal static string? FolderOverride { get; set; }
 
     private static string Path => System.IO.Path.Combine(Folder, "settings.json");
 

@@ -20,7 +20,7 @@ public static class UpdateCheck
             http.DefaultRequestHeaders.UserAgent.ParseAdd("CamRemote/" + Current);
             var tag = JsonDocument.Parse(await http.GetStringAsync(Latest)).RootElement.GetProperty("tag_name").GetString() ?? "";
             Log.Write($"This is {Current}; the latest release is {tag}.");
-            return Version.TryParse(tag.TrimStart('v'), out var latest) && latest > Version.Parse(Current) ? latest.ToString() : null;
+            return NewerThanCurrent(tag);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or KeyNotFoundException or InvalidOperationException)
         {
@@ -28,6 +28,10 @@ public static class UpdateCheck
             return null;
         }
     }
+
+    /// <summary>The release tag's version if it's newer than this one, otherwise null.</summary>
+    public static string? NewerThanCurrent(string tag) =>
+        Version.TryParse(tag.TrimStart('v'), out var latest) && latest > Version.Parse(Current) ? latest.ToString() : null;
 
     public static void OpenDownloadPage() => Process.Start(new ProcessStartInfo(Page) { UseShellExecute = true });
 }

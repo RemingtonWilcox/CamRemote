@@ -147,7 +147,7 @@ public sealed class PhoneServer : IAsyncDisposable
         return copy.ToArray();
     }
 
-    private static bool IsLocalOrTailscale(IPAddress ip)
+    internal static bool IsLocalOrTailscale(IPAddress ip)
     {
         if (ip.IsIPv4MappedToIPv6) ip = ip.MapToIPv4();
         if (IPAddress.IsLoopback(ip)) return true;
