@@ -204,6 +204,24 @@ public class CameraServiceTests
     }
 
     [Fact]
+    public void A_failure_during_focus_once_still_returns_to_manual_and_allows_another_tap()
+    {
+        using var rig = new Rig();
+        rig.Camera.Set(PropCode.FocusMode, 1);
+        rig.Camera.Set(PropCode.TouchOperation, 2);
+        rig.Camera.Set(PropCode.FunctionOfTouchOperation, 3);
+        rig.ConnectAndRead();
+        rig.Camera.CommandThrows = new InvalidOperationException("bridge failed");
+        Assert.Null(rig.Ui.Invoke(() => rig.Cam.TouchFocus(0.5, 0.5)));
+        Rig.WaitFor(() => rig.Said("Something went wrong"), 8000);
+        rig.Settle();
+        Assert.Equal(1L, rig.Camera.Value(PropCode.FocusMode)); // not left in AF
+        rig.Camera.CommandThrows = null;
+        rig.Refresh();
+        Assert.Null(rig.Ui.Invoke(() => rig.Cam.TouchFocus(0.5, 0.5))); // not "Still focusing on the last tap"
+    }
+
+    [Fact]
     public void A_tap_with_tap_does_off_explains_itself()
     {
         using var rig = new Rig();

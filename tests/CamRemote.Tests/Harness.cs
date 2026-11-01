@@ -121,6 +121,7 @@ internal sealed class FakeCamera : ICameraBridge
     public int GetPropsFailures; // how many reads in a row return nothing
     public int SetPropResult;
     public int CommandResult;
+    public Exception? CommandThrows; // as if the bridge itself failed (a P/Invoke or marshalling error)
     public string? FramesJson;
     public bool Connected { get; private set; }
     public int Releases, Disconnects;
@@ -212,6 +213,7 @@ internal sealed class FakeCamera : ICameraBridge
         lock (_gate)
         {
             Commands.Add((command, param));
+            if (CommandThrows != null) throw CommandThrows;
             if (CommandResult != 0) return CommandResult;
             // Like the camera: "Down" on the record button starts or stops a take.
             if (command == CmdMovieRecord && param == 1 && Props.TryGetValue(PropCode.RecordingState, out var rec))

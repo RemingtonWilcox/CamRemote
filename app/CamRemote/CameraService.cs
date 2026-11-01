@@ -71,7 +71,7 @@ public sealed class CameraService : IDisposable
     private readonly AutoResetEvent _focusWake = new(false), _frameWake = new(false);
     private volatile bool _closing;
     private volatile bool _propsDirty;
-    private bool _refreshQueued;
+    private volatile bool _refreshQueued; // set on the UI thread, cleared on the camera thread
     private int _controlMisses, _refreshFails;
     private bool _hadControl, _restartedLink;
 
@@ -487,20 +487,28 @@ public sealed class CameraService : IDisposable
             Say("Focusing once, then back to manual…");
             Run(() =>
             {
-                EnableTouch(TouchFnFocus);
-                SetNow(PropCode.FocusMode, FocusContinuous);
-                Thread.Sleep(350); // the camera needs a moment to accept touch after leaving MF
-                int err = _bridge.SetProp((uint)PropCode.RemoteTouchOperation, xy, TypeUInt32);
-                Thread.Sleep(1300);
-                _bridge.Command(CmdCancelRemoteTouch, ParamDown);
-                Thread.Sleep(50);
-                _bridge.Command(CmdCancelRemoteTouch, ParamUp);
-                SetNow(PropCode.FocusMode, mode);
-                if (function != TouchFnFocus) SetNow(PropCode.FunctionOfTouchOperation, function);
-                _focusOnceBusy = 0;
+                int err = -1;
+                try
+                {
+                    EnableTouch(TouchFnFocus);
+                    SetNow(PropCode.FocusMode, FocusContinuous);
+                    Thread.Sleep(350); // the camera needs a moment to accept touch after leaving MF
+                    err = _bridge.SetProp((uint)PropCode.RemoteTouchOperation, xy, TypeUInt32);
+                    Thread.Sleep(1300);
+                    _bridge.Command(CmdCancelRemoteTouch, ParamDown);
+                    Thread.Sleep(50);
+                    _bridge.Command(CmdCancelRemoteTouch, ParamUp);
+                }
+                finally
+                {
+                    // Whatever happened above, put focus back in manual and let the next tap through.
+                    SetNow(PropCode.FocusMode, mode);
+                    if (function != TouchFnFocus) SetNow(PropCode.FunctionOfTouchOperation, function);
+                    Volatile.Write(ref _focusOnceBusy, 0);
+                    _ui.Post(RequestRefresh); // RequestRefresh belongs to the UI thread
+                }
                 if (err == 0) Say("Focused. Back in manual.");
                 else SayFailed("The camera couldn't focus there.", err);
-                RequestRefresh();
             });
             return null;
         }
