@@ -14,6 +14,7 @@
   <!-- The camera code is shared with the Windows app. This project adds the Mac window, capture and audio. -->
   <ItemGroup>
     <Compile Include="..\CamRemote\Agreement.cs" Link="Shared\Agreement.cs" />
+    <Compile Include="..\CamRemote\AutoReconnect.cs" Link="Shared\AutoReconnect.cs" />
     <Compile Include="..\CamRemote\CameraConnect.cs" Link="Shared\CameraConnect.cs" />
     <Compile Include="..\CamRemote\CameraBridge.cs" Link="Shared\CameraBridge.cs" />
     <Compile Include="..\CamRemote\CameraModels.cs" Link="Shared\CameraModels.cs" />

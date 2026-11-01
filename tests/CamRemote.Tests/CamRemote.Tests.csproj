@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <Compile Include="..\..\app\CamRemote\Agreement.cs" Link="Shared\Agreement.cs" />
+    <Compile Include="..\..\app\CamRemote\AutoReconnect.cs" Link="Shared\AutoReconnect.cs" />
     <Compile Include="..\..\app\CamRemote\CameraBridge.cs" Link="Shared\CameraBridge.cs" />
     <Compile Include="..\..\app\CamRemote\CameraConnect.cs" Link="Shared\CameraConnect.cs" />
     <Compile Include="..\..\app\CamRemote\CameraModels.cs" Link="Shared\CameraModels.cs" />
