@@ -9,16 +9,26 @@ public static class CameraConnect
         "Otherwise another device may be pretending to be your camera.\n\nConnect anyway?";
 
     /// <summary>
-    /// Connects to the camera saved in settings (at startup and when reconnecting). If the router has
-    /// given the camera a new IP, it's found again by its MAC address. Returns false if no connect
-    /// was started (camera off or unreachable).
+    /// Connects to the camera saved in settings (at startup and when reconnecting). The camera is known by
+    /// its MAC address, so if the router has given it a new IP it's found again there, and a different camera
+    /// that has taken over its old IP isn't mistaken for it. (The SSH fingerprint is checked as well, below.)
+    /// Returns false if no connect was started (camera off or unreachable).
     /// </summary>
     public static async Task<bool> SavedAsync(CameraService cam, Settings settings, Action<string> say, Func<Task<bool>> askFingerprint, bool quiet = false)
     {
         if (!quiet) say($"Looking for the camera at {settings.CameraIp}…");
         var found = await cam.DiscoverAsync();
-        var picked = found.FirstOrDefault(c => c.Ip == settings.CameraIp)
-                     ?? found.FirstOrDefault(c => settings.CameraMac.Length > 0 && c.Mac == settings.CameraMac && c.Ip.Length > 0);
+        bool knowMac = settings.CameraMac.Length > 0;
+        var mine = knowMac ? found.FirstOrDefault(c => c.Ip.Length > 0 && SameMac(c.Mac, settings.CameraMac)) : null;
+        var atSavedIp = found.FirstOrDefault(c => c.Ip == settings.CameraIp);
+        if (mine == null && atSavedIp != null && knowMac && atSavedIp.Mac.Length > 0)
+        {
+            // Our camera isn't on the network, and someone else's has its old address.
+            if (!quiet) say($"Another camera is using {settings.CameraIp} now. Still looking for yours…");
+            Log.Write($"Skipped {atSavedIp.Model} at {atSavedIp.Ip}: MAC {atSavedIp.Mac} isn't the saved {settings.CameraMac}.");
+            return false;
+        }
+        var picked = mine ?? atSavedIp;
         // Not found by search: still try the saved IP directly; reading the fingerprint fails fast if it's absent.
         if (picked != null && picked.Ip != settings.CameraIp)
         {
@@ -27,6 +37,14 @@ public static class CameraConnect
             settings.Save();
         }
         return await PickedAsync(cam, settings, picked, settings.LoadPassword(), say, askFingerprint);
+    }
+
+    /// <summary>Compares MAC addresses written either way: AA:BB:CC… or aa-bb-cc….</summary>
+    public static bool SameMac(string a, string b)
+    {
+        static string Norm(string m) => new(m.Where(Uri.IsHexDigit).Select(char.ToUpperInvariant).ToArray());
+        string na = Norm(a);
+        return na.Length > 0 && na == Norm(b);
     }
 
     /// <summary>
