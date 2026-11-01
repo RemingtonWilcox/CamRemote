@@ -438,14 +438,14 @@ public sealed class CameraService : IDisposable
     /// focus it focuses once and returns to manual. Otherwise it's the camera's remote touch (movie mode),
     /// or moves the AF frame when the focus area is a spot type.
     /// </summary>
-    public string? TouchFocus(double fx, double fy)
+    public string? TouchFocus(double fx, double fy, bool evenIfTapIsOff = false)
     {
         if (MagnifyRatio > 0)
         {
             PanMagnifier(fx, fy);
             return null;
         }
-        if (Get(PropCode.FunctionOfTouchOperation)?.Value == TouchFnOff)
+        if (!evenIfTapIsOff && Get(PropCode.FunctionOfTouchOperation)?.Value == TouchFnOff)
             return "Tap does is set to Off, so clicks do nothing. Pick Focus or Tracking.";
         uint xy = TouchPoint(fx, fy);
         Log.Write($"Tap at {fx:0.00}, {fy:0.00}: focus mode {Get(PropCode.FocusMode)?.Value}, tap function {Get(PropCode.FunctionOfTouchOperation)?.Value}, " +
@@ -477,7 +477,7 @@ public sealed class CameraService : IDisposable
             return null;
         }
         bool track = TapTracks;
-        bool touch = Get(PropCode.RemoteTouchOperationEnableStatus)?.Value == 1 || Get(PropCode.TouchOperation)?.Value != TouchOn;
+        bool touch = evenIfTapIsOff || Get(PropCode.RemoteTouchOperationEnableStatus)?.Value == 1 || Get(PropCode.TouchOperation)?.Value != TouchOn;
         if (touch)
         {
             Run(() =>

@@ -86,6 +86,14 @@
                         <!-- Where the click landed, not a focus box -->
                         <Ellipse x:Name="FocusMark" Width="20" Height="20" Stroke="#C0FFFFFF" StrokeThickness="1.5"
                                  Visibility="Collapsed" />
+                        <!-- What the animal trigger sees -->
+                        <Rectangle x:Name="AnimalBox" Stroke="#4CD964" StrokeThickness="2" Visibility="Collapsed" />
+                        <TextBlock x:Name="AnimalLabel" Text="animal" FontSize="12" Foreground="White" Background="#B0000000"
+                                   Padding="4,1" Visibility="Collapsed">
+                            <TextBlock.RenderTransform>
+                                <RotateTransform x:Name="AnimalLabelTurn" />
+                            </TextBlock.RenderTransform>
+                        </TextBlock>
                     </Canvas>
                 </Grid>
                 </Border>
@@ -125,6 +133,9 @@
                             <TextBlock x:Name="RecLabel" Text="Record" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
+                    <CheckBox x:Name="BirdWatch" Margin="0,10,0,0" Content="Record when an animal shows up" Checked="OnBirdWatchClick" Unchecked="OnBirdWatchClick"
+                              ToolTip="Checks the picture once a second, on this computer only." />
+                    <TextBlock x:Name="BirdStatus" FontSize="12" Foreground="Gray" Margin="0,3,0,0" TextWrapping="Wrap" Visibility="Collapsed" />
 
                     <TextBlock Text="EXPOSURE" Style="{StaticResource Section}" />
                     <StackPanel x:Name="ExposurePanel" />

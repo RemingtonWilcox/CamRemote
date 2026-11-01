@@ -38,6 +38,9 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Frameworks/CrAdapter" "$app/Contents/Resources"
 cp tools/mac/Info.plist "$app/Contents/"
 cp -R build/mac-publish/. "$app/Contents/MacOS/"
+# Apple won't sign an app with data files beside its code, and ONNX Runtime's package brings its Windows files along.
+find "$app/Contents/MacOS" -maxdepth 1 -name '*.onnx' -exec mv {} "$app/Contents/Resources/" \;
+find "$app/Contents/MacOS" -maxdepth 1 -name '*.dll' -delete
 cp build/bridge-mac/libCamBridge.dylib "$crsdk"/*.dylib "$app/Contents/MacOS/"
 cp "$crsdk"/CrAdapter/*.dylib "$app/Contents/Frameworks/CrAdapter/" # where Cr_Core looks for them inside an app
 

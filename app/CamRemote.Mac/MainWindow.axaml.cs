@@ -45,6 +45,7 @@ public partial class MainWindow : Window
     private bool _reconnecting;
     private bool _wasConnected; // connected at some point this run, so a drop is worth a banner
     private PhoneServer? _phone;
+    private readonly BirdTrigger _bird;
     private bool _phoneWatching; // a phone wants the live view, even if this window shows a capture card
 
     public MainWindow()
@@ -67,6 +68,10 @@ public partial class MainWindow : Window
             if (!_useWifi) return;
             ShowFrame(frame.Item1, frame.Item2, frame.Item3);
         };
+        _bird = new BirdTrigger(ui, _cam, () => _live.Latest, ShrinkForBird, FocusOnAnimal, () => _settings.Rotation);
+        _bird.Status += text => BirdStatus.Text = text;
+        _bird.Spotted += ShowAnimal;
+        BirdWatch.IsVisible = BirdTrigger.Available;
         _cam.Message += ShowMessage;
         _cam.StateChanged += OnLinkChanged;
         _cam.PropsChanged += OnPropsChanged;
@@ -122,6 +127,22 @@ public partial class MainWindow : Window
         var info = SKBitmap.DecodeBounds(jpeg);
         using var bmp = SKBitmap.Decode(jpeg, new SKImageInfo(info.Width, info.Height, SKColorType.Bgra8888, SKAlphaType.Premul));
         return ((bmp.GetPixelSpan().ToArray(), info.Width, info.Height), info.Width, info.Height);
+    }
+
+    private static byte[] ShrinkForBird(byte[] jpeg, int size)
+    {
+        using var full = SKBitmap.Decode(jpeg);
+        using var small = full.Resize(new SKImageInfo(size, size, SKColorType.Rgba8888, SKAlphaType.Premul),
+            new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+        var rgba = small.GetPixelSpan();
+        var rgb = new byte[size * size * 3];
+        for (int i = 0, o = 0; o < rgb.Length; i += 4, o += 3)
+        {
+            rgb[o] = rgba[i];
+            rgb[o + 1] = rgba[i + 1];
+            rgb[o + 2] = rgba[i + 2];
+        }
+        return rgb;
     }
 
     private void ShowFrame(byte[] pixels, int w, int h)
@@ -223,6 +244,7 @@ public partial class MainWindow : Window
     private void OnClosing(object? sender, WindowClosingEventArgs e)
     {
         _tick.Stop();
+        _bird.Stop();
         _live.Stop();
         _meter.Dispose();
         _video.Stop();
@@ -262,7 +284,7 @@ public partial class MainWindow : Window
     /// <summary>Runs the live-view reader only while it's the chosen picture and the camera is connected.</summary>
     private void UpdateLiveView()
     {
-        if ((_useWifi || _phoneWatching) && _cam.State == LinkState.Connected) _live.Start();
+        if ((_useWifi || _phoneWatching || _bird.On) && _cam.State == LinkState.Connected) _live.Start();
         else _live.Stop();
         NoSignal.Text = _useWifi
             ? _cam.State == LinkState.Connected ? "Waiting for the camera's picture…" : "Connect the camera to see its picture"
@@ -294,11 +316,43 @@ public partial class MainWindow : Window
             ShowMessage(problem);
             return;
         }
-        Canvas.SetLeft(FocusMark, p.X - FocusMark.Width / 2);
-        Canvas.SetTop(FocusMark, p.Y - FocusMark.Height / 2);
+        ShowFocusMark(p.X, p.Y);
+    }
+
+    private void ShowFocusMark(double x, double y)
+    {
+        Canvas.SetLeft(FocusMark, x - FocusMark.Width / 2);
+        Canvas.SetTop(FocusMark, y - FocusMark.Height / 2);
         FocusMark.IsVisible = true;
         _hideFocusMark.Stop();
         _hideFocusMark.Start();
+    }
+
+    private void FocusOnAnimal(double fx, double fy)
+    {
+        if (_cam.State != LinkState.Connected || _zoom.Ratio > 0) return;
+        if (_cam.TouchFocus(fx, fy, evenIfTapIsOff: true) is { } problem) Log.Write("Animal focus: " + problem);
+        else ShowFocusMark(fx * Picture.Bounds.Width, fy * Picture.Bounds.Height);
+    }
+
+    /// <summary>Draws the box around what the trigger sees. The label stays upright however the picture is turned.</summary>
+    private void ShowAnimal((double X, double Y, double W, double H)? box)
+    {
+        double w = Picture.Bounds.Width, h = Picture.Bounds.Height;
+        bool show = box != null && w > 0 && _zoom.Ratio == 0 && _cam.MagnifyRatio == 0;
+        AnimalBox.IsVisible = show;
+        AnimalLabel.IsVisible = show;
+        if (!show) return;
+        var b = box!.Value;
+        AnimalBox.Width = Math.Max(b.W * w, 24);
+        AnimalBox.Height = Math.Max(b.H * h, 24);
+        double left = b.X * w - AnimalBox.Width / 2, top = b.Y * h - AnimalBox.Height / 2;
+        Canvas.SetLeft(AnimalBox, left);
+        Canvas.SetTop(AnimalBox, top);
+        // The corner that ends up top left on screen
+        Canvas.SetLeft(AnimalLabel, _settings.Rotation is 0 or 90 ? left : left + AnimalBox.Width);
+        Canvas.SetTop(AnimalLabel, _settings.Rotation is 0 or 270 ? top : top + AnimalBox.Height);
+        AnimalLabel.RenderTransform = new RotateTransform(-_settings.Rotation);
     }
 
     private static readonly SolidColorBrush FrameFocusedBrush = new(Color.FromRgb(0x4C, 0xD9, 0x64)), FrameOtherBrush = new(Colors.White);
@@ -389,6 +443,15 @@ public partial class MainWindow : Window
     }
 
     private void OnRecClick(object? sender, RoutedEventArgs e) => _cam.ToggleRecord();
+
+    private void OnBirdWatchClick(object? sender, RoutedEventArgs e)
+    {
+        bool on = BirdWatch.IsChecked == true;
+        if (on) _bird.Start();
+        else _bird.Stop();
+        BirdStatus.IsVisible = on;
+        UpdateLiveView();
+    }
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {

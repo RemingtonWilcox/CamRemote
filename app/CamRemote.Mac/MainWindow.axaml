@@ -65,6 +65,10 @@
                             <Canvas x:Name="Overlay" IsHitTestVisible="False">
                                 <!-- Where the click landed, not a focus box -->
                                 <Ellipse x:Name="FocusMark" Width="20" Height="20" Stroke="#C0FFFFFF" StrokeThickness="1.5" IsVisible="False" />
+                                <!-- What the animal trigger sees -->
+                                <Rectangle x:Name="AnimalBox" Stroke="#4CD964" StrokeThickness="2" IsVisible="False" />
+                                <TextBlock x:Name="AnimalLabel" Text="animal" FontSize="12" Foreground="White" Background="#B0000000"
+                                           Padding="4,1" IsVisible="False" RenderTransformOrigin="0%,0%" />
                             </Canvas>
                         </Panel>
                     </LayoutTransformControl>
@@ -105,6 +109,9 @@
                             <TextBlock x:Name="RecLabel" Text="Record" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
+                    <CheckBox x:Name="BirdWatch" Margin="0,10,0,0" Content="Record when an animal shows up" Click="OnBirdWatchClick"
+                              ToolTip.Tip="Checks the picture once a second, on this computer only." />
+                    <TextBlock x:Name="BirdStatus" FontSize="12" Foreground="Gray" Margin="0,3,0,0" TextWrapping="Wrap" IsVisible="False" />
 
                     <TextBlock Text="EXPOSURE" Classes="Section" />
                     <StackPanel x:Name="ExposurePanel" />

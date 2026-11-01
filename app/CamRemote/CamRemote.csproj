@@ -26,9 +26,11 @@
     <None Include="$(RepoRoot)build\bridge\Release\CamBridge.dll" Link="CamBridge.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
     <None Include="$(CrRuntime)*.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
     <None Include="$(CrRuntime)CrAdapter\*.dll" Link="CrAdapter\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <None Include="$(RepoRoot)vendor\BirdModel\*.onnx" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.31.1" />
     <PackageReference Include="NAudio.Wasapi" Version="3.3.0" />
     <Resource Include="CamRemote.ico" />
     <EmbeddedResource Include="phone.html" LogicalName="phone.html" />
