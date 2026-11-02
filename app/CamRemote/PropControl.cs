@@ -39,6 +39,7 @@ public sealed class PropControl : IPropRow
 
     public PropCode Code { get; }
     public string Section { get; init; } = ""; // where the phone page shows it
+    public long[]? Presets { get; init; } // a short list to offer instead of every step of a long range
     public StackPanel Root { get; } = new() { Margin = new Thickness(0, 4, 0, 6) };
 
     public PropControl(CameraService cam, string label, PropCode code, Func<long, string> fmt, Kind kind,
@@ -145,7 +146,7 @@ public sealed class PropControl : IPropRow
             return;
         }
 
-        var values = p.Choices().Distinct().ToList();
+        var values = (Presets != null ? p.Within(Presets) : p.Choices()).Distinct().ToList();
         if (_order != null) values = values.OrderBy(_order).ToList();
         if (!values.Contains(p.Value)) values.Insert(0, p.Value);
         if (!values.SequenceEqual(_choices))

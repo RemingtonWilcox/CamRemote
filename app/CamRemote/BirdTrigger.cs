@@ -257,7 +257,7 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
             return;
         }
         if (seen && _sightings.Count >= StartHits && now >= _restUntil
-            && cam.State == LinkState.Connected && !cam.IsRecording && !cam.IsFormatting)
+            && cam.State == LinkState.Connected && !cam.IsRecording && !cam.IsFormatting && !cam.IsPhotoMode)
         {
             cam.ToggleRecord();
             _took = _lastBird = now;

@@ -9,6 +9,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using SkiaSharp;
 
@@ -41,11 +42,17 @@ public partial class MainWindow : Window
     private bool _sawNotRecording; // this run saw the take begin, so its start time is exact
     private DateTime? _idleSince; // when the camera first said it wasn't recording
     private long? _lastMode;
+
+    // Sony gives these as ranges thousands of steps long, so offer the sensible stops.
+    private static readonly long[] IntervalChoices = [5, 10, 20, 30, 50, 100, 150, 300, 600, 1200, 3000, 6000]; // tenths of a second
+    private static readonly long[] ShotChoices = [30, 60, 120, 240, 300, 600, 1200, 2400, 4800, 9999];
+    private static readonly long[] StartChoices = [1, 5, 10, 30, 60, 300]; // seconds
     private DateTime _linkSince = DateTime.Now; // when the link last changed state
     private bool _reconnecting;
     private bool _wasConnected; // connected at some point this run, so a drop is worth a banner
     private PhoneServer? _phone;
     private readonly BirdTrigger _bird;
+    private bool _setup; // the Setup tab is showing
     private bool _phoneWatching; // a phone wants the live view, even if this window shows a capture card
 
     public MainWindow()
@@ -54,6 +61,7 @@ public partial class MainWindow : Window
         var ui = new AvaloniaUi();
         _ui = ui;
         _cam = new CameraService(ui);
+        _cam.UsePhotoFolder(_settings.PhotoFolder);
         _video = new VideoFeed(ui);
         _video.Frame += (pixels, w, h) =>
         {
@@ -78,6 +86,11 @@ public partial class MainWindow : Window
         _cam.FramesChanged += ShowFrames;
         _cam.FocusMoved += ShowFocusBar;
 
+        // A button hides the press from ordinary handlers, so catch it on the way in. Holding it is what makes a burst.
+        ShutterButton.AddHandler(PointerPressedEvent, (_, _) => _cam.ShutterDown(), RoutingStrategies.Tunnel);
+        ShutterButton.AddHandler(PointerReleasedEvent, (_, _) => _cam.ShutterUp(), RoutingStrategies.Tunnel);
+        ShutterButton.AddHandler(PointerCaptureLostEvent, (_, _) => _cam.ShutterUp(), RoutingStrategies.Bubble);
+
         var big = PropControl.Kind.Stepper;
         var pick = PropControl.Kind.Picker;
         Add(ExposurePanel, "ISO", PropCode.IsoSensitivity, Format.Iso, big, v => (v & 0xFFFFFF) == 0xFFFFFF ? -1 : v & 0xFFFFFF);
@@ -85,23 +98,38 @@ public partial class MainWindow : Window
         Add(ExposurePanel, "Iris", PropCode.FNumber, Format.FNumber, big, v => v);
         Add(FocusPanel, "Focus mode", PropCode.FocusMode, Format.Named("FocusMode"), PropControl.Kind.Buttons);
         Add(FocusPanel, "Tap does", PropCode.FunctionOfTouchOperation, Format.Named("TouchFunction"), PropControl.Kind.Buttons);
-        Add(FocusPanel, "Detect", PropCode.RecognitionTarget, Format.Named("RecognitionTarget"), PropControl.Kind.Buttons);
-        Add(FocusPanel, "Face/eye priority", PropCode.SubjectRecognitionInAF, Format.Named("SubjectInAf"), PropControl.Kind.Buttons);
-        Add(FocusPanel, "Which eye", PropCode.RightLeftEyeSelect, Format.Named("EyeSelect"), PropControl.Kind.Buttons);
+        Add(FocusPanel, "Focus area", PropCode.FocusArea, Format.Named("FocusArea"), pick);
+        Add(FocusSetup, "Detect", PropCode.RecognitionTarget, Format.Named("RecognitionTarget"), PropControl.Kind.Buttons);
+        Add(FocusSetup, "Face/eye priority", PropCode.SubjectRecognitionInAF, Format.Named("SubjectInAf"), PropControl.Kind.Buttons);
+        Add(FocusSetup, "Which eye", PropCode.RightLeftEyeSelect, Format.Named("EyeSelect"), PropControl.Kind.Buttons);
         Add(AudioPanel, "Record level", PropCode.AudioInputMasterLevel, v => v.ToString(), big, v => v);
-        Add(AudioPanel, "Audio recording", PropCode.AudioRecording, Format.Named("AudioRecording"), PropControl.Kind.Buttons);
-        Add(AudioPanel, "Wind noise reduction", PropCode.WindNoiseReduct, Format.Named("WindNoise"), PropControl.Kind.Buttons);
+        Add(AudioSetup, "Audio recording", PropCode.AudioRecording, Format.Named("AudioRecording"), PropControl.Kind.Buttons);
+        Add(AudioSetup, "Wind noise reduction", PropCode.WindNoiseReduct, Format.Named("WindNoise"), PropControl.Kind.Buttons);
         Add(MorePanel, "Exposure mode", PropCode.ExposureProgramMode, Format.Named("ExposureProgram"), pick);
         Add(MorePanel, "White balance", PropCode.WhiteBalance, Format.Named("WhiteBalance"), pick);
         Add(MorePanel, "Color temp", PropCode.Colortemp, Format.ColorTemp, pick, v => v);
-        Add(MorePanel, "Focus area", PropCode.FocusArea, Format.Named("FocusArea"), pick);
         Add(MorePanel, "Touch operation", PropCode.TouchOperation, Format.Named("TouchOperation"), PropControl.Kind.Buttons);
-        Add(MorePanel, "Shooting mode", PropCode.MovieShootingMode, Format.Named("MovieShootingMode"), pick);
-        Add(MorePanel, "Monitor LUT", PropCode.MonitorLUTSetting, Format.Named("MonitorLut"), PropControl.Kind.Buttons);
-        Add(MorePanel, "File format", PropCode.Movie_File_Format, Format.Named("MovieFileFormat"), pick);
-        Add(MorePanel, "Rec setting", PropCode.Movie_Recording_Setting, Format.Named("MovieRecordingSetting"), pick);
-        Add(MorePanel, "Frame rate", PropCode.Movie_Recording_FrameRateSetting, Format.Named("MovieFrameRate"), pick);
-        Add(MorePanel, "HDMI out", PropCode.Movie_HDMIOutputResolution, Format.Named("HdmiResolution"), pick);
+        Add(MovieMore, "Shooting mode", PropCode.MovieShootingMode, Format.Named("MovieShootingMode"), pick);
+        Add(MovieMore, "Monitor LUT", PropCode.MonitorLUTSetting, Format.Named("MonitorLut"), PropControl.Kind.Buttons);
+        Add(MovieMore, "File format", PropCode.Movie_File_Format, Format.Named("MovieFileFormat"), pick);
+        Add(MovieMore, "Rec setting", PropCode.Movie_Recording_Setting, Format.Named("MovieRecordingSetting"), pick);
+        Add(MovieMore, "Frame rate", PropCode.Movie_Recording_FrameRateSetting, Format.Named("MovieFrameRate"), pick);
+        Add(MovieMore, "HDMI out", PropCode.Movie_HDMIOutputResolution, Format.Named("HdmiResolution"), pick);
+        Add(DrivePanel, "Drive", PropCode.DriveMode, Format.Drive, pick);
+        Add(SavePanel, "Save photos to", PropCode.StillImageStoreDestination, Format.SaveTo, PropControl.Kind.Buttons);
+        Add(SavePanel, "Computer's copy", PropCode.Still_Image_Trans_Size, Format.ComputerCopy, PropControl.Kind.Buttons);
+        Add(SavePanel, "Send to computer", PropCode.RAW_J_PC_Save_Image, Format.Photo("RawJpegToPc"), PropControl.Kind.Buttons);
+        Add(PhotoPanel, "File format", PropCode.FileType, Format.Photo("FileType"), PropControl.Kind.Buttons);
+        Add(PhotoPanel, "RAW type", PropCode.RAW_FileCompressionType, Format.Photo("RawType"), PropControl.Kind.Buttons);
+        Add(PhotoPanel, "JPEG quality", PropCode.StillImageQuality, Format.Photo("ImageQuality"), pick);
+        Add(PhotoPanel, "Image size", PropCode.ImageSize, Format.Photo("ImageSize"), PropControl.Kind.Buttons);
+        Add(PhotoPanel, "Aspect ratio", PropCode.AspectRatio, Format.Photo("AspectRatio"), PropControl.Kind.Buttons);
+        Add(PhotoPanel, "Metering", PropCode.MeteringMode, Format.Photo("Metering"), pick);
+        Add(PhotoPanel, "Shutter type", PropCode.ShutterType, Format.Photo("ShutterType"), PropControl.Kind.Buttons);
+        Add(TimeLapsePanel, "Time-lapse", PropCode.Interval_Rec_Mode, Format.Photo("IntervalMode"), PropControl.Kind.Buttons);
+        Add(TimeLapsePanel, "One photo every", PropCode.IntervalRec_ShootingInterval, Format.Interval, pick, v => v, IntervalChoices);
+        Add(TimeLapsePanel, "Photos", PropCode.IntervalRec_NumberOfShots, v => v.ToString("N0"), pick, v => v, ShotChoices);
+        Add(TimeLapsePanel, "Start after", PropCode.IntervalRec_ShootingStartTime, v => Format.Interval(v * 10), pick, v => v, StartChoices);
         OnPropsChanged();
         ApplyRotation();
         SetUpAssist();
@@ -444,6 +472,59 @@ public partial class MainWindow : Window
 
     private void OnRecClick(object? sender, RoutedEventArgs e) => _cam.ToggleRecord();
 
+    /// <summary>The page always shows what the camera is doing, so a click asks the camera and waits for it to change.</summary>
+    private void OnPageClick(object? sender, RoutedEventArgs e)
+    {
+        bool wantPhoto = sender == PhotoPage;
+        _setup = false;
+        SideScroll.ScrollToHome();
+        ShowPage(_cam.IsPhotoMode);
+        if (_cam.State == LinkState.Connected && _cam.SwitchPage(wantPhoto) is { } problem) ShowMessage(problem);
+    }
+
+    private void OnSetupClick(object? sender, RoutedEventArgs e)
+    {
+        _setup = true;
+        SideScroll.ScrollToHome();
+        ShowPage(_cam.IsPhotoMode);
+    }
+
+    private void OnOpenPhotos(object? sender, RoutedEventArgs e)
+    {
+        if (System.IO.Directory.Exists(_cam.PhotoFolder)) System.Diagnostics.Process.Start("open", [_cam.PhotoFolder]);
+        else ShowMessage("That folder isn't there yet. It's made when a camera connects.");
+    }
+
+    private async void OnChangePhotos(object? sender, RoutedEventArgs e)
+    {
+        var picked = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Save photos to this folder" });
+        if (picked.Count == 0 || picked[0].TryGetLocalPath() is not { } folder) return;
+        _settings.PhotoFolder = folder;
+        _settings.Save();
+        _cam.UsePhotoFolder(folder);
+        PhotoFolderText.Text = _cam.PhotoFolder;
+    }
+
+    /// <summary>Swaps the side panel between the video and photo tools.</summary>
+    private void ShowPage(bool photo)
+    {
+        VideoPage.IsChecked = !_setup && !photo;
+        PhotoPage.IsChecked = !_setup && photo;
+        SetupTab.IsChecked = _setup;
+        ShootPage.IsVisible = !_setup;
+        SetupPage.IsVisible = _setup;
+        VideoTop.IsVisible = AudioSection.IsVisible = VideoSetup.IsVisible = !photo;
+        ShutterButton.IsVisible = DrivePanel.IsVisible = TimeLapseSection.IsVisible = PhotoSetup.IsVisible = photo;
+        foreach (var row in _rows.Where(r => r.Section == "photo"))
+            row.Root.IsVisible = _cam.Applies(row.Code);
+        FolderRow.IsVisible = _cam.SendsToComputer;
+        PhotoFolderText.Text = _cam.PhotoFolder;
+        ShutterLabel.Text = _cam.TimeLapseRunning ? "Stop time-lapse" : _cam.TimeLapseOn ? "Start time-lapse" : "Take photo";
+        var interval = _cam.Get(PropCode.IntervalRec_ShootingInterval);
+        var shots = _cam.Get(PropCode.IntervalRec_NumberOfShots);
+        TimeLapsePlan.Text = interval == null || shots == null ? "" : Format.TimeLapse(interval.Value, shots.Value);
+    }
+
     private void OnCardMenuClick(object? sender, RoutedEventArgs e)
     {
         var menu = new ContextMenu();
@@ -476,7 +557,12 @@ public partial class MainWindow : Window
     {
         if (e.Key == Key.F9 && _cam.State == LinkState.Connected)
         {
-            _cam.ToggleRecord();
+            if (_cam.IsPhotoMode)
+            {
+                _cam.ShutterDown();
+                _cam.ShutterUp();
+            }
+            else _cam.ToggleRecord();
             e.Handled = true;
         }
         else if (e.Key == Key.F12 && _cam.State == LinkState.Connected)
@@ -529,7 +615,7 @@ public partial class MainWindow : Window
         LinkDot.Fill = color;
         LinkText.Text = text;
         ConnectButton.Content = button;
-        RecButton.IsEnabled = _cam.State == LinkState.Connected;
+        RecButton.IsEnabled = ShutterButton.IsEnabled = _cam.State == LinkState.Connected;
         UpdateLiveView();
         if (_useWifi && _cam.State != LinkState.Connected)
         {
@@ -574,8 +660,14 @@ public partial class MainWindow : Window
         var slot2 = _cam.Get(PropCode.MediaSLOT2_RemainingTime);
         var parts = new List<string>();
         var minutes = new List<long>();
-        if (slot1 != null && _cam.Get(PropCode.MediaSLOT1_Status)?.Value == 0) { parts.Add("Card 1: " + Format.Duration(slot1.Value)); minutes.Add(slot1.Value / 60); }
-        if (slot2 != null && _cam.Get(PropCode.MediaSLOT2_Status)?.Value == 0) { parts.Add("Card 2: " + Format.Duration(slot2.Value)); minutes.Add(slot2.Value / 60); }
+        bool photo = _cam.IsPhotoMode;
+        void Card(int slot, Prop? time, Prop? photos)
+        {
+            if (photo && photos != null) { parts.Add($"Card {slot}: {photos.Value:N0} photos"); minutes.Add(photos.Value / 10); }
+            else if (time != null) { parts.Add($"Card {slot}: " + Format.Duration(time.Value)); minutes.Add(time.Value / 60); }
+        }
+        if (_cam.Get(PropCode.MediaSLOT1_Status)?.Value == 0) Card(1, slot1, _cam.Get(PropCode.MediaSLOT1_RemainingNumber));
+        if (_cam.Get(PropCode.MediaSLOT2_Status)?.Value == 0) Card(2, slot2, _cam.Get(PropCode.MediaSLOT2_RemainingNumber));
         CardText.Text = _cam.State == LinkState.Connected && parts.Count == 0 && _cam.Props.Count > 0 ? "No card ready" : string.Join("    ", parts);
         CardMenu.IsVisible = _cam.State == LinkState.Connected && _cam.CardSlots.Any();
         bool cardLow = minutes.Count > 0 && minutes.Max() < 10;
@@ -590,7 +682,7 @@ public partial class MainWindow : Window
             if (Format.BatteryCritical(pct, lvl)) alert = "⚠  BATTERY ALMOST EMPTY — swap it now";
             else if (Format.BatteryLow(pct, lvl)) alert = "⚠  Low battery";
             else if (CardText.Text == "No card ready") alert = "⚠  No memory card ready";
-            else if (cardLow) alert = "⚠  Card almost full — under 10 minutes left";
+            else if (cardLow) alert = photo ? "⚠  Card almost full — under 100 photos left" : "⚠  Card almost full — under 10 minutes left";
         }
         else if (_wasConnected && !_cam.HoldReconnect)
         {
@@ -605,13 +697,17 @@ public partial class MainWindow : Window
         // The camera is the truth: a dial or Memory Recall can change everything at once, so say so when it does.
         long? mode = _cam.State == LinkState.Connected ? _cam.Get(PropCode.ExposureProgramMode)?.Value : null;
         if (mode != null && _lastMode != null && mode != _lastMode)
+        {
             ShowMessage($"The camera changed to {Format.Named("ExposureProgram")(mode.Value)}. Settings here now show what it reports.");
+            _cam.LogOptions();
+        }
         if (mode != null) _lastMode = mode;
+        ShowPage(photo);
 
         CamSummary.Text = _cam.State != LinkState.Connected ? "" : string.Join("   ", new[]
         {
             Show(PropCode.ExposureProgramMode, Format.Named("ExposureProgram")),
-            Show(PropCode.Movie_Recording_Setting, Format.Named("MovieRecordingSetting")),
+            photo ? Show(PropCode.FileType, Format.Photo("FileType")) : Show(PropCode.Movie_Recording_Setting, Format.Named("MovieRecordingSetting")),
             Show(PropCode.ShutterSpeed, Format.Shutter),
             Show(PropCode.FNumber, Format.FNumber),
             Show(PropCode.IsoSensitivity, Format.Iso),
@@ -684,11 +780,13 @@ public partial class MainWindow : Window
     // ---- Settings ----
 
     private void Add(Panel panel, string label, PropCode code, Func<long, string> fmt, PropControl.Kind kind,
-        Func<long, double>? order = null)
+        Func<long, double>? order = null, long[]? presets = null)
     {
         var c = new PropControl(_cam, label, code, fmt, kind, order)
         {
-            Section = panel == ExposurePanel ? "exposure" : panel == AudioPanel ? "audio" : panel == MorePanel ? "more" : "focus",
+            Section = panel == ExposurePanel ? "exposure" : panel == AudioPanel || panel == AudioSetup ? "audio" : panel == MorePanel || panel == MovieMore ? "more"
+                : panel == FocusPanel || panel == FocusSetup ? "focus" : "photo",
+            Presets = presets,
         };
         panel.Children.Add(c.Root);
         _rows.Add(c);

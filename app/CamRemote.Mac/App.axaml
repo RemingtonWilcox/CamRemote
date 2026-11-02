@@ -34,6 +34,29 @@
             <Setter Property="Margin" Value="0,0,4,0" />
             <Setter Property="Focusable" Value="False" />
         </Style>
+        <!-- The Video and Photo pages, underlined like tabs because they change everything below them. -->
+        <Style Selector="ToggleButton.PageTab">
+            <Setter Property="Foreground" Value="{StaticResource Dim}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="#3A3A3A" />
+            <Setter Property="BorderThickness" Value="0,0,0,2" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="0,8" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="Focusable" Value="False" />
+        </Style>
+        <Style Selector="ToggleButton.PageTab:pointerover /template/ ContentPresenter, ToggleButton.PageTab:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="ToggleButton.PageTab:checked /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
         <Style Selector="Button, RepeatButton">
             <Setter Property="HorizontalContentAlignment" Value="Center" />
         </Style>

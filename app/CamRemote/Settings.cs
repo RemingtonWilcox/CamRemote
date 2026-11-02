@@ -34,6 +34,7 @@ public sealed class Settings
     public int PhonePort { get; set; } = 8787;
     public string PhoneCode { get; set; } = ""; // typed once on a phone
     public string PhoneToken { get; set; } = ""; // what the phone keeps afterwards
+    public string PhotoFolder { get; set; } = ""; // blank means Pictures/CamRemote
 
     /// <summary>%APPDATA%\CamRemote on Windows, ~/Library/Application Support/CamRemote on a Mac.</summary>
     public static string Folder => System.IO.Path.Combine(OperatingSystem.IsMacOS()

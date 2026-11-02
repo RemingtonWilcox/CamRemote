@@ -36,6 +36,7 @@ enum CbEventKind : int {
     CbError = 4,
     CbWarning = 5,
     CbLiveViewPropsChanged = 6,
+    CbPhotoSaved = 7,
 };
 
 typedef void(__stdcall* CbEventFn)(int kind, uint32_t a, uint32_t b);
@@ -76,6 +77,7 @@ public:
     void OnError(CrInt32u error) override { emit(CbError, error); }
     void OnWarning(CrInt32u warning) override { emit(CbWarning, warning); }
     void OnWarningExt(CrInt32u warning, CrInt32, CrInt32, CrInt32) override { emit(CbWarning, warning); }
+    void OnCompleteDownload(CrChar*, CrInt32u) override { emit(CbPhotoSaved, 0); }
 };
 
 static Callback g_callback;
@@ -337,6 +339,22 @@ CB_API int cb_command(uint32_t command, uint32_t param)
     std::shared_lock<std::shared_mutex> l(g_lock);
     if (!g_handle) return -1;
     return (int)SDK::SendCommand(g_handle, command, (SDK::CrCommandParam)param);
+}
+
+// Where photos sent to the computer land.
+CB_API int cb_set_save_folder(const char* folder)
+{
+    std::shared_lock<std::shared_mutex> l(g_lock);
+    if (!g_handle) return -1;
+#ifdef _WIN32
+    int n = MultiByteToWideChar(CP_UTF8, 0, folder, -1, nullptr, 0);
+    std::wstring path(n, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, folder, -1, path.data(), n);
+    return (int)SDK::SetSaveInfo(g_handle, path.data(), const_cast<CrChar*>(L""), -1);
+#else
+    std::string path = folder;
+    return (int)SDK::SetSaveInfo(g_handle, path.data(), const_cast<CrChar*>(""), -1);
+#endif
 }
 
 CB_API int cb_is_connected() { return g_connected ? 1 : 0; }

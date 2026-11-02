@@ -26,6 +26,14 @@ public sealed class Prop
         for (long v = min; v <= max; v += step) list.Add(v);
         return list;
     }
+
+    /// <summary>The values from a short list that this setting allows, for ranges too long to show in full.</summary>
+    public IEnumerable<long> Within(long[] wanted)
+    {
+        if (!IsRange) return Candidates;
+        if (Candidates.Length < 3 || Candidates[2] <= 0) return [];
+        return wanted.Where(v => v >= Candidates[0] && v <= Candidates[1] && (v - Candidates[0]) % Candidates[2] == 0);
+    }
 }
 
 public sealed record FoundCamera(int Index, string Model, string Conn, string Ip, string Mac, bool Ssh)
@@ -50,7 +58,7 @@ public sealed class CameraService : IDisposable
     private const long FocusManual = 1, FocusContinuous = 3;
     private const int FrameFocused = 2;
     private const long TouchOn = 2, TouchFnOff = 1, TouchFnFocus = 3, TouchFnTracking = 4, TrackingActive = 3;
-    private const uint CmdMovieRecord = 1, CmdQuickFormat = 5, CmdCancelRemoteTouch = 12;
+    private const uint CmdRelease = 0, CmdMovieRecord = 1, CmdQuickFormat = 5, CmdCancelRemoteTouch = 12;
     private const uint ParamUp = 0, ParamDown = 1;
     private const long PriorityPcRemote = 2;
     private const long LiveViewQualityHigh = 1;
@@ -273,6 +281,9 @@ public sealed class CameraService : IDisposable
                 else SayFailed(Explain((int)a), (int)a);
                 if (State == LinkState.Connecting) SetState(LinkState.Disconnected);
                 break;
+            case Native.EvPhotoSaved:
+                Say($"Photo saved to {PhotoFolder}.");
+                break;
             case Native.EvWarning:
                 if (a is 0x20009 or 0x2000A or 0x2000B or 0x2001B) _ui.Post(EndFormat);
                 if (a != _lastWarning)
@@ -300,6 +311,35 @@ public sealed class CameraService : IDisposable
         Log.Write(err == 0 ? "Asked the camera for control of its settings." : "Asking for control failed: " + Native.ErrorName(err));
         // Ask for the sharper live-view stream; harmless if the camera ignores it.
         Native.cb_set_prop((uint)PropCode.LiveView_Image_Quality, LiveViewQualityHigh, 0x2002);
+        SendPhotoFolder();
+    }
+
+    /// <summary>Tells the camera where to send photos. A folder that can't be written to, like an unplugged drive, would lose them, so that falls back to the usual one.</summary>
+    private void SendPhotoFolder()
+    {
+        try { TryPhotoFolder(); }
+        catch (Exception e) when (e is System.IO.IOException or UnauthorizedAccessException)
+        {
+            Say($"Can't save to {PhotoFolder}, so photos are going to {DefaultPhotoFolder} for now.");
+            PhotoFolder = DefaultPhotoFolder;
+            TryPhotoFolder();
+        }
+        Native.cb_set_save_folder(PhotoFolder);
+    }
+
+    private void TryPhotoFolder()
+    {
+        System.IO.Directory.CreateDirectory(PhotoFolder);
+        var probe = System.IO.Path.Combine(PhotoFolder, ".camremote");
+        System.IO.File.WriteAllBytes(probe, []);
+        System.IO.File.Delete(probe);
+    }
+
+    /// <summary>Sets where photos sent to the computer land. Blank means the usual folder.</summary>
+    public void UsePhotoFolder(string folder)
+    {
+        PhotoFolder = folder.Length > 0 ? System.IO.Path.TrimEndingDirectorySeparator(folder) : DefaultPhotoFolder;
+        if (State == LinkState.Connected) SendPhotoFolder();
     }
 
     /// <summary>
@@ -326,11 +366,18 @@ public sealed class CameraService : IDisposable
         return true;
     }
 
+    public void LogOptions() => LogOptions(Props);
+
     private static void LogOptions(Dictionary<uint, Prop> props)
     {
         foreach (var code in new[] { PropCode.FocusMode, PropCode.RecognitionTarget, PropCode.SubjectRecognitionInAF, PropCode.RightLeftEyeSelect, PropCode.Focus_Magnifier_Setting,
                      PropCode.FocusPositionCurrentValue, PropCode.FocusPositionSetting, PropCode.FocalDistanceInMeter,
-                     PropCode.MediaSLOT1_QuickFormatEnableStatus, PropCode.MediaSLOT2_QuickFormatEnableStatus })
+                     PropCode.MediaSLOT1_QuickFormatEnableStatus, PropCode.MediaSLOT2_QuickFormatEnableStatus,
+                     PropCode.ExposureProgramMode, PropCode.DriveMode, PropCode.FileType, PropCode.MediaSLOT1_FileType, PropCode.RAW_FileCompressionType,
+                     PropCode.MediaSLOT1_RAW_FileCompressionType, PropCode.StillImageQuality, PropCode.ImageSize, PropCode.MediaSLOT1_ImageSize, PropCode.AspectRatio,
+                     PropCode.MeteringMode, PropCode.ShutterType, PropCode.S1, PropCode.StillImageStoreDestination, PropCode.Interval_Rec_Mode, PropCode.Interval_Rec_Status,
+                     PropCode.IntervalRec_ShootingInterval, PropCode.IntervalRec_NumberOfShots, PropCode.IntervalRec_ShootingStartTime,
+                     PropCode.MediaSLOT1_RemainingNumber, PropCode.MediaSLOT2_RemainingNumber })
             Log.Write(props.TryGetValue((uint)code, out var p)
                 ? $"{code}: value 0x{p.Value:X}, writable {p.Writable}, choices {string.Join(' ', p.Candidates.Select(v => v.ToString("X")))}"
                 : $"{code}: not reported");
@@ -451,6 +498,86 @@ public sealed class CameraService : IDisposable
         });
     }
 
+    // ---- Photos ----
+
+    private const long S1Locked = 2, S1Unlocked = 1;
+    private const uint TypeUInt16Array = 0x2002;
+    private const int FocusWaitMs = 500; // how long the half-press gets to focus; Sony's sample waits the same
+
+    private bool _shutterHeld, _halfPressed;
+
+    private const int FocusHoldMs = 900;
+
+    public static readonly string DefaultPhotoFolder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "CamRemote");
+
+    public string PhotoFolder { get; private set; } = DefaultPhotoFolder;
+
+    // The same exposure letter on each side, so switching pages doesn't change how the shot is exposed.
+    private static readonly (long Photo, long Movie)[] MatchingModes = [(2, 0x8050), (3, 0x8051), (4, 0x8052), (1, 0x8053)];
+    private const long PhotoManual = 1, MovieManual = 0x8053;
+
+    /// <summary>Moves the camera between photo and movie. Returns what went wrong, if anything.</summary>
+    public string? SwitchPage(bool photo)
+    {
+        if (photo == IsPhotoMode) return null;
+        if (IsRecording) return "Stop recording first.";
+        if (TimeLapseRunning) return "Stop the time-lapse first.";
+        var dial = photo ? "P, A, S or M for photos." : "Movie for video.";
+        if (Get(PropCode.ExposureProgramMode) is not { Writable: true } mode) return "Turn the camera's mode dial to " + dial;
+        long now = mode.Value is >= 0x8059 and <= 0x805C ? mode.Value - 9 : mode.Value; // S&Q has the same four letters
+        var match = MatchingModes.FirstOrDefault(m => (photo ? m.Movie : m.Photo) == now);
+        long want = photo ? (match.Photo > 0 ? match.Photo : PhotoManual) : (match.Movie > 0 ? match.Movie : MovieManual);
+        if (!mode.Candidates.Contains(want)) return "Turn the camera's mode dial to " + dial;
+        Set(PropCode.ExposureProgramMode, want);
+        return null;
+    }
+
+    /// <summary>Movie programs start at 0x8050. Picture Effect and Still are the only photo ones above that.</summary>
+    public bool IsPhotoMode => Get(PropCode.ExposureProgramMode)?.Value is long mode && mode is < 0x8050 or 0x8070 or 0x8089;
+
+    public bool TimeLapseOn => Get(PropCode.Interval_Rec_Mode)?.Value == 2;
+
+    public bool TimeLapseRunning => Get(PropCode.Interval_Rec_Status)?.Value == 2;
+
+    public bool SendsToComputer => Get(PropCode.StillImageStoreDestination)?.Value != 2;
+
+    /// <summary>Some photo settings only apply now and then: JPEG quality in RAW, say, or the computer's copy when photos only go to the card.</summary>
+    public bool Applies(PropCode code) =>
+        Get(code) is not (null or { Writable: false, Candidates.Length: 0 })
+        && (SendsToComputer || code is not (PropCode.Still_Image_Trans_Size or PropCode.RAW_J_PC_Save_Image));
+
+    /// <summary>Holds the shutter down, half-pressing first to focus unless the lens is in manual. In a burst drive mode it keeps shooting until <see cref="ShutterUp"/>.</summary>
+    public void ShutterDown()
+    {
+        if (_shutterHeld) return;
+        _shutterHeld = true;
+        _halfPressed = !IsManualFocus;
+        bool halfPress = _halfPressed;
+        Run(() =>
+        {
+            if (halfPress)
+            {
+                Native.cb_set_prop((uint)PropCode.S1, S1Locked, TypeUInt16Array);
+                Thread.Sleep(FocusWaitMs);
+            }
+            int err = Native.cb_command(CmdRelease, ParamDown);
+            if (err != 0) SayFailed("The camera didn't take the picture.", err);
+        });
+    }
+
+    public void ShutterUp()
+    {
+        if (!_shutterHeld) return;
+        _shutterHeld = false;
+        bool halfPress = _halfPressed;
+        Run(() =>
+        {
+            Thread.Sleep(35); // a tap still has to reach the camera as a press
+            Native.cb_command(CmdRelease, ParamUp);
+            if (halfPress) Native.cb_set_prop((uint)PropCode.S1, S1Unlocked, TypeUInt16Array);
+        });
+    }
+
     // ---- Cards ----
 
     private DateTime _formatHold;
@@ -503,8 +630,9 @@ public sealed class CameraService : IDisposable
 
     /// <summary>
     /// Handles a tap on the picture, given as 0..1. While magnified it moves the magnified area. In manual
-    /// focus it focuses once and returns to manual. Otherwise it's the camera's remote touch (movie mode),
-    /// or moves the AF frame when the focus area is a spot type.
+    /// focus it focuses once and returns to manual. Otherwise it's the camera's remote touch, or moves the
+    /// AF frame when the focus area is a spot type. In photo mode a touch only picks the spot, and the camera
+    /// waits for a half-press to focus there, so the tap gives it one.
     /// </summary>
     public string? TouchFocus(double fx, double fy, bool evenIfTapIsOff = false)
     {
@@ -524,6 +652,7 @@ public sealed class CameraService : IDisposable
             if (Interlocked.CompareExchange(ref _focusOnceBusy, 1, 0) != 0) return "Still focusing on the last tap.";
             long mode = Get(PropCode.FocusMode)!.Value;
             long function = Get(PropCode.FunctionOfTouchOperation)?.Value ?? TouchFnFocus;
+            bool photoTap = IsPhotoMode;
             Say("Focusing once, then back to manual…");
             Run(() =>
             {
@@ -531,7 +660,9 @@ public sealed class CameraService : IDisposable
                 SetNow(PropCode.FocusMode, FocusContinuous);
                 Thread.Sleep(350); // the camera needs a moment to accept touch after leaving MF
                 int err = Native.cb_set_prop((uint)PropCode.RemoteTouchOperation, xy, TypeUInt32);
+                if (photoTap) Native.cb_set_prop((uint)PropCode.S1, S1Locked, TypeUInt16Array);
                 Thread.Sleep(1300);
+                if (photoTap) Native.cb_set_prop((uint)PropCode.S1, S1Unlocked, TypeUInt16Array);
                 Native.cb_command(CmdCancelRemoteTouch, ParamDown);
                 Thread.Sleep(50);
                 Native.cb_command(CmdCancelRemoteTouch, ParamUp);
@@ -545,6 +676,7 @@ public sealed class CameraService : IDisposable
             return null;
         }
         bool track = TapTracks;
+        bool halfPress = IsPhotoMode && !track;
         bool touch = evenIfTapIsOff || Get(PropCode.RemoteTouchOperationEnableStatus)?.Value == 1 || Get(PropCode.TouchOperation)?.Value != TouchOn;
         if (touch)
         {
@@ -553,6 +685,12 @@ public sealed class CameraService : IDisposable
                 EnableTouch(track ? TouchFnTracking : TouchFnFocus);
                 int err = Native.cb_set_prop((uint)PropCode.RemoteTouchOperation, xy, TypeUInt32);
                 if (err != 0) SayFailed("The camera couldn't focus there.", err);
+                else if (halfPress)
+                {
+                    Native.cb_set_prop((uint)PropCode.S1, S1Locked, TypeUInt16Array);
+                    Thread.Sleep(FocusHoldMs);
+                    Native.cb_set_prop((uint)PropCode.S1, S1Unlocked, TypeUInt16Array);
+                }
                 else if (track)
                 {
                     Thread.Sleep(1200);

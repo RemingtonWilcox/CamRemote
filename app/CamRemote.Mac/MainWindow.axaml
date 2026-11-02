@@ -47,7 +47,7 @@
         <!-- Live picture. Click to focus, right-click to cancel. -->
         <Border Grid.Row="2" Grid.Column="0" Background="Black">
             <Panel>
-                <TextBlock x:Name="NoSignal" Text="No video — pick a picture source on the right"
+                <TextBlock x:Name="NoSignal" Text="No video — pick a picture source in Setup"
                            Foreground="{StaticResource Dim}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 <!-- Turns red while recording -->
                 <Border x:Name="RecFrame" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -95,118 +95,173 @@
 
         <!-- Controls -->
         <Border Grid.Row="0" Grid.RowSpan="4" Grid.Column="1" BorderBrush="#333" BorderThickness="1,0,0,0">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="16,10,16,16">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="16,10,16,0">
                     <DockPanel>
+                        <Button x:Name="ConnectButton" Content="Connect camera…" Click="OnConnectClick" Padding="10,3" DockPanel.Dock="Right" />
                         <Ellipse x:Name="LinkDot" Width="10" Height="10" Fill="#666" Margin="0,0,8,0" DockPanel.Dock="Left" />
                         <TextBlock x:Name="LinkText" Text="Camera not connected" VerticalAlignment="Center" />
                     </DockPanel>
-                    <Button x:Name="ConnectButton" Content="Connect camera…" Click="OnConnectClick" Margin="0,8,0,0"
-                            HorizontalAlignment="Stretch" />
 
-                    <Button x:Name="RecButton" Click="OnRecClick" Height="56" Margin="0,14,0,0" IsEnabled="False"
-                            HorizontalAlignment="Stretch" VerticalContentAlignment="Center" ToolTip.Tip="Start / stop recording (F9)">
-                        <StackPanel Orientation="Horizontal">
-                            <Ellipse x:Name="RecDot" Width="18" Height="18" Fill="{StaticResource Rec}" Margin="0,0,10,0" />
-                            <TextBlock x:Name="RecLabel" Text="Record" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                    <CheckBox x:Name="BirdWatch" Margin="0,10,0,0" Content="Record when an animal shows up" Click="OnBirdWatchClick"
-                              ToolTip.Tip="Checks the picture once a second, on this computer only." />
-                    <TextBlock x:Name="BirdStatus" FontSize="12" Foreground="Gray" Margin="0,3,0,0" TextWrapping="Wrap" IsVisible="False" />
-
-                    <TextBlock Text="EXPOSURE" Classes="Section" />
-                    <StackPanel x:Name="ExposurePanel" />
-                    <UniformGrid x:Name="BaseIsoButtons" IsVisible="False" Rows="1" Margin="0,0,0,4">
-                        <Button x:Name="IsoLowButton" Margin="0,0,3,0" Padding="4,6" Click="OnBaseIsoClick" HorizontalAlignment="Stretch"
-                                ToolTip.Tip="Lower native ISO of this camera" />
-                        <Button x:Name="IsoHighButton" Margin="3,0,0,0" Padding="4,6" Click="OnBaseIsoClick" HorizontalAlignment="Stretch"
-                                ToolTip.Tip="Upper native ISO of this camera, cleanest in low light" />
+                    <UniformGrid Rows="1" Margin="0,12,0,0">
+                        <ToggleButton x:Name="VideoPage" Content="Video" Classes="PageTab" Click="OnPageClick" IsChecked="True"
+                                      ToolTip.Tip="Switches the camera to movie mode." />
+                        <ToggleButton x:Name="PhotoPage" Content="Photo" Classes="PageTab" Click="OnPageClick"
+                                      ToolTip.Tip="Switches the camera to photo mode." />
+                        <ToggleButton x:Name="SetupTab" Content="Setup" Classes="PageTab" Click="OnSetupClick"
+                                      ToolTip.Tip="Settings you set once or now and then." />
                     </UniformGrid>
-
-                    <TextBlock Text="FOCUS" Classes="Section" />
-                    <StackPanel x:Name="FocusPanel" />
-                    <StackPanel x:Name="ManualFocus" Margin="0,2,0,0">
-                        <TextBlock Text="Focus ring: drag or scroll" FontSize="12" Foreground="Gray" Margin="0,0,0,3" />
-                        <Border x:Name="FocusWheel" Height="44" Margin="0,0,0,6" Background="#191919" BorderBrush="#444" BorderThickness="1"
-                                CornerRadius="4" ClipToBounds="True" Cursor="SizeWestEast" PointerPressed="OnWheelDown" PointerMoved="OnWheelMove"
-                                PointerReleased="OnWheelUp" PointerWheelChanged="OnWheelScroll" ToolTip.Tip="Drag slowly for fine focus, faster for bigger moves.">
-                            <Canvas x:Name="WheelTicks" />
-                        </Border>
-                        <DockPanel>
-                            <RepeatButton DockPanel.Dock="Left" Tag="-7" Click="OnFocusStep" Delay="300" Interval="120" Width="36" ToolTip.Tip="Hold to focus nearer">
-                                <TextBlock Text="✿" FontSize="15" />
-                            </RepeatButton>
-                            <RepeatButton DockPanel.Dock="Right" Tag="7" Click="OnFocusStep" Delay="300" Interval="120" Width="46" ToolTip.Tip="Hold to focus farther">
-                                <StackPanel Orientation="Horizontal">
-                                    <Path Data="M0,12 L5,3 L8,7 L10,5 L15,12 Z" Fill="#DDD" VerticalAlignment="Center" Margin="0,0,3,0" />
-                                    <TextBlock Text="∞" FontSize="15" />
-                                </StackPanel>
-                            </RepeatButton>
-                            <Border x:Name="FocusBar" Height="32" Margin="4,0" Background="#191919" BorderBrush="#444" BorderThickness="1" CornerRadius="4"
-                                    ClipToBounds="True" Cursor="Hand" PointerPressed="OnFocusBarClick" SizeChanged="OnFocusBarSized"
-                                    ToolTip.Tip="Where focus is now, from close up to infinity. Click to jump there.">
-                                <Canvas x:Name="FocusBarTicks" />
-                            </Border>
-                        </DockPanel>
-                    </StackPanel>
-                    <TextBlock Text="Focus magnifier" FontSize="12" Foreground="Gray" Margin="0,8,0,3" />
-                    <StackPanel x:Name="MagnifierButtons" Orientation="Horizontal" />
-                    <Button x:Name="StopTracking" Content="Stop tracking" Margin="0,8,0,0" HorizontalAlignment="Stretch" Click="OnStopTrackingClick" IsVisible="False" />
-                    <TextBlock x:Name="TouchHint" Classes="Small" Margin="0,6,0,0" />
-
-                    <TextBlock Text="AUDIO" Classes="Section" />
-                    <Grid x:Name="Meters" Margin="0,0,0,4" ColumnDefinitions="16,*,52" RowDefinitions="14,4,14">
-                        <TextBlock Text="L" FontSize="11" Foreground="{StaticResource Dim}" VerticalAlignment="Center" />
-                        <TextBlock Text="R" FontSize="11" Foreground="{StaticResource Dim}" VerticalAlignment="Center" Grid.Row="2" />
-                        <Panel x:Name="MeterLTrack" Grid.Column="1" Background="#2A2A2A">
-                            <Rectangle x:Name="MeterL" HorizontalAlignment="Left" Width="0" />
-                            <Rectangle x:Name="HoldL" HorizontalAlignment="Left" Width="2" Fill="White" IsVisible="False" />
-                        </Panel>
-                        <Panel x:Name="MeterRTrack" Grid.Column="1" Grid.Row="2" Background="#2A2A2A">
-                            <Rectangle x:Name="MeterR" HorizontalAlignment="Left" Width="0" />
-                            <Rectangle x:Name="HoldR" HorizontalAlignment="Left" Width="2" Fill="White" IsVisible="False" />
-                        </Panel>
-                        <TextBlock x:Name="MeterLText" Grid.Column="2" FontSize="11" TextAlignment="Right" VerticalAlignment="Center" />
-                        <TextBlock x:Name="MeterRText" Grid.Column="2" Grid.Row="2" FontSize="11" TextAlignment="Right" VerticalAlignment="Center" />
-                    </Grid>
-                    <TextBlock x:Name="MeterHint" Classes="Small" Margin="0,0,0,4" />
-                    <StackPanel x:Name="AudioPanel" />
-
-                    <Expander Header="More camera settings" Margin="0,18,0,0" IsExpanded="False" HorizontalAlignment="Stretch">
-                        <StackPanel x:Name="MorePanel" Margin="0,6,0,0" />
-                    </Expander>
-
-                    <TextBlock Text="PICTURE" Classes="Section" />
-                    <DockPanel>
-                        <Button Content="↻" DockPanel.Dock="Right" Width="34" Margin="6,0,0,0" Click="OnRefreshSourcesClick"
-                                ToolTip.Tip="Look for capture cards again (after plugging one in)" />
-                        <ComboBox x:Name="VideoDevices" SelectionChanged="OnVideoDeviceChanged" HorizontalAlignment="Stretch"
-                                  ToolTip.Tip="Camera over Wi-Fi needs no cable. Any HDMI capture card your Mac sees is listed too." />
-                    </DockPanel>
-                    <DockPanel Margin="0,8,0,0">
-                        <TextBlock x:Name="RotationText" Text="Rotation 0°" VerticalAlignment="Center" Width="90" DockPanel.Dock="Left" />
-                        <UniformGrid Rows="1">
-                            <Button Content="⟲ Left" Margin="0,0,3,0" Padding="4,5" Click="OnRotateClick" Tag="-90" HorizontalAlignment="Stretch"
-                                    ToolTip.Tip="Turn the picture 90° counter-clockwise (for a camera on its side)" />
-                            <Button Content="⟳ Right" Margin="3,0,0,0" Padding="4,5" Click="OnRotateClick" Tag="90" HorizontalAlignment="Stretch"
-                                    ToolTip.Tip="Turn the picture 90° clockwise (for a camera on its side)" />
-                        </UniformGrid>
-                    </DockPanel>
-                    <TextBlock Classes="Small" Margin="0,6,0,0"
-                               Text="Wi-Fi live view works with no cable. For the sharpest, smoothest picture, run HDMI into a capture card (camera HDMI Resolution: 1080p)." />
-
-                    <TextBlock Text="PHONE" Classes="Section" />
-                    <CheckBox x:Name="PhoneEnabled" Content="Allow phone control" Click="OnPhoneToggle"
-                              ToolTip.Tip="Serves a control page to your home network and Tailscale. Keeps the Mac awake while on." />
-                    <TextBlock x:Name="PhoneInfo" TextWrapping="Wrap" FontSize="12" Margin="0,6,0,0" IsVisible="False" />
-                    <StackPanel x:Name="PhoneCodeButtons" Orientation="Horizontal" Margin="0,6,0,0" IsVisible="False">
-                        <Button x:Name="PhoneCodeShow" Content="Show code" Padding="8,3" Margin="0,0,6,0" Click="OnPhoneCodeShow" />
-                        <Button x:Name="PhoneCodeNew" Content="New code" Padding="8,3" Click="OnPhoneCodeNew"
-                                ToolTip.Tip="Makes a new access code. Phones already signed in will need it." />
-                    </StackPanel>
                 </StackPanel>
-            </ScrollViewer>
+                <ScrollViewer x:Name="SideScroll" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="16,0,16,16">
+                        <!-- What changes while shooting -->
+                        <StackPanel x:Name="ShootPage">
+                            <StackPanel x:Name="VideoTop">
+                                <Button x:Name="RecButton" Click="OnRecClick" Height="56" Margin="0,10,0,0" IsEnabled="False"
+                                        HorizontalAlignment="Stretch" VerticalContentAlignment="Center" ToolTip.Tip="Start / stop recording (F9)">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse x:Name="RecDot" Width="18" Height="18" Fill="{StaticResource Rec}" Margin="0,0,10,0" />
+                                        <TextBlock x:Name="RecLabel" Text="Record" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <CheckBox x:Name="BirdWatch" Margin="0,10,0,0" Content="Record when an animal shows up" Click="OnBirdWatchClick"
+                                          ToolTip.Tip="Checks the picture once a second, on this computer only." />
+                                <TextBlock x:Name="BirdStatus" FontSize="12" Foreground="Gray" Margin="0,3,0,0" TextWrapping="Wrap" IsVisible="False" />
+                            </StackPanel>
+                            <Button x:Name="ShutterButton" Height="56" Margin="0,10,0,0" IsEnabled="False" HorizontalAlignment="Stretch" IsVisible="False"
+                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                    ToolTip.Tip="Take a photo (F9). Hold it down for a burst when Drive is set to continuous.">
+                                <TextBlock x:Name="ShutterLabel" Text="Take photo" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            </Button>
+                            <StackPanel x:Name="DrivePanel" Margin="0,8,0,0" IsVisible="False" />
+                            <Expander x:Name="TimeLapseSection" Header="Time-lapse" Margin="0,8,0,0" IsExpanded="False" IsVisible="False" HorizontalAlignment="Stretch">
+                                <StackPanel Margin="0,6,0,0">
+                                    <StackPanel x:Name="TimeLapsePanel" />
+                                    <TextBlock x:Name="TimeLapsePlan" Classes="Small" Margin="0,0,0,4" />
+                                </StackPanel>
+                            </Expander>
+
+                            <TextBlock Text="EXPOSURE" Classes="Section" />
+                            <StackPanel x:Name="ExposurePanel" />
+                            <UniformGrid x:Name="BaseIsoButtons" IsVisible="False" Rows="1" Margin="0,0,0,4">
+                                <Button x:Name="IsoLowButton" Margin="0,0,3,0" Padding="4,6" Click="OnBaseIsoClick" HorizontalAlignment="Stretch"
+                                        ToolTip.Tip="Lower native ISO of this camera" />
+                                <Button x:Name="IsoHighButton" Margin="3,0,0,0" Padding="4,6" Click="OnBaseIsoClick" HorizontalAlignment="Stretch"
+                                        ToolTip.Tip="Upper native ISO of this camera, cleanest in low light" />
+                            </UniformGrid>
+
+                            <TextBlock Text="FOCUS" Classes="Section" />
+                            <StackPanel x:Name="FocusPanel" />
+                            <StackPanel x:Name="ManualFocus" Margin="0,2,0,0">
+                                <TextBlock Text="Focus ring: drag or scroll" FontSize="12" Foreground="Gray" Margin="0,0,0,3" />
+                                <Border x:Name="FocusWheel" Height="44" Margin="0,0,0,6" Background="#191919" BorderBrush="#444" BorderThickness="1"
+                                        CornerRadius="4" ClipToBounds="True" Cursor="SizeWestEast" PointerPressed="OnWheelDown" PointerMoved="OnWheelMove"
+                                        PointerReleased="OnWheelUp" PointerWheelChanged="OnWheelScroll" ToolTip.Tip="Drag slowly for fine focus, faster for bigger moves.">
+                                    <Canvas x:Name="WheelTicks" />
+                                </Border>
+                                <DockPanel>
+                                    <RepeatButton DockPanel.Dock="Left" Tag="-7" Click="OnFocusStep" Delay="300" Interval="120" Width="36" ToolTip.Tip="Hold to focus nearer">
+                                        <TextBlock Text="✿" FontSize="15" />
+                                    </RepeatButton>
+                                    <RepeatButton DockPanel.Dock="Right" Tag="7" Click="OnFocusStep" Delay="300" Interval="120" Width="46" ToolTip.Tip="Hold to focus farther">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Data="M0,12 L5,3 L8,7 L10,5 L15,12 Z" Fill="#DDD" VerticalAlignment="Center" Margin="0,0,3,0" />
+                                            <TextBlock Text="∞" FontSize="15" />
+                                        </StackPanel>
+                                    </RepeatButton>
+                                    <Border x:Name="FocusBar" Height="32" Margin="4,0" Background="#191919" BorderBrush="#444" BorderThickness="1" CornerRadius="4"
+                                            ClipToBounds="True" Cursor="Hand" PointerPressed="OnFocusBarClick" SizeChanged="OnFocusBarSized"
+                                            ToolTip.Tip="Where focus is now, from close up to infinity. Click to jump there.">
+                                        <Canvas x:Name="FocusBarTicks" />
+                                    </Border>
+                                </DockPanel>
+                            </StackPanel>
+                            <TextBlock Text="Focus magnifier" FontSize="12" Foreground="Gray" Margin="0,8,0,3" />
+                            <StackPanel x:Name="MagnifierButtons" Orientation="Horizontal" />
+                            <Button x:Name="StopTracking" Content="Stop tracking" Margin="0,8,0,0" HorizontalAlignment="Stretch" Click="OnStopTrackingClick" IsVisible="False" />
+                            <TextBlock x:Name="TouchHint" Classes="Small" Margin="0,6,0,0" />
+
+                            <StackPanel x:Name="AudioSection">
+                            <TextBlock Text="AUDIO" Classes="Section" />
+                            <Grid x:Name="Meters" Margin="0,0,0,4" ColumnDefinitions="16,*,52" RowDefinitions="14,4,14">
+                                <TextBlock Text="L" FontSize="11" Foreground="{StaticResource Dim}" VerticalAlignment="Center" />
+                                <TextBlock Text="R" FontSize="11" Foreground="{StaticResource Dim}" VerticalAlignment="Center" Grid.Row="2" />
+                                <Panel x:Name="MeterLTrack" Grid.Column="1" Background="#2A2A2A">
+                                    <Rectangle x:Name="MeterL" HorizontalAlignment="Left" Width="0" />
+                                    <Rectangle x:Name="HoldL" HorizontalAlignment="Left" Width="2" Fill="White" IsVisible="False" />
+                                </Panel>
+                                <Panel x:Name="MeterRTrack" Grid.Column="1" Grid.Row="2" Background="#2A2A2A">
+                                    <Rectangle x:Name="MeterR" HorizontalAlignment="Left" Width="0" />
+                                    <Rectangle x:Name="HoldR" HorizontalAlignment="Left" Width="2" Fill="White" IsVisible="False" />
+                                </Panel>
+                                <TextBlock x:Name="MeterLText" Grid.Column="2" FontSize="11" TextAlignment="Right" VerticalAlignment="Center" />
+                                <TextBlock x:Name="MeterRText" Grid.Column="2" Grid.Row="2" FontSize="11" TextAlignment="Right" VerticalAlignment="Center" />
+                            </Grid>
+                            <TextBlock x:Name="MeterHint" Classes="Small" Margin="0,0,0,4" />
+                            <StackPanel x:Name="AudioPanel" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- What gets set once or now and then -->
+                        <StackPanel x:Name="SetupPage" IsVisible="False">
+                            <StackPanel x:Name="PhotoSetup" IsVisible="False">
+                                <TextBlock Text="SAVING" Classes="Section" />
+                                <StackPanel x:Name="SavePanel" />
+                                <StackPanel x:Name="FolderRow" Margin="0,2,0,8">
+                                    <TextBlock x:Name="PhotoFolderText" Classes="Small" Margin="0,0,0,4" />
+                                    <Grid ColumnDefinitions="*,6,*">
+                                        <Button Content="Open folder" Click="OnOpenPhotos" HorizontalAlignment="Stretch"
+                                                ToolTip.Tip="Show the photos sent to this Mac." />
+                                        <Button Grid.Column="2" Content="Change folder" Click="OnChangePhotos" HorizontalAlignment="Stretch"
+                                                ToolTip.Tip="Choose where photos sent to this Mac are saved." />
+                                    </Grid>
+                                </StackPanel>
+                                <TextBlock Text="PHOTO" Classes="Section" />
+                                <StackPanel x:Name="PhotoPanel" />
+                            </StackPanel>
+                            <StackPanel x:Name="VideoSetup">
+                                <TextBlock Text="VIDEO" Classes="Section" />
+                                <StackPanel x:Name="MovieMore" />
+                                <TextBlock Text="AUDIO" Classes="Section" />
+                                <StackPanel x:Name="AudioSetup" />
+                            </StackPanel>
+                            <TextBlock Text="FOCUS" Classes="Section" />
+                            <StackPanel x:Name="FocusSetup" />
+                            <TextBlock Text="CAMERA" Classes="Section" />
+                            <StackPanel x:Name="MorePanel" />
+
+                            <TextBlock Text="PICTURE" Classes="Section" />
+                            <DockPanel>
+                                <Button Content="↻" DockPanel.Dock="Right" Width="34" Margin="6,0,0,0" Click="OnRefreshSourcesClick"
+                                        ToolTip.Tip="Look for capture cards again (after plugging one in)" />
+                                <ComboBox x:Name="VideoDevices" SelectionChanged="OnVideoDeviceChanged" HorizontalAlignment="Stretch"
+                                          ToolTip.Tip="Camera over Wi-Fi needs no cable. Any HDMI capture card your Mac sees is listed too." />
+                            </DockPanel>
+                            <DockPanel Margin="0,8,0,0">
+                                <TextBlock x:Name="RotationText" Text="Rotation 0°" VerticalAlignment="Center" Width="90" DockPanel.Dock="Left" />
+                                <UniformGrid Rows="1">
+                                    <Button Content="⟲ Left" Margin="0,0,3,0" Padding="4,5" Click="OnRotateClick" Tag="-90" HorizontalAlignment="Stretch"
+                                            ToolTip.Tip="Turn the picture 90° counter-clockwise (for a camera on its side)" />
+                                    <Button Content="⟳ Right" Margin="3,0,0,0" Padding="4,5" Click="OnRotateClick" Tag="90" HorizontalAlignment="Stretch"
+                                            ToolTip.Tip="Turn the picture 90° clockwise (for a camera on its side)" />
+                                </UniformGrid>
+                            </DockPanel>
+                            <TextBlock Classes="Small" Margin="0,6,0,0"
+                                       Text="Wi-Fi live view works with no cable. For the sharpest, smoothest picture, run HDMI into a capture card (camera HDMI Resolution: 1080p)." />
+
+                            <TextBlock Text="PHONE" Classes="Section" />
+                            <CheckBox x:Name="PhoneEnabled" Content="Allow phone control" Click="OnPhoneToggle"
+                                      ToolTip.Tip="Serves a control page to your home network and Tailscale. Keeps the Mac awake while on." />
+                            <TextBlock x:Name="PhoneInfo" TextWrapping="Wrap" FontSize="12" Margin="0,6,0,0" IsVisible="False" />
+                            <StackPanel x:Name="PhoneCodeButtons" Orientation="Horizontal" Margin="0,6,0,0" IsVisible="False">
+                                <Button x:Name="PhoneCodeShow" Content="Show code" Padding="8,3" Margin="0,0,6,0" Click="OnPhoneCodeShow" />
+                                <Button x:Name="PhoneCodeNew" Content="New code" Padding="8,3" Click="OnPhoneCodeNew"
+                                        ToolTip.Tip="Makes a new access code. Phones already signed in will need it." />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
         </Border>
 
         <Popup x:Name="AssistDetail" PlacementTarget="{Binding #HistogramBox}" Placement="Bottom" IsLightDismissEnabled="True"

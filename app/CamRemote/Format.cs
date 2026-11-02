@@ -89,6 +89,46 @@ public static class Format
         return t.TotalHours >= 1 ? $"{(int)t.TotalHours}h {t.Minutes:00}m" : $"{t.Minutes}m {t.Seconds:00}s";
     }
 
+    private static readonly Dictionary<string, string> PhotoWords = new()
+    {
+        ["Jpeg"] = "JPEG", ["Raw"] = "RAW", ["RawJpeg"] = "RAW+JPEG", ["RawHeif"] = "RAW+HEIF", ["Heif"] = "HEIF",
+        ["Uncompression"] = "Uncompressed", ["Compression"] = "Compressed", ["LossLess"] = "Lossless", ["Compressed HQ"] = "Compressed HQ",
+        ["ExFine"] = "Extra fine", ["MechanicalShutter"] = "Mechanical", ["ElectronicShutter"] = "Electronic",
+        ["CenterWeighted"] = "Center", ["EntireScreenAverage"] = "Entire screen", ["HighLightWeighted"] = "Highlight",
+        ["Spot Standard"] = "Spot", ["Spot Large"] = "Large spot", ["OFF"] = "Off", ["ON"] = "On",
+        ["RAWAndJPEG"] = "RAW+JPEG", ["JPEGOnly"] = "JPEG", ["RAWOnly"] = "RAW", ["RAWAndHEIF"] = "RAW+HEIF", ["HEIFOnly"] = "HEIF",
+        ["3 2"] = "3:2", ["16 9"] = "16:9", ["4 3"] = "4:3", ["1 1"] = "1:1",
+    };
+
+    /// <summary>Sony's names for a photo setting, in the words a photographer would use.</summary>
+    public static Func<long, string> Photo(string table) => v =>
+    {
+        string name = Named(table)(v);
+        return PhotoWords.GetValueOrDefault(name, name);
+    };
+
+    public static string SaveTo(long v) => v switch { 1 => "Computer", 2 => "Card", 3 => "Both", _ => $"0x{v:X}" };
+
+    public static string ComputerCopy(long v) => v switch { 0 => "Full size", 1 => "Small JPEG", _ => $"0x{v:X}" };
+
+    /// <summary>Drive modes, with Sony's bracket names made readable.</summary>
+    public static string Drive(long v)
+    {
+        string name = Named("DriveMode")(v).Replace("Hi Plus", "Hi+").Replace("Timer ", "Self-timer ");
+        if (name.StartsWith("Continuous ") && !name.Contains("Bracket")) name = "Burst " + name["Continuous ".Length..];
+        var bracket = System.Text.RegularExpressions.Regex.Match(name, @"^(Continuous|Single) Bracket (\d)(\d)Ev (\d)pics(.*)$");
+        return bracket.Success
+            ? $"{bracket.Groups[1].Value} bracket {bracket.Groups[2].Value}.{bracket.Groups[3].Value} EV, {bracket.Groups[4].Value} shots{bracket.Groups[5].Value}"
+            : name;
+    }
+
+    /// <summary>A time in tenths of a second, as the camera reports the time-lapse interval.</summary>
+    public static string Interval(long tenths) => tenths < 600 ? $"{tenths / 10.0:0.#} s" : $"{tenths / 600.0:0.#} min";
+
+    /// <summary>How long a time-lapse takes to shoot, and how long it plays for.</summary>
+    public static string TimeLapse(long tenths, long shots) =>
+        $"Shoots for {Duration(tenths * shots / 10)}. Plays for {shots / 24.0:0.#} s at 24 fps.";
+
     public static Func<long, string> Named(string table) => v =>
         SdkNames.Values.TryGetValue(table, out var names) && names.TryGetValue(v, out var n) ? n : $"0x{v:X}";
 }

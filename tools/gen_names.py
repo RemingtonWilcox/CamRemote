@@ -30,6 +30,16 @@ VALUE_ENUMS = {
     "HdmiResolution": ("CrHDMIResolution", "CrHDMIResolution_"),
     "AudioRecording": ("CrAudioRecording", "CrAudioRecording_"),
     "WindNoise": ("CrWindNoiseReduction", "CrWindNoiseReduction_"),
+    "DriveMode": ("CrDriveMode", "CrDrive_"),
+    "FileType": ("CrFileType", "CrFileType_"),
+    "ImageQuality": ("CrImageQuality", "CrImageQuality_"),
+    "ImageSize": ("CrImageSize", "CrImageSize_"),
+    "AspectRatio": ("CrAspectRatioIndex", "CrAspectRatio_"),
+    "RawType": ("CrRAWFileCompressionType", "CrRAWFile_"),
+    "Metering": ("CrMeteringMode", "CrMetering_"),
+    "ShutterType": ("CrShutterType", "CrShutterType_"),
+    "IntervalMode": ("CrIntervalRecMode", "CrIntervalRecMode_"),
+    "RawJpegToPc": ("CrPropertyRAWJPCSaveImage", "CrPropertyRAWJPCSaveImage_"),
 }
 
 

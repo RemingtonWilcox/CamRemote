@@ -4,42 +4,126 @@
 
 # CamRemote
 
-**Control your Sony camera from your computer or phone.**<br>
-See the live picture, focus, set exposure and hit record, with no cables and from anywhere your Wi-Fi reaches.<br>
-It can even start filming by itself when a bird or other animal shows up.
+**The best way to run a Sony camera from your computer.**<br>
+Live picture, focus, exposure, video and photos, all in one window, with no cables.<br>
+It can even start filming by itself when an animal shows up.
 
 <br>
 
 <a href="https://github.com/RemingtonWilcox/CamRemote/releases/latest/download/CamRemote-Windows-Setup.exe"><img src="https://img.shields.io/badge/Download_for_Windows-0078D4?style=for-the-badge" alt="Download for Windows" height="44" /></a>
 &nbsp;
-<a href="https://github.com/RemingtonWilcox/CamRemote/releases/latest/download/CamRemote-Mac-AppleSilicon.dmg"><img src="https://img.shields.io/badge/Download_for_Mac-111111?style=for-the-badge" alt="Download for Mac" height="44" /></a>
+<a href="https://github.com/RemingtonWilcox/CamRemote/releases/latest/download/CamRemote-Mac-AppleSilicon.dmg"><img src="https://img.shields.io/badge/Download_for_Mac-555555?style=for-the-badge" alt="Download for Mac" height="44" /></a>
 
-<sub>Free. No account needed. <a href="https://github.com/RemingtonWilcox/CamRemote/releases/latest/download/CamRemote-Mac-Intel.dmg">Older Intel Mac? Use this one.</a></sub>
+<sub>Free. No account. No subscription. <a href="https://github.com/RemingtonWilcox/CamRemote/releases/latest/download/CamRemote-Mac-Intel.dmg">Older Intel Mac? Use this one.</a></sub>
 
 <br><br>
 
-<img src="docs/hero.jpg" alt="CamRemote showing a live view of a small bird on a branch, with camera controls alongside" width="560" />
+<img src="docs/chickadee.jpg" alt="A chickadee on a branch, seen through CamRemote's live view with the camera's focus box on it" width="640" />
 
 </div>
 
 <br>
 
+## Why CamRemote
+
+<table>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/jay.jpg" alt="CamRemote drawing a green box around a Steller's jay at a bird feeder" />
+</td>
+<td width="50%" valign="top">
+
+### It films wildlife for you
+
+Tick one box and walk away. The app watches the picture, starts recording when an animal shows up, focuses on it, and stops 15 seconds after it leaves.
+
+This jay landed on the feeder. The app spotted it, rolled, and put a green box around it.
+
+</td>
+</tr>
+</table>
+
+### Everything is one click away
+
+**Video** and **Photo** tabs switch the camera for you and keep what you change while shooting right in front of you. Anything you only set once lives in **Setup**, out of the way.
+
+<p align="center">
+<img src="docs/tabs.png" alt="CamRemote's three tabs side by side: Video with the Record button, Photo with Take photo, Drive and Time-lapse, and Setup with the camera's video, audio and focus settings" width="760" />
+</p>
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+### Real tools
+
+Histogram, zebras, peaking, the camera's meter, a focus ring, a focus magnifier, and one-click base ISO on the A7S III.
+
+</td>
+<td width="33%" valign="top">
+
+### Put it anywhere
+
+Hide the camera by a feeder, up a tree or across the yard. If Wi-Fi drops, it keeps recording and the app reconnects by itself.
+
+</td>
+<td width="33%" valign="top">
+
+### It's yours
+
+Free and open source. No account, no subscription, no tracking.
+
+</td>
+</tr>
+</table>
+
+<br>
+
 ## Which cameras work?
 
-CamRemote is tested on the **A7S III**. Sony says its remote software can control these cameras over Wi-Fi, so they should work too, but nobody has tried them yet.
+CamRemote is tested on the **A7S III**. Sony says its remote software can control the cameras below over Wi-Fi, so they should work too, but nobody has tried them yet.
 
 | | |
 |---|---|
-| **Alpha full frame** | A1 II · A1 · A9 III · A7R VI · A7R V · A7CR · **A7S III ✅** · A7 V · A7 IV · A7C II |
+| **Alpha full frame** | A1 II · A1 · A9 III · A7R VI · A7R V · A7CR · **A7S III (tested)** · A7 V · A7 IV · A7C II |
 | **Alpha APS-C** | a6700 |
 | **Cinema Line** | FX6 (firmware 3.00 or later) · FX3 (firmware 2.00 or later) · FX3A · FX2 · FX30 · BURANO |
 | **Vlogging** | ZV-E1 · ZV-E10 II |
 | **Camcorders** | PXW-Z300 · PXW-Z200 · HXR-NX800 |
 | **Other** | RX1R III · ILX-LR1 |
 
-✅ = tested. Update your camera to its latest firmware first. Some features, such as click to focus, may behave differently on your camera.
+Update your camera to its latest firmware first. Some features, such as click to focus, may behave differently on your camera.
 
 **Won't work over Wi-Fi:** A9 II, A7R IV, A7R IVA, A7C, RX0 II, BRC-AM7 and FR7. Cameras not listed at all, such as the A7 III or a6400, aren't supported by Sony's software.
+
+<br>
+
+## How it works
+
+<p align="center">
+<img src="docs/how-it-works.svg" alt="The camera and CamRemote talk over Wi-Fi, an HDMI capture card can add a sharper picture, and your phone can join in. When an animal appears, the app spots it, the camera records and focuses on it, and it stops 15 seconds after the animal leaves." width="860" />
+</p>
+
+<br>
+
+## Everything it does
+
+| | |
+|---|---|
+| **See** | Live view over Wi-Fi, or full quality through an HDMI capture card. Rotate it for a camera on its side |
+| **Focus** | Click the picture to focus or track, drag the focus ring, or jump along the focus bar. Focus boxes show what the camera is doing |
+| **Check focus** | Focus magnifier and peaking |
+| **Expose** | ISO, shutter and iris, with a histogram, zebras and the camera's meter |
+| **Record** | One big button, with a red outline around the picture while rolling |
+| **Shoot photos** | Single shots, bursts and time-lapses, saved to your card, your computer or both |
+| **Film wildlife** | **Record when an animal shows up** does the rest |
+| **Set up the camera** | Video format, frame rate, RAW or JPEG, white balance, audio and more, without touching a menu |
+| **Format a card** | Click **▾** next to the card readout. It asks first |
+| **Use your phone** | Tick **Allow phone control** in **Setup**, then open the address it shows |
+| **Stay informed** | Battery and card warnings before you run out |
+| **Stop worrying** | Reconnects by itself, and the camera keeps recording if Wi-Fi drops |
+
+**Handy keys:** **H** histogram · **Z** zebras · **P** peaking · **G** grid · **F9** record or take a photo (on a Mac, you may need to hold **fn**)
 
 <br>
 
@@ -98,13 +182,12 @@ These are the A7S III's menus. Most newer Sony cameras are very similar. If your
 
 On the camera, press **MENU**, then:
 
-| | Do this | Where to find it |
-|---|---|---|
-| 📶 | **Join your Wi-Fi.** Pick your network and type its password. | Network › Wi-Fi › Wi-Fi Connect › **On**, then **Access Point Set.** |
-| 🎮 | **Allow remote control.** | Network › Cnct./Remote Sht. › Remote Shoot Function › Remote Shooting › **On** |
-| 🔑 | **Find your login.** Leave **Access Authen.** on. Then take a photo of the **user** and **password** on **Access Authen. Info**. You'll need them in a minute. | Network › Network Option › Access Authen. Settings |
-| 👆 | **Turn on touch.** This lets you click the picture to focus. | Touch Operation › **On** |
-| 🎥 | **Switch the camera to movie mode.** Click-to-focus only works there. | Mode dial |
+| Do this | Where to find it |
+|---|---|
+| **Join your Wi-Fi.** Pick your network and type its password. | Network › Wi-Fi › Wi-Fi Connect › **On**, then **Access Point Set.** |
+| **Allow remote control.** | Network › Cnct./Remote Sht. › Remote Shoot Function › Remote Shooting › **On** |
+| **Find your login.** Leave **Access Authen.** on. Then take a photo of the **user** and **password** on **Access Authen. Info**. You'll need them in a minute. | Network › Network Option › Access Authen. Settings |
+| **Turn on touch.** This lets you click the picture to focus. | Touch Operation › **On** |
 
 > [!NOTE]
 > Menu names can differ on older firmware. If yours don't match, update the camera first, using the firmware from your country's Sony support site. CamRemote was tested on the A7S III with firmware 5.01.
@@ -124,7 +207,7 @@ If your computer asks about network access, say yes:
 - **Windows:** tick **Private networks** and click **Allow**.
 - **Mac:** click **Allow** when it asks about your **local network**. Without this, the app can't find the camera.
 
-🎉 **That's it.** Your picture appears, and from now on CamRemote reconnects by itself whenever you open it.
+**That's it.** Your picture appears, and from now on CamRemote reconnects by itself whenever you open it.
 
 <br>
 
@@ -138,31 +221,6 @@ Read the guide at https://github.com/RemingtonWilcox/CamRemote/blob/main/AGENTS.
 Ask which camera I have and whether I'm on Windows or Mac, then walk me through it in plain language.
 Don't ask me for my camera password.
 ```
-
-<br>
-
-## What you can do
-
-<p align="center">
-<img src="docs/animal.jpg" alt="CamRemote recording a Steller's jay at a bird feeder, with a green animal box around it and the setting Record when an animal shows up ticked" width="480" /><br>
-<sub>The app spotted this jay at the feeder, started recording and put a green box around it.</sub>
-</p>
-
-| | |
-|---|---|
-| 👀 **See the picture** | Live view over Wi-Fi, or full quality through an HDMI capture card |
-| 🎯 **Focus** | Click the picture to focus, or drag the focus wheel in manual |
-| 🔍 **Check focus** | Focus magnifier and peaking |
-| ☀️ **Check exposure** | Histogram, zebras and the camera's meter |
-| ⚙️ **Change settings** | ISO, shutter, iris, white balance and more |
-| 🔴 **Record** | One big button, with a red outline around the picture while rolling |
-| 🐦 **Film wildlife** | Tick **Record when an animal shows up** and it starts filming by itself, focuses on the animal, and stops 15 seconds after it leaves |
-| 🔋 **Stay informed** | Battery and card warnings before you run out |
-| 🧹 **Format a card** | Click **▾** next to the card readout. It asks first |
-| 📱 **Use your phone** | Tick **Allow phone control** in the app, then open the address it shows |
-| 🔄 **Stop worrying** | Reconnects by itself, and the camera keeps recording if Wi-Fi drops |
-
-**Handy keys:** **H** histogram · **Z** zebras · **P** peaking · **G** grid · **F9** record (on a Mac, you may need to hold **fn**)
 
 <br>
 
@@ -211,7 +269,7 @@ The camera's Wi-Fi signal is weak. Move your router or a mesh point closer to th
 
 <br>
 
-The camera has to be in movie mode, with **Touch Operation** on.
+Check that **Tap does** isn't set to **Off**, and that **Touch operation** is on in **Setup**.
 
 </details>
 
@@ -237,11 +295,42 @@ That's normal after resetting the camera or changing its Access Authen. settings
 
 ## Good to know
 
-- **Windows on ARM isn't supported.** Sony's software doesn't run on those PCs.
-- **Your camera password stays on your computer,** in Windows Credential Manager or your Mac's Keychain.
 - **Only tested on the A7S III.** The other cameras on the list should work, but nobody has tried them yet.
 - **Warranty:** Sony's terms say a camera controlled through an app like this is no longer covered by its manufacturer warranty.
 - **CamRemote isn't made by, endorsed by or supported by Sony.**
+
+<br>
+
+## Specifications
+
+| | |
+|---|---|
+| **Computer** | Windows 11 x64, or macOS 14.1 or newer on Apple or Intel. Windows on ARM and Linux aren't supported |
+| **Connection** | Wi-Fi on the same network as the camera, with an optional HDMI capture card for the picture |
+| **Wi-Fi live view** | 1024×576 at around 20 frames a second on the A7S III |
+| **Photos to your computer** | Full size, or a small JPEG. A full-size RAW took 4 to 12 seconds on the A7S III in our tests, depending on your network |
+| **Time-lapse** | One photo every 1 to 60 seconds, up to 9,999 photos, using the camera's own interval shooting |
+| **Animal detection** | Runs on your computer once a second. It knows birds and common mammals, and no pictures leave your computer |
+| **Phone control** | A web page on your phone, over your home network or Tailscale, protected by an access code. The computer stays on with the app open |
+| **Your camera password** | Stays on your computer, in Windows Credential Manager or your Mac's Keychain |
+| **Built on** | Sony's Camera Remote SDK v2.02.00 |
+| **Price** | Free. The code is MIT licensed |
+
+<br>
+
+## Other cameras
+
+**More Sony cameras.** The A9 II, A7R IV, A7R IVA, A7C, RX0 II, BRC-AM7 and FR7 are in Sony's software but can't be reached over Wi-Fi. A wired connection could bring some of them in. It hasn't been built yet.
+
+**Other brands.** CamRemote only speaks to Sony cameras today. Other makers publish their own developer kits, so the same idea could work there, but each brand would need its own connection built and tested from scratch:
+
+| | |
+|---|---|
+| **Canon** | [EDSDK and CCAPI](https://www.canon-europe.com/pro/stories/eos-digital-sdk-explained/). CCAPI works over Wi-Fi on supported EOS cameras |
+| **Fujifilm** | [X and GFX camera control SDK](https://www.fujifilm-x.com/en-sg/?p=118519), over USB or Wi-Fi |
+| **Nikon** | A developer SDK, by sign-up, with support varying by model |
+
+If you'd use one of these, [open an issue](https://github.com/RemingtonWilcox/CamRemote/issues) and say which camera you have.
 
 <br>
 
@@ -252,17 +341,21 @@ That's normal after resetting the camera or changing its Access Authen. settings
 
 <br>
 
+- **Video, Photo and Setup:** the **Video** and **Photo** tabs switch the camera's mode and hold what you change while shooting. **Setup** holds what you set once or now and then, and shows the photo or video settings to match the camera.
 - **ISO / Shutter / Iris:** ◀ ▶ step through values. Click the value to see every choice.
 - **Base ISO 640 / 12800:** the A7S III's two native ISOs in S-Log3. 12800 is the cleanest choice in low light. These buttons only appear on the A7S III. On other cameras, use the ISO control.
 - **Focus wheel:** works in MF (or DMF). Right is farther, left is nearer. Drag slowly for fine focus and faster for bigger moves.
 - **Focus bar:** shows where focus sits between close up and infinity, if your camera and lens report it. Click it to jump there, or hold the flower or mountain button to keep moving.
 - **Focus boxes:** the boxes on the picture are the ones the camera reports: green means in focus, and thicker boxes are tracking or a face. The outline of a large focus area isn't drawn. A small circle only shows where you clicked.
 - **Focus magnifier:** the A7S III won't magnify over Wi-Fi in movie mode, so the ×2 and ×4 buttons enlarge the preview in the app instead. Click the picture to move around. It's the same preview pixels, so a Wi-Fi picture gets soft; a capture card shows more detail. If your camera does allow it, the buttons use the camera's own magnifier.
-- **Click the picture:** works in movie mode. Right-click cancels a touch focus or tracking if the camera is holding one (Control-click on a Mac). In MF it autofocuses once, then returns to MF.
+- **Click the picture:** works on the Video and Photo tabs. Right-click cancels a touch focus or tracking if the camera is holding one (Control-click on a Mac). In MF it autofocuses once, then returns to MF.
 - **Tap does:** Focus, Tracking or Off. Off stops clicks doing anything. Sony's SDK doesn't offer the setting for a remote tap's function on the A7S III, so Tracking may only focus. The app tells you if the camera didn't start tracking.
-- **Picture source:** **Camera over Wi-Fi** needs no cable. Any HDMI capture card your computer sees is listed too. Plugged one in after opening the app? Click **↻**. Set the camera's **HDMI Resolution** to **1080p** and turn **HDMI Info. Display** off. On a Mac, the app asks for Camera and Microphone access the first time you pick one.
+- **Picture source:** in **Setup**. **Camera over Wi-Fi** needs no cable. Any HDMI capture card your computer sees is listed too. Plugged one in after opening the app? Click **↻**. Set the camera's **HDMI Resolution** to **1080p** and turn **HDMI Info. Display** off. On a Mac, the app asks for Camera and Microphone access the first time you pick one.
 - **Format a card:** click **▾** next to the card readout. It works while the camera isn't recording, erases the whole card, and asks first. The app can't tell whether you've copied your footage off, so check that yourself.
-- **Rotate:** ⟲ / ⟳ under **Picture**, for a camera mounted in portrait.
+- **Rotate:** ⟲ / ⟳ in **Setup**, for a camera mounted in portrait.
+- **Burst:** set **Drive** to a burst speed, then hold **Take photo** down.
+- **Time-lapse:** open **Time-lapse** under **Drive** and turn it on. The big button then says **Start time-lapse**, and **Stop time-lapse** once it's running.
+- **Photos on your computer:** choose **Computer**, **Card** or **Both** under **Saving** in **Setup**. They go to `Pictures/CamRemote` until you click **Change folder**. A full-size RAW can take 4 to 12 seconds to arrive, so for bursts and time-lapses use **Both** with **Small JPEG**: the card keeps the full files.
 - **Record when an animal shows up:** runs on your computer, and no pictures leave it. It knows birds and a few other animals (cats, dogs, horses, sheep, cows, elephants, bears, zebras and giraffes), and something it doesn't know, like a squirrel, may not set it off. A green box follows the animal while the option is on. Set **Rotate** to match how the camera is mounted first: it sees far better the right way up. Takes stop at 5 minutes and start again if the animal is still there. If it keeps being set off by something that isn't an animal, like splashing water, it learns to ignore that spot for 10 minutes. It only stops takes it started itself.
 - **Updates:** when the app opens, it asks GitHub once for the latest version number. If there's a newer one, a green button appears at the bottom of the window. It opens the download page and installs nothing by itself.
 - **Shooting guides:** worked out from the preview, not the recorded file, so a Monitor LUT changes them. At Wi-Fi preview size, peaking shows the plane of focus. Use the magnifier for critical focus.
@@ -309,7 +402,7 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 
 Notes from Sony's SDK reference (v2.02.00) for the A7S III:
 
-- Remote touch focus works in movie mode only. Focus positions are a 640×480 grid over the picture.
+- Remote touch focus acts by itself in movie mode only. In photo mode the app half-presses the shutter to make the camera focus. Focus positions are a 640×480 grid over the picture.
 - MovieRecord "Down" toggles recording; Sony asks for "Up" right after it.
 - Over Wi-Fi the camera reports battery in bars, not percent, so the app shows a range.
 - There's no live audio level over the SDK.

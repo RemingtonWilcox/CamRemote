@@ -8,7 +8,7 @@ internal static class Native
 {
     private const string Dll = "CamBridge"; // CamBridge.dll, or libCamBridge.dylib on a Mac
 
-    public const int EvConnected = 1, EvDisconnected = 2, EvPropertyChanged = 3, EvError = 4, EvWarning = 5, EvLiveViewPropsChanged = 6;
+    public const int EvConnected = 1, EvDisconnected = 2, EvPropertyChanged = 3, EvError = 4, EvWarning = 5, EvLiveViewPropsChanged = 6, EvPhotoSaved = 7;
 
     [UnmanagedFunctionPointer(CallingConvention.StdCall)]
     public delegate void EventFn(int kind, uint a, uint b);
@@ -26,6 +26,7 @@ internal static class Native
     [DllImport(Dll)] private static extern int cb_get_props(uint[]? codes, int n, byte[] output, int cap);
     [DllImport(Dll)] public static extern int cb_set_prop(uint code, ulong value, uint dataType);
     [DllImport(Dll)] public static extern int cb_command(uint command, uint param);
+    [DllImport(Dll)] public static extern int cb_set_save_folder([MarshalAs(UnmanagedType.LPUTF8Str)] string folder);
     [DllImport(Dll)] public static extern int cb_liveview(byte[] output, int cap, out uint frameNo);
     [DllImport(Dll)] public static extern int cb_queue_count();
     [DllImport(Dll)] private static extern int cb_focus_frames(byte[] output, int cap);
