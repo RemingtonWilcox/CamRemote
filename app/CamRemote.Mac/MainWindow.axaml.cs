@@ -976,6 +976,48 @@ public partial class MainWindow : Window
 
     // ---- Phone control ----
 
+    // The code stays hidden unless asked for, so it doesn't end up in a screen recording.
+    private bool _codeShown;
+    private int _codeShowing; // counts each showing, so only the latest one hides it again
+
+    private void ShowPhoneInfo()
+    {
+        PhoneInfo.Text = _phone == null ? "" : string.Join("\n", PhoneServer.Addresses(_settings.PhonePort))
+            + $"\nAccess code: {(_codeShown ? _settings.PhoneCode : "••••••••")}";
+        PhoneCodeShow.Content = _codeShown ? "Hide code" : "Show code";
+    }
+
+    private async Task ShowCodeAsync()
+    {
+        int showing = ++_codeShowing;
+        _codeShown = true;
+        ShowPhoneInfo();
+        await Task.Delay(TimeSpan.FromSeconds(30));
+        if (showing != _codeShowing) return;
+        _codeShown = false;
+        ShowPhoneInfo();
+    }
+
+    private async void OnPhoneCodeShow(object? sender, RoutedEventArgs e)
+    {
+        if (!_codeShown)
+        {
+            await ShowCodeAsync();
+            return;
+        }
+        _codeShowing++;
+        _codeShown = false;
+        ShowPhoneInfo();
+    }
+
+    private async void OnPhoneCodeNew(object? sender, RoutedEventArgs e)
+    {
+        if (!await ConnectWindow.AskAsync(this, "New code", "Make a new access code? Phones already signed in will need to enter it.", "Make new code", "Cancel")) return;
+        _settings.NewPhoneSecrets();
+        _settings.Save();
+        await ShowCodeAsync();
+    }
+
     private async void OnPhoneToggle(object? sender, RoutedEventArgs e)
     {
         _settings.PhoneEnabled = PhoneEnabled.IsChecked == true;
@@ -1009,7 +1051,8 @@ public partial class MainWindow : Window
             }
         }
         PhoneInfo.IsVisible = _phone != null;
-        PhoneInfo.Text = _phone == null ? "" : string.Join("\n", PhoneServer.Addresses(_settings.PhonePort)) + $"\nAccess code: {_settings.PhoneCode}";
+        PhoneCodeButtons.IsVisible = _phone != null;
+        ShowPhoneInfo();
         KeepAwake();
     }
 

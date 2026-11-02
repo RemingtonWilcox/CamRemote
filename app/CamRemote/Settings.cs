@@ -55,6 +55,14 @@ public sealed class Settings
         if (PhoneToken.Length == 0) PhoneToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     }
 
+    /// <summary>Replaces the code and token. Phones already signed in have to enter the new code.</summary>
+    public void NewPhoneSecrets()
+    {
+        PhoneCode = "";
+        PhoneToken = "";
+        EnsurePhoneSecrets();
+    }
+
     public void Save()
     {
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path)!);

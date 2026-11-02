@@ -1,6 +1,6 @@
 [Setup]
 AppName=CamRemote
-AppVersion=1.0.4
+AppVersion=1.0.5
 AppPublisher=CamRemote
 DefaultDirName={autopf}\CamRemote
 DefaultGroupName=CamRemote

@@ -5,7 +5,8 @@
 # CamRemote
 
 **Control your Sony camera from your computer or phone.**<br>
-See the live picture, focus, set exposure and hit record, with no cables and from anywhere your Wi-Fi reaches.
+See the live picture, focus, set exposure and hit record, with no cables and from anywhere your Wi-Fi reaches.<br>
+It can even start filming by itself when a bird or other animal shows up.
 
 <br>
 
@@ -142,7 +143,10 @@ Don't ask me for my camera password.
 
 ## What you can do
 
-<p align="center"><img src="docs/app.png" alt="The CamRemote window" width="760" /></p>
+<p align="center">
+<img src="docs/animal.jpg" alt="CamRemote recording a Steller's jay at a bird feeder, with a green animal box around it and the setting Record when an animal shows up ticked" width="480" /><br>
+<sub>The app spotted this jay at the feeder, started recording and put a green box around it.</sub>
+</p>
 
 | | |
 |---|---|
@@ -154,6 +158,7 @@ Don't ask me for my camera password.
 | 🔴 **Record** | One big button, with a red outline around the picture while rolling |
 | 🐦 **Film wildlife** | Tick **Record when an animal shows up** and it starts filming by itself, focuses on the animal, and stops 15 seconds after it leaves |
 | 🔋 **Stay informed** | Battery and card warnings before you run out |
+| 🧹 **Format a card** | Click **▾** next to the card readout. It asks first |
 | 📱 **Use your phone** | Tick **Allow phone control** in the app, then open the address it shows |
 | 🔄 **Stop worrying** | Reconnects by itself, and the camera keeps recording if Wi-Fi drops |
 
@@ -262,7 +267,7 @@ That's normal after resetting the camera or changing its Access Authen. settings
 - **Updates:** when the app opens, it asks GitHub once for the latest version number. If there's a newer one, a green button appears at the bottom of the window. It opens the download page and installs nothing by itself.
 - **Shooting guides:** worked out from the preview, not the recorded file, so a Monitor LUT changes them. At Wi-Fi preview size, peaking shows the plane of focus. Use the magnifier for critical focus.
 - **Recording timer:** keeps counting through a dropped link or an app restart. A take already rolling when the app first sees it shows a **+**.
-- **Phone control:** works on your home network and over Tailscale, and needs the access code shown in the app. The computer must stay on with the app open. On an iPhone, use Share › Add to Home Screen for a full-screen app.
+- **Phone control:** works on your home network and over Tailscale, and needs the access code. The app hides it until you click **Show code**, and **New code** replaces it and signs phones out. The computer must stay on with the app open. On an iPhone, use Share › Add to Home Screen for a full-screen app.
 - **Audio:** live meters need HDMI through a capture card, because the camera sends no sound over Wi-Fi. Aim for loud sounds peaking around −12 dB and never reaching 0.
 - **Keeping the same address:** reserve the camera's IP address in your router so it never changes. The app usually finds the camera again anyway.
 

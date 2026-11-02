@@ -200,6 +200,11 @@
                     <CheckBox x:Name="PhoneEnabled" Content="Allow phone control" Click="OnPhoneToggle"
                               ToolTip.Tip="Serves a control page to your home network and Tailscale. Keeps the Mac awake while on." />
                     <TextBlock x:Name="PhoneInfo" TextWrapping="Wrap" FontSize="12" Margin="0,6,0,0" IsVisible="False" />
+                    <StackPanel x:Name="PhoneCodeButtons" Orientation="Horizontal" Margin="0,6,0,0" IsVisible="False">
+                        <Button x:Name="PhoneCodeShow" Content="Show code" Padding="8,3" Margin="0,0,6,0" Click="OnPhoneCodeShow" />
+                        <Button x:Name="PhoneCodeNew" Content="New code" Padding="8,3" Click="OnPhoneCodeNew"
+                                ToolTip.Tip="Makes a new access code. Phones already signed in will need it." />
+                    </StackPanel>
                 </StackPanel>
             </ScrollViewer>
         </Border>
