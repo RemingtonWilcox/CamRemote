@@ -252,6 +252,7 @@ final class Camera: ObservableObject {
     private var focusSending = false // main thread only
     private var stepSending = false // main thread only
     private var tapBusy = false // main thread only
+    private(set) var recordSent = Date.distantPast // main thread only
 
     private static let folder = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
 
@@ -365,6 +366,7 @@ final class Camera: ObservableObject {
     func toggleRecord() {
         guard !recordBusy else { return }
         recordBusy = true
+        recordSent = Date()
         queue {
             defer { DispatchQueue.main.async { self.recordBusy = false } }
             try self.refresh()

@@ -8,6 +8,7 @@ private let focusShort = ["Manual": "MF", "Single": "AF-S", "Continuous": "AF-C"
 /// Upright, the picture stays put with the controls under it. Turned sideways, it's the picture and little else.
 struct ShootingView: View {
     @ObservedObject var camera: Camera
+    @ObservedObject var animals: AnimalTrigger
     @AppStorage("pictureTurn") private var pictureTurn = 0
     @AppStorage("showGrid") private var showGrid = false
     @AppStorage("showHistogram") private var showHistogram = false
@@ -117,6 +118,7 @@ struct ShootingView: View {
                     captureNote.frame(maxWidth: .infinity)
                 }
                 ScrollView {
+                    if !camera.photoMode, AnimalTrigger.available { AnimalSwitch(animals: animals) }
                     ChipGrid {
                         ForEach(1...3, id: \.self) { slot in
                             PresetChip(camera: camera, slot: slot)
@@ -305,7 +307,7 @@ struct ShootingView: View {
     // MARK: Parts of both
 
     private var liveView: some View {
-        LiveView(camera: camera, turn: pictureTurn, grid: showGrid, blink: blink)
+        LiveView(camera: camera, turn: pictureTurn, grid: showGrid, blink: blink, animal: animals.box)
     }
 
     private func tileRow(background: Color) -> some View {
@@ -501,6 +503,7 @@ struct LiveView: View {
     let turn: Int
     let grid: Bool
     let blink: Double
+    let animal: CGRect? // what the animal trigger sees, as 0..1 of the camera's picture
     @State private var focusMark: CGPoint?
 
     private var sideways: Bool { turn != 0 }
@@ -513,6 +516,14 @@ struct LiveView: View {
                 ZStack {
                     if let frame = camera.frame { Image(uiImage: frame).resizable() }
                     if let marks = camera.guideImage { Image(uiImage: marks).resizable() }
+                    if let animal {
+                        // Inside the turn, because the box is in the camera's own way up.
+                        GeometryReader { picture in
+                            Rectangle().stroke(Color.good, lineWidth: 2)
+                                .frame(width: max(animal.width * picture.size.width, 24), height: max(animal.height * picture.size.height, 24))
+                                .position(x: animal.midX * picture.size.width, y: animal.midY * picture.size.height)
+                        }
+                    }
                 }
                 .frame(width: sideways ? area.height : area.width, height: sideways ? area.width : area.height)
                 .rotationEffect(.degrees(Double(turn)))
@@ -575,6 +586,28 @@ struct LiveView: View {
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             if focusMark == point { focusMark = nil }
         }
+    }
+}
+
+/// The animal trigger's switch. iOS stops the app off screen, so it says plainly that the phone has to stay open.
+struct AnimalSwitch: View {
+    @ObservedObject var animals: AnimalTrigger
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("Record when an animal shows up", isOn: Binding(get: { animals.on }, set: { $0 ? animals.start() : animals.stop() }))
+                .font(.footnote.weight(.semibold))
+                .tint(.good)
+            if animals.on, !animals.status.isEmpty {
+                Text(animals.status).font(.caption).foregroundColor(.white)
+            }
+            Text("Checks the picture twice a second, on this phone only. It only works while CamRemote is open on screen, so keep the phone unlocked and plugged in.")
+                .font(.caption)
+                .foregroundColor(.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(10)
+        .background(Color.panel, in: RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -917,19 +950,21 @@ struct SetupSheet: View {
 struct CreditsSheet: View {
     @Environment(\.dismiss) private var dismiss
 
-    private var notices: String {
-        Bundle.main.url(forResource: "Notices", withExtension: "txt").flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
+    /// ONNX Runtime's own notices run to hundreds of pages, so they're shown a paragraph at a time.
+    private let paragraphs: [String] = ["Notices", "OnnxRuntimeNotices"].flatMap { name -> [String] in
+        let text = Bundle.main.url(forResource: name, withExtension: "txt").flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
+        return text.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n\n").filter { !$0.isEmpty }
     }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
+            LazyVStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text("Credits").font(.title3.weight(.semibold))
                     Spacer()
                     Button("Done") { dismiss() }
                 }
-                Text(notices).font(.caption).foregroundColor(.dim)
+                ForEach(paragraphs.indices, id: \.self) { Text(paragraphs[$0]).font(.caption).foregroundColor(.dim) }
             }
             .padding()
         }

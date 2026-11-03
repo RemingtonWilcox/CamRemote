@@ -47,7 +47,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct CamRemoteApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @StateObject private var camera = Camera()
+    @StateObject private var camera: Camera
+    @StateObject private var animals: AnimalTrigger
     @AppStorage("user") private var user = ""
     @AppStorage("address") private var address = ""
     @AppStorage("cameraKey") private var cameraKey = ""
@@ -56,11 +57,17 @@ struct CamRemoteApp: App {
     @State private var launched = false
     @Environment(\.scenePhase) private var phase
 
+    init() {
+        let camera = Camera()
+        _camera = StateObject(wrappedValue: camera)
+        _animals = StateObject(wrappedValue: AnimalTrigger(camera: camera))
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {
                 if camera.link == .on {
-                    ShootingView(camera: camera)
+                    ShootingView(camera: camera, animals: animals)
                 } else {
                     ConnectView(camera: camera, user: $user, address: $address, password: $password, connect: connect) {
                         cameraKey = ""
@@ -77,6 +84,7 @@ struct CamRemoteApp: App {
             }
             .onChange(of: phase) { now in
                 // iOS pauses the app in the background, so hand the camera back cleanly and pick up again.
+                if now == .background { animals.pause() }
                 if now == .background, camera.timeLapseRunning {
                     camera.holdConnection()
                 } else if now == .background {
@@ -84,18 +92,25 @@ struct CamRemoteApp: App {
                     camera.disconnect()
                 } else if now == .active {
                     camera.releaseHold()
+                    animals.resume()
                     resumeIfNeeded(now)
                 }
             }
             .onChange(of: camera.link) { link in
-                UIApplication.shared.isIdleTimerDisabled = link == .on
+                keepAwake()
                 resumeIfNeeded(phase) // a quick trip out of the app can come back before the old connection has closed
             }
+            .onChange(of: animals.on) { _ in keepAwake() }
             // Only while the app is open, so turning the camera on is all it takes.
             .onReceive(Timer.publish(every: 4, on: .main, in: .common).autoconnect()) { _ in
                 if camera.link == .off, camera.keepTrying, !camera.editingLogin, phase == .active { connectIfReady() }
             }
         }
+    }
+
+    /// The animal trigger keeps it awake even while the camera is away, so it can reconnect and carry on.
+    private func keepAwake() {
+        UIApplication.shared.isIdleTimerDisabled = camera.link == .on || animals.on
     }
 
     /// Takes the phase as an argument because inside `onChange` the `phase` property still holds the old value.

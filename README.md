@@ -216,7 +216,9 @@ If your computer asks about network access, say yes:
 
 ## On your iPhone
 
-There's also an iPhone app that runs the camera with no computer at all, just your phone's hotspot. It has the live picture, tap to focus, exposure, video, photos, burst and time-lapse. Photos and video stay on the camera's card, and it doesn't have animal detection yet.
+There's also an iPhone app that runs the camera with no computer at all, just your phone's hotspot. It has the live picture, tap to focus, exposure, video, photos, burst and time-lapse. Photos and video stay on the camera's card.
+
+It can also record when an animal shows up, with the same rules as on a computer: turn on **Record when an animal shows up** on the Video page. **It only works while CamRemote is open on the phone's screen.** iPhones stop apps that aren't on screen, so if you lock the phone or switch apps, it stops watching (and stops a take it started). While the option is on, the app keeps the screen awake, so keep the phone plugged in: a screen that's on for hours, the hotspot and the detector all use battery. The first time you turn it on, the detector takes up to a minute to get ready.
 
 **You can't download it yet.** It's still being tested, and it'll come to TestFlight, Apple's beta testing app, first. If you have a Mac and a paid Apple developer account, you can [build it yourself](#build-the-iphone-app).
 
@@ -394,6 +396,12 @@ The animal detector needs one more file, which the app can be built without (the
 curl -L --create-dirs -o vendor/BirdModel/rfdetr_nano_fp16.onnx https://huggingface.co/onnx-community/rfdetr_nano-ONNX/resolve/main/onnx/model_fp16.onnx
 ```
 
+The iPhone app uses the full-size version of the same model instead, because Core ML can't run the half-size one. It adds about 110 MB to the app:
+
+```bash
+curl -L --create-dirs -o vendor/BirdModel/rfdetr_nano.onnx https://huggingface.co/onnx-community/rfdetr_nano-ONNX/resolve/main/onnx/model.onnx
+```
+
 **Windows:** install Git, CMake, the .NET 10 SDK, Python and Visual Studio's C++ tools, then:
 
 ```powershell
@@ -406,7 +414,7 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 ./build-mac.sh
 ```
 
-<a id="build-the-iphone-app"></a>**iPhone:** it doesn't use Sony's SDK or need anything in `vendor/`. On a Mac with Xcode, install CMake and XcodeGen, then:
+<a id="build-the-iphone-app"></a>**iPhone:** it doesn't use Sony's SDK. The only thing it takes from `vendor/` is the animal detector's `rfdetr_nano.onnx`, and it builds without it. On a Mac with Xcode, install CMake and XcodeGen, then:
 
 ```bash
 cd app/CamRemote.iOS
@@ -423,7 +431,7 @@ Run these in Terminal on the Mac itself, so signing can reach your Keychain. The
 - `native/CamBridge/`: a small C++ library that wraps Sony's SDK in a flat C API returning JSON. `MacSupport.mm` adds the Mac's Keychain, keep-awake, capture and audio code.
 - `app/CamRemote/`: the Windows app (WPF, .NET 10) and the camera code both apps share.
 - `app/CamRemote.Mac/`: the Mac app (Avalonia, .NET 10). A change to a window or control usually needs making in both.
-- `app/CamRemote.iOS/`: the iPhone app (SwiftUI). It talks to the camera directly over SSH and PTP/IP, and shares no code with the others.
+- `app/CamRemote.iOS/`: the iPhone app (SwiftUI). It talks to the camera directly over SSH and PTP/IP, and shares no code with the others. `AnimalTrigger.swift` follows the same rules as `BirdTrigger.cs`, so a change to one usually needs making in both.
 - `tools/`: generates names from the SDK headers, draws the icon, writes the notices and holds the packaging settings.
 
 Notes from Sony's SDK reference (v2.02.00) for the A7S III:
