@@ -670,7 +670,7 @@ public sealed class CameraService : IDisposable
                 if (function != TouchFnFocus) SetNow(PropCode.FunctionOfTouchOperation, function);
                 _focusOnceBusy = 0;
                 if (err == 0) Say("Focused. Back in manual.");
-                else SayFailed("The camera couldn't focus there.", err);
+                else SayFailed(TapFailed, err);
                 RequestRefresh();
             });
             return null;
@@ -684,7 +684,7 @@ public sealed class CameraService : IDisposable
             {
                 EnableTouch(track ? TouchFnTracking : TouchFnFocus);
                 int err = Native.cb_set_prop((uint)PropCode.RemoteTouchOperation, xy, TypeUInt32);
-                if (err != 0) SayFailed("The camera couldn't focus there.", err);
+                if (err != 0) SayFailed(TapFailed, err);
                 else if (halfPress)
                 {
                     Native.cb_set_prop((uint)PropCode.S1, S1Locked, TypeUInt16Array);
@@ -716,6 +716,11 @@ public sealed class CameraService : IDisposable
         return "The camera isn't accepting touch focus right now. Put it in movie mode with Touch Operation on, " +
                "or set Focus Area to a Spot type.";
     }
+
+    /// <summary>Some cameras, like the A9 II, don't let the app turn Touch Operation on, so it has to be done on the camera.</summary>
+    private string TapFailed => Get(PropCode.TouchOperation) is { Writable: true }
+        ? "The camera couldn't focus there."
+        : "The camera couldn't focus there. Turn on Touch Operation in the camera's menu, then click again.";
 
     private static uint TouchPoint(double fx, double fy)
     {
