@@ -54,7 +54,7 @@
                         BorderThickness="3" BorderBrush="Transparent">
                     <LayoutTransformControl x:Name="PictureTurn">
                         <Panel x:Name="PictureHost" ClipToBounds="True">
-                            <Image x:Name="Picture" Stretch="Uniform" Cursor="Cross" PointerPressed="OnPicturePressed" />
+                            <Image x:Name="Picture" Stretch="Uniform" Cursor="Cross" PointerPressed="OnPicturePressed" ToolTip.ShowDelay="1500" />
                             <Image x:Name="AssistLayer" Stretch="Uniform" IsHitTestVisible="False" IsVisible="False" />
                             <Grid x:Name="GuideGrid" IsHitTestVisible="False" IsVisible="False" ColumnDefinitions="*,*,*" RowDefinitions="*,*,*">
                                 <Border Grid.Column="1" Grid.RowSpan="3" BorderBrush="#80FFFFFF" BorderThickness="1,0" />
@@ -86,10 +86,9 @@
         </Border>
 
         <!-- Messages -->
-        <DockPanel Grid.Row="3" Grid.Column="0" Margin="12,6">
+        <DockPanel x:Name="MessageBar" Grid.Row="3" Grid.Column="0" Margin="12,6" Background="Transparent">
             <Button x:Name="UpdateButton" DockPanel.Dock="Left" Margin="0,0,10,0" Padding="10,3" Background="#2E7D32" Foreground="White"
                     IsVisible="False" Click="OnUpdateClick" ToolTip.Tip="Opens the download page in your browser." />
-            <TextBlock x:Name="VideoInfo" DockPanel.Dock="Right" Foreground="{StaticResource Dim}" />
             <TextBlock x:Name="MessageText" Foreground="{StaticResource Dim}" TextTrimming="CharacterEllipsis" />
         </DockPanel>
 
@@ -181,7 +180,8 @@
                             <Button x:Name="StopTracking" Content="Stop tracking" Margin="0,8,0,0" HorizontalAlignment="Stretch" Click="OnStopTrackingClick" IsVisible="False" />
                             <TextBlock x:Name="TouchHint" Classes="Small" Margin="0,6,0,0" />
 
-                            <StackPanel x:Name="AudioSection">
+                            <!-- Only with a capture card: over Wi-Fi the camera sends no sound -->
+                            <StackPanel x:Name="AudioSection" IsVisible="False">
                             <TextBlock Text="AUDIO" Classes="Section" />
                             <Grid x:Name="Meters" Margin="0,0,0,4" ColumnDefinitions="16,*,52" RowDefinitions="14,4,14">
                                 <TextBlock Text="L" FontSize="11" Foreground="{StaticResource Dim}" VerticalAlignment="Center" />
@@ -235,7 +235,7 @@
                                 <Button Content="↻" DockPanel.Dock="Right" Width="34" Margin="6,0,0,0" Click="OnRefreshSourcesClick"
                                         ToolTip.Tip="Look for capture cards again (after plugging one in)" />
                                 <ComboBox x:Name="VideoDevices" SelectionChanged="OnVideoDeviceChanged" HorizontalAlignment="Stretch"
-                                          ToolTip.Tip="Camera over Wi-Fi needs no cable. Any HDMI capture card your Mac sees is listed too." />
+                                          ToolTip.Tip="Camera over Wi-Fi needs no cable. Any HDMI capture card your Mac sees is listed too (set the camera's HDMI Resolution to 1080p)." />
                             </DockPanel>
                             <DockPanel Margin="0,8,0,0">
                                 <TextBlock x:Name="RotationText" Text="Rotation 0°" VerticalAlignment="Center" Width="90" DockPanel.Dock="Left" />
@@ -246,8 +246,8 @@
                                             ToolTip.Tip="Turn the picture 90° clockwise (for a camera on its side)" />
                                 </UniformGrid>
                             </DockPanel>
-                            <TextBlock Classes="Small" Margin="0,6,0,0"
-                                       Text="Wi-Fi live view works with no cable. For the sharpest, smoothest picture, run HDMI into a capture card (camera HDMI Resolution: 1080p)." />
+                            <TextBlock x:Name="PictureNote" Classes="Small" Margin="0,6,0,0"
+                                       Text="For a sharper picture, use HDMI and a capture card." />
 
                             <TextBlock Text="PHONE" Classes="Section" />
                             <CheckBox x:Name="PhoneEnabled" Content="Allow phone control" Click="OnPhoneToggle"
@@ -258,6 +258,10 @@
                                 <Button x:Name="PhoneCodeNew" Content="New code" Padding="8,3" Click="OnPhoneCodeNew"
                                         ToolTip.Tip="Makes a new access code. Phones already signed in will need it." />
                             </StackPanel>
+
+                            <TextBlock Text="Show log file" Classes="Small" FontSize="11" HorizontalAlignment="Center" Margin="0,24,0,0"
+                                       TextDecorations="Underline" Cursor="Hand" PointerPressed="OnShowLogPressed"
+                                       ToolTip.Tip="Shows camremote.log in Finder, to send along when something went wrong." />
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>

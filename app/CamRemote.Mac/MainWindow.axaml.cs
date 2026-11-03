@@ -30,6 +30,7 @@ public partial class MainWindow : Window
     private DateTime _assistDetailClosed;
     private readonly AudioMeter _meter = new();
     private readonly DispatcherTimer _meterTick;
+    private readonly PropControl _recordLevel; // beside the meters with a capture card, in Setup otherwise
     private readonly double[] _hold = [-100, -100];
     private DateTime _holdSince = DateTime.Now;
     private bool _useWifi; // picture from the camera's live view instead of the capture card
@@ -102,7 +103,7 @@ public partial class MainWindow : Window
         Add(FocusSetup, "Detect", PropCode.RecognitionTarget, Format.Named("RecognitionTarget"), PropControl.Kind.Buttons);
         Add(FocusSetup, "Face/eye priority", PropCode.SubjectRecognitionInAF, Format.Named("SubjectInAf"), PropControl.Kind.Buttons);
         Add(FocusSetup, "Which eye", PropCode.RightLeftEyeSelect, Format.Named("EyeSelect"), PropControl.Kind.Buttons);
-        Add(AudioPanel, "Record level", PropCode.AudioInputMasterLevel, v => v.ToString(), big, v => v);
+        _recordLevel = Add(AudioSetup, "Record level", PropCode.AudioInputMasterLevel, v => v.ToString(), big, v => v);
         Add(AudioSetup, "Audio recording", PropCode.AudioRecording, Format.Named("AudioRecording"), PropControl.Kind.Buttons);
         Add(AudioSetup, "Wind noise reduction", PropCode.WindNoiseReduct, Format.Named("WindNoise"), PropControl.Kind.Buttons);
         Add(MorePanel, "Exposure mode", PropCode.ExposureProgramMode, Format.Named("ExposureProgram"), pick);
@@ -293,6 +294,7 @@ public partial class MainWindow : Window
         ClearPicture();
         ClearAssist();
         _useWifi = dev == WifiSource;
+        PictureNote.IsVisible = _useWifi;
         UpdateLiveView();
         UpdateMeter(_useWifi ? null : dev);
         NoSignal.IsVisible = true;
@@ -495,6 +497,13 @@ public partial class MainWindow : Window
         else ShowMessage("That folder isn't there yet. It's made when a camera connects.");
     }
 
+    /// <summary>Shows the log in Finder, so it's easy to send along when something went wrong.</summary>
+    private void OnShowLogPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (System.IO.File.Exists(Log.FilePath)) System.Diagnostics.Process.Start("open", ["-R", Log.FilePath]);
+        else ShowMessage("There's no log yet.");
+    }
+
     private async void OnChangePhotos(object? sender, RoutedEventArgs e)
     {
         var picked = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Save photos to this folder" });
@@ -513,7 +522,8 @@ public partial class MainWindow : Window
         SetupTab.IsChecked = _setup;
         ShootPage.IsVisible = !_setup;
         SetupPage.IsVisible = _setup;
-        VideoTop.IsVisible = AudioSection.IsVisible = VideoSetup.IsVisible = !photo;
+        VideoTop.IsVisible = VideoSetup.IsVisible = !photo;
+        AudioSection.IsVisible = !photo && !_useWifi;
         ShutterButton.IsVisible = DrivePanel.IsVisible = TimeLapseSection.IsVisible = PhotoSetup.IsVisible = photo;
         foreach (var row in _rows.Where(r => r.Section == "photo"))
             row.Root.IsVisible = _cam.Applies(row.Code);
@@ -636,12 +646,10 @@ public partial class MainWindow : Window
         IsoLowButton.FontWeight = isoNow == BaseIsoOf(IsoLowButton) ? FontWeight.Bold : FontWeight.Normal;
         IsoHighButton.FontWeight = isoNow == BaseIsoOf(IsoHighButton) ? FontWeight.Bold : FontWeight.Normal;
 
-        // The focus ring only does anything in MF or DMF.
+        // The focus ring only does anything in MF or DMF, so it's hidden otherwise.
         long focusMode = _cam.Get(PropCode.FocusMode)?.Value ?? 0;
         bool manual = _cam.State == LinkState.Connected && focusMode is 1 or 6;
-        ManualFocus.IsEnabled = manual;
-        ManualFocus.Opacity = manual ? 1 : 0.45;
-        ToolTip.SetTip(ManualFocus, manual ? null : "Switch Focus mode to MF (or DMF) to use the focus ring.");
+        ManualFocus.IsVisible = manual;
 
         bool recording = _cam.IsRecording;
         TrackRecordingTime(recording);
@@ -704,14 +712,22 @@ public partial class MainWindow : Window
         if (mode != null) _lastMode = mode;
         ShowPage(photo);
 
-        CamSummary.Text = _cam.State != LinkState.Connected ? "" : string.Join("   ", new[]
-        {
-            Show(PropCode.ExposureProgramMode, Format.Named("ExposureProgram")),
-            photo ? Show(PropCode.FileType, Format.Photo("FileType")) : Show(PropCode.Movie_Recording_Setting, Format.Named("MovieRecordingSetting")),
-            Show(PropCode.ShutterSpeed, Format.Shutter),
-            Show(PropCode.FNumber, Format.FNumber),
-            Show(PropCode.IsoSensitivity, Format.Iso),
-        }.Where(s => s.Length > 0));
+        // Shutter, iris and ISO are already big on the right, so this says what they don't.
+        CamSummary.Text = _cam.State != LinkState.Connected ? "" : string.Join("   ", (photo
+            ? new[]
+            {
+                Show(PropCode.ExposureProgramMode, Format.Named("ExposureProgram")),
+                Show(PropCode.FileType, Format.Photo("FileType")),
+                Show(PropCode.DriveMode, Format.Drive),
+                Show(PropCode.AspectRatio, Format.Photo("AspectRatio")),
+            }
+            : new[]
+            {
+                Show(PropCode.ExposureProgramMode, Format.Named("ExposureProgram")),
+                Show(PropCode.Movie_Recording_FrameRateSetting, Format.Named("MovieFrameRate")),
+                Show(PropCode.Movie_File_Format, Format.Named("MovieFileFormat")),
+                Show(PropCode.Movie_Recording_Setting, Format.Named("MovieRecordingSetting")),
+            }).Where(s => s.Length > 0));
 
         ShowMeter();
 
@@ -772,14 +788,14 @@ public partial class MainWindow : Window
             RecTime.Text = "● REC " + (DateTime.Now - start).ToString(@"hh\:mm\:ss") + (_settings.RecordingJoined ? "+" : "");
         int frames = _useWifi ? _live.TakeFrameCount() : _video.TakeFrameCount();
         string format = _useWifi ? _live.Format : _video.Format;
-        VideoInfo.Text = format.Length == 0 ? "" : $"{format}   {frames} fps shown";
+        ToolTip.SetTip(MessageBar, format.Length == 0 ? null : $"Picture: {format}, {frames} fps shown");
     }
 
-    private void ShowMessage(string msg) => MessageText.Text = $"{DateTime.Now:HH:mm:ss}  {msg}";
+    private void ShowMessage(string msg) => MessageText.Text = msg;
 
     // ---- Settings ----
 
-    private void Add(Panel panel, string label, PropCode code, Func<long, string> fmt, PropControl.Kind kind,
+    private PropControl Add(Panel panel, string label, PropCode code, Func<long, string> fmt, PropControl.Kind kind,
         Func<long, double>? order = null, long[]? presets = null)
     {
         var c = new PropControl(_cam, label, code, fmt, kind, order)
@@ -790,6 +806,7 @@ public partial class MainWindow : Window
         };
         panel.Children.Add(c.Root);
         _rows.Add(c);
+        return c;
     }
 
     private static long BaseIsoOf(Button b) => long.TryParse(b.Tag as string, out long v) ? v : 0;
@@ -841,14 +858,18 @@ public partial class MainWindow : Window
         bool tracking = connected && _cam.IsTracking;
         _showedTracking = tracking;
         StopTracking.IsVisible = tracking;
+        // Only say something when a click won't simply focus; the everyday tip waits on the picture's tooltip.
         TouchHint.Text = !connected ? ""
             : ratio > 0 ? "Zoomed in. Click the picture to move around. Off goes back to clicking to focus."
             : _cam.Get(PropCode.FunctionOfTouchOperation)?.Value == 1 ? "Tap does is Off, so clicks do nothing."
             : _cam.IsManualFocus ? "Click the picture to autofocus once. It stays in manual."
-            : tracking ? "The camera is tracking. Right-click or Control-click the picture to stop."
+            : "";
+        TouchHint.IsVisible = TouchHint.Text.Length > 0;
+        ToolTip.SetTip(Picture, !connected || ratio > 0 ? null
+            : tracking ? "Right-click or Control-click to stop tracking."
             : _cam.CanCancelTouch ? "Click to focus somewhere else. Right-click or Control-click cancels."
-            : _cam.TapTracks ? "Click a subject to ask the camera to track it."
-            : "Click the picture to focus there.";
+            : _cam.TapTracks ? "Click a subject to track it."
+            : "Click to focus there.");
     }
 
     private void OnStopTrackingClick(object? sender, RoutedEventArgs e)
@@ -1156,14 +1177,24 @@ public partial class MainWindow : Window
 
     // ---- Audio meters ----
 
-    /// <summary>Meters the capture card's audio input when the picture comes over HDMI.</summary>
+    /// <summary>
+    /// Meters the capture card's audio input when the picture comes over HDMI. Over Wi-Fi the camera sends
+    /// no sound, so the meters are hidden and Record level lives in Setup instead.
+    /// </summary>
     private void UpdateMeter(VideoDevice? hdmi)
     {
         _meterTick.Stop();
         _meter.Stop();
-        string hint = "Live meters need the camera's HDMI into a capture card: over Wi-Fi the camera sends no sound. Record level still works.";
+        string hint = "";
         if (hdmi != null)
-            hint = _meter.Start(hdmi.Name) ?? "Meters show the camera's audio over HDMI (set the camera's HDMI audio output on).";
+            hint = _meter.Start(hdmi.Name) ?? "If the bars stay still, turn on the camera's HDMI audio output.";
+        var home = hdmi != null ? AudioPanel : AudioSetup;
+        if (_recordLevel.Root.Parent != home)
+        {
+            ((Panel)_recordLevel.Root.Parent!).Children.Remove(_recordLevel.Root);
+            home.Children.Insert(0, _recordLevel.Root);
+        }
+        AudioSection.IsVisible = hdmi != null && VideoTop.IsVisible;
         MeterHint.Text = hint;
         Meters.Opacity = _meter.Running ? 1 : 0.35;
         if (_meter.Running) _meterTick.Start();

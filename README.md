@@ -113,7 +113,7 @@ Update your camera to its latest firmware first. Some features, such as click to
 | | |
 |---|---|
 | **See** | Live view over Wi-Fi, or full quality through an HDMI capture card. Rotate it for a camera on its side |
-| **Focus** | Click the picture to focus or track, drag the focus ring, or jump along the focus bar. Focus boxes show what the camera is doing |
+| **Focus** | Click the picture to focus or track, in MF or DMF drag the focus ring or jump along the focus bar. Focus boxes show what the camera is doing |
 | **Check focus** | Focus magnifier and peaking |
 | **Expose** | ISO, shutter and iris, with a histogram, zebras and the camera's meter |
 | **Record** | One big button, with a red outline around the picture while rolling |

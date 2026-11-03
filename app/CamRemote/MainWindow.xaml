@@ -67,7 +67,7 @@
                     <Grid.LayoutTransform>
                         <RotateTransform x:Name="PictureRotation" Angle="0" />
                     </Grid.LayoutTransform>
-                    <Image x:Name="Picture" Stretch="Uniform" Cursor="Cross"
+                    <Image x:Name="Picture" Stretch="Uniform" Cursor="Cross" ToolTipService.InitialShowDelay="1500"
                            MouseLeftButtonDown="OnPictureClick" MouseRightButtonDown="OnPictureRightClick" />
                     <Image x:Name="AssistLayer" Stretch="Uniform" IsHitTestVisible="False" Visibility="Collapsed" />
                     <Grid x:Name="GuideGrid" IsHitTestVisible="False" Visibility="Collapsed">
@@ -110,10 +110,9 @@
         </Border>
 
         <!-- Messages -->
-        <DockPanel Grid.Row="3" Grid.Column="0" Margin="12,6">
+        <DockPanel x:Name="MessageBar" Grid.Row="3" Grid.Column="0" Margin="12,6" Background="Transparent">
             <Button x:Name="UpdateButton" DockPanel.Dock="Left" Margin="0,0,10,0" Padding="10,3" Background="#2E7D32" Foreground="White"
                     Visibility="Collapsed" Click="OnUpdateClick" ToolTip="Opens the download page in your browser." />
-            <TextBlock x:Name="VideoInfo" DockPanel.Dock="Right" Foreground="{StaticResource Dim}" />
             <TextBlock x:Name="MessageText" Foreground="{StaticResource Dim}" TextTrimming="CharacterEllipsis" />
         </DockPanel>
 
@@ -206,7 +205,8 @@
                             <TextBlock x:Name="TouchHint" TextWrapping="Wrap" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,6,0,0"
                                        Text="" />
 
-                            <StackPanel x:Name="AudioSection">
+                            <!-- Only with a capture card: over Wi-Fi the camera sends no sound -->
+                            <StackPanel x:Name="AudioSection" Visibility="Collapsed">
                             <TextBlock Text="AUDIO" Style="{StaticResource Section}" />
                             <Grid x:Name="Meters" Margin="0,0,0,4">
                                 <Grid.ColumnDefinitions>
@@ -273,7 +273,7 @@
                                 <Button Content="↻" DockPanel.Dock="Right" Width="34" Margin="6,0,0,0" Click="OnRefreshSourcesClick"
                                         ToolTip="Look for capture cards again (after plugging one in)" />
                                 <ComboBox x:Name="VideoDevices" SelectionChanged="OnVideoDeviceChanged"
-                                          ToolTip="Camera over Wi-Fi needs no cable. Any HDMI capture card Windows sees is listed too." />
+                                          ToolTip="Camera over Wi-Fi needs no cable. Any HDMI capture card Windows sees is listed too (set the camera's HDMI Resolution to 1080p)." />
                             </DockPanel>
                             <DockPanel Margin="0,8,0,0">
                                 <TextBlock x:Name="RotationText" Text="Rotation 0°" VerticalAlignment="Center" Width="90" DockPanel.Dock="Left" />
@@ -284,8 +284,8 @@
                                             ToolTip="Turn the picture 90° clockwise (for a camera on its side)" />
                                 </UniformGrid>
                             </DockPanel>
-                            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,6,0,0"
-                                       Text="Wi-Fi live view works with no cable. For the sharpest, smoothest picture, run HDMI into a capture card (camera HDMI Resolution: 1080p)." />
+                            <TextBlock x:Name="PictureNote" TextWrapping="Wrap" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,6,0,0"
+                                       Text="For a sharper picture, use HDMI and a capture card." />
 
                             <TextBlock Text="PHONE" Style="{StaticResource Section}" />
                             <CheckBox x:Name="PhoneEnabled" Content="Allow phone control" Click="OnPhoneToggle"
@@ -296,6 +296,11 @@
                                 <Button x:Name="PhoneCodeNew" Content="New code" Padding="8,3" Click="OnPhoneCodeNew"
                                         ToolTip="Makes a new access code. Phones already signed in will need it." />
                             </StackPanel>
+
+                            <TextBlock HorizontalAlignment="Center" Margin="0,24,0,0" FontSize="11">
+                                <Hyperlink Click="OnShowLogClick" Foreground="{StaticResource Dim}"
+                                           ToolTip="Shows camremote.log in Explorer, to send along when something went wrong.">Show log file</Hyperlink>
+                            </TextBlock>
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
