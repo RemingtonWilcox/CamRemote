@@ -1033,8 +1033,13 @@ struct SetupSheet: View {
                 }
                 .buttonStyle(Big(color: .panel))
                 SendLogSection(camera: camera)
+                Text("CamRemote \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") · Made by Remington Wilcox")
+                    .font(.caption2)
+                    .foregroundColor(.dim)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 12)
                 HStack(spacing: 12) {
-                    Text("CamRemote \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
+                    Link("Help", destination: URL(string: "https://github.com/RemingtonWilcox/CamRemote#something-not-working")!)
                     Button("Credits") { showCredits = true }
                 }
                 .font(.caption2)

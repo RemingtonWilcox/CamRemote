@@ -58,6 +58,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        AboutText.Text = $"CamRemote {UpdateCheck.Current} · Made by Remington Wilcox";
         PlaceWindow();
         var ui = new WpfUi(Dispatcher);
         _ui = ui;
@@ -772,6 +773,8 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Shows the log in Explorer, so it's easy to send along when something went wrong.</summary>
+    private void OnHelpClick(object sender, RoutedEventArgs e) => UpdateCheck.OpenHelp();
+
     private void OnShowLogClick(object sender, RoutedEventArgs e)
     {
         if (System.IO.File.Exists(Log.FilePath)) System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{Log.FilePath}\"");

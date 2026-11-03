@@ -7,9 +7,10 @@ namespace CamRemote;
 /// <summary>Looks once at launch for a newer release on GitHub. It only tells the user: nothing is downloaded or installed.</summary>
 public static class UpdateCheck
 {
-    public const string Current = "1.0.11"; // also in tools/windows/CamRemote.iss and tools/mac/Info.plist
+    public const string Current = "1.0.12"; // also in tools/windows/CamRemote.iss and tools/mac/Info.plist
     private const string Latest = "https://api.github.com/repos/RemingtonWilcox/CamRemote/releases/latest";
     private const string Page = "https://github.com/RemingtonWilcox/CamRemote/releases/latest";
+    private const string Help = "https://github.com/RemingtonWilcox/CamRemote#something-not-working";
 
     /// <summary>The newer version's number, or null if this one is current or GitHub can't be reached.</summary>
     public static async Task<string?> NewerVersionAsync()
@@ -29,5 +30,14 @@ public static class UpdateCheck
         }
     }
 
-    public static void OpenDownloadPage() => Process.Start(new ProcessStartInfo(Page) { UseShellExecute = true });
+    public static void OpenDownloadPage() => Open(Page);
+
+    /// <summary>The README's "Something not working?" section.</summary>
+    public static void OpenHelp() => Open(Help);
+
+    private static void Open(string url)
+    {
+        if (OperatingSystem.IsMacOS()) Process.Start("open", [url]);
+        else Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+    }
 }

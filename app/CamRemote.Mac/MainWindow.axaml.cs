@@ -67,6 +67,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        AboutText.Text = $"CamRemote {UpdateCheck.Current} · Made by Remington Wilcox";
         PlaceWindow();
         var ui = new AvaloniaUi();
         _ui = ui;
@@ -812,6 +813,8 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Shows the log in Finder, so it's easy to send along when something went wrong.</summary>
+    private void OnHelpPressed(object? sender, PointerPressedEventArgs e) => UpdateCheck.OpenHelp();
+
     private void OnShowLogPressed(object? sender, PointerPressedEventArgs e)
     {
         if (System.IO.File.Exists(Log.FilePath)) System.Diagnostics.Process.Start("open", ["-R", Log.FilePath]);

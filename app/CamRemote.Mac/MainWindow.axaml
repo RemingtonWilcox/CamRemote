@@ -325,6 +325,10 @@
                             <TextBlock Text="Show log file" Classes="Small" FontSize="11" HorizontalAlignment="Center" Margin="0,18,0,0"
                                        TextDecorations="Underline" Cursor="Hand" PointerPressed="OnShowLogPressed"
                                        ToolTip.Tip="Shows camremote.log in Finder, to send along when something went wrong." />
+                            <TextBlock Text="Help" Classes="Small" FontSize="11" HorizontalAlignment="Center" Margin="0,6,0,0"
+                                       TextDecorations="Underline" Cursor="Hand" PointerPressed="OnHelpPressed"
+                                       ToolTip.Tip="Opens the help on GitHub: what to try when something isn't working." />
+                            <TextBlock x:Name="AboutText" Classes="Small" FontSize="11" HorizontalAlignment="Center" Margin="0,6,0,0" />
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
