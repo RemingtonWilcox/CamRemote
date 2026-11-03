@@ -80,7 +80,7 @@ struct ShootingView: View {
     private var uprightView: some View {
         VStack(spacing: 8) {
             topBar
-            framedPicture
+            framedPicture()
             controls(columns: AppDelegate.pad ? 4 : 3) // an upright iPad has room for more across
                 .padding(.horizontal, AppDelegate.pad ? 20 : 12)
         }
@@ -94,9 +94,11 @@ struct ShootingView: View {
                 HStack(alignment: .top, spacing: 12) {
                     VStack(spacing: 8) {
                         topBar
-                        Spacer(minLength: 0)
-                        framedPicture
-                        Spacer(minLength: 0)
+                        // Fills the whole side on black, so it reads as one big viewfinder with no grey bands.
+                        framedPicture(fill: true)
+                            .background(Color.black)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .padding([.leading, .bottom], 12)
                     }
                     controls(columns: 3)
                         .frame(width: 400)
@@ -126,9 +128,12 @@ struct ShootingView: View {
         .padding(.horizontal, 12)
     }
 
-    private var framedPicture: some View {
-        liveView
-            .aspectRatio(vertical ? 1 : 3 / 2, contentMode: .fit)
+    @ViewBuilder private func picture(fill: Bool) -> some View {
+        if fill { liveView } else { liveView.aspectRatio(vertical ? 1 : 3 / 2, contentMode: .fit) }
+    }
+
+    private func framedPicture(fill: Bool = false) -> some View {
+        picture(fill: fill)
             .overlay(alignment: .top) {
                 VStack(alignment: .trailing, spacing: 4) {
                     SettingsBar(camera: camera).frame(maxWidth: .infinity, alignment: .leading)
