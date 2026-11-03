@@ -184,6 +184,7 @@ struct ConnectView: View {
             VStack(spacing: 12) {
                 Text("CamRemote").font(.largeTitle.weight(.semibold)).padding(.top, 72)
                 BridgeBadge()
+                status.padding(.top, 12)
                 if askForLogin { loginForm } else { waiting }
             }
             .frame(maxWidth: 480) // an iPad's width would stretch the fields
@@ -191,16 +192,45 @@ struct ConnectView: View {
             .padding()
         }
         .background(Color.page.ignoresSafeArea())
+        .onChange(of: camera.loginRefused) { if $0 { UINotificationFeedbackGenerator().notificationOccurred(.error) } }
     }
 
-    /// With a camera saved there's nothing to fill in, so this only says what's going on.
+    private var trying: Bool { camera.link == .connecting || camera.keepTrying }
+
+    /// Stays put between tries, so a search that keeps going reads as one search and says why it hasn't found it.
+    @ViewBuilder private var status: some View {
+        if trying {
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text(camera.link == .connecting && !camera.stage.isEmpty ? camera.stage : "Looking for your camera")
+                        .font(.callout.weight(.semibold))
+                }
+                if !camera.problem.isEmpty {
+                    Text(camera.problem).font(.footnote).foregroundColor(.dim).multilineTextAlignment(.center)
+                }
+                if camera.keepTrying {
+                    Button("Stop looking", action: camera.stopTrying).font(.footnote.weight(.semibold)).foregroundColor(.white)
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity)
+            .background(Color.panel, in: RoundedRectangle(cornerRadius: 12))
+        } else if !camera.problem.isEmpty, !camera.newCamera {
+            Label(camera.problem, systemImage: camera.loginRefused ? "xmark.circle.fill" : "exclamationmark.circle")
+                .font(.callout)
+                .foregroundColor(camera.loginRefused ? .rec : .dim)
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.panel, in: RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    /// With a camera saved there's nothing to fill in.
     private var waiting: some View {
         VStack(spacing: 14) {
-            if camera.link == .connecting || camera.keepTrying { ProgressView().padding(.top, 24) }
-            Text(camera.problem.isEmpty ? (camera.link == .connecting ? "Looking for your camera" : "Not connected") : camera.problem)
-                .foregroundColor(.dim)
-                .multilineTextAlignment(.center)
-            if camera.link == .off, !camera.keepTrying {
+            if !trying {
+                if camera.problem.isEmpty { Text("Not connected").foregroundColor(.dim) }
                 Button("Connect", action: connect).buttonStyle(Big(color: .panel))
             }
             Button("Type a login") { camera.editingLogin = true } // so a half-typed password is never tried or saved
@@ -224,17 +254,14 @@ struct ConnectView: View {
                 .background(Color.panel, in: RoundedRectangle(cornerRadius: 10))
             field("Camera address, only on home Wi-Fi", text: $address)
                 .keyboardType(.numbersAndPunctuation)
-            Button(camera.link == .connecting ? "Connecting…" : "Connect") {
+            Button(trying ? "Connecting…" : "Connect") {
                 camera.editingLogin = false
                 camera.loginRefused = false
                 camera.newCamera = false
                 connect()
             }
             .buttonStyle(Big(color: .panel))
-            .disabled(camera.link == .connecting || user.isEmpty || password.isEmpty)
-            if !camera.problem.isEmpty, !camera.newCamera {
-                Text(camera.problem).foregroundColor(camera.loginRefused ? .warn : .dim).multilineTextAlignment(.center)
-            }
+            .disabled(trying || user.isEmpty || password.isEmpty)
             if !camera.savedCameras.isEmpty, camera.editingLogin {
                 Button("Back") {
                     password = "" // or it would be tried on the next camera that turns up

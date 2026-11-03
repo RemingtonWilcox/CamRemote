@@ -244,6 +244,7 @@ final class Camera: ObservableObject {
     @Published var editingLogin = false
     @Published var loginRefused = false
     @Published var newCamera = false // found one with no saved login
+    @Published var stage = "" // what connecting is doing right now
     @Published var savedCameras = Logins.all()
     @Published var cameraKey = "" // the connected camera's
     @Published var lowBattery = false
@@ -269,6 +270,7 @@ final class Camera: ObservableObject {
     private var events: [UInt8] = []
     private var savedDestination: Int64?
     private var cameraName = "Camera"
+    private let busy = "camera busy with another remote"
     private var shutterPressed = Date()
     private var shutterHeld = false // main thread only
     private var shutterReleased = Date.distantPast // main thread only
@@ -690,6 +692,15 @@ final class Camera: ObservableObject {
         lock.unlock()
     }
 
+    func stopTrying() {
+        keepTrying = false
+        problem = ""
+    }
+
+    private func show(_ stage: String) {
+        DispatchQueue.main.async { self.stage = stage }
+    }
+
     func forget(_ saved: SavedCamera) {
         Logins.forget(saved.key)
         savedCameras = Logins.all()
@@ -702,6 +713,7 @@ final class Camera: ObservableObject {
             self.loginRefused = badLogin
             self.newCamera = newCamera
             self.cameraKey = ""
+            self.stage = ""
             self.link = .off
             self.recordBusy = false
             self.shutterHeld = false
@@ -724,13 +736,19 @@ final class Camera: ObservableObject {
     }
 
     private func run(address: String, typed: Login?) {
+        show("Looking for your camera")
         guard let host = findAddress(address) else {
             log("Camera not found")
             // An iPad without a SIM can't make a hotspot, so it joins the iPhone's along with the camera.
-            finish(AppDelegate.pad ? "Join your iPhone's hotspot, then turn on the camera. This connects by itself."
-                                   : "Turn on your hotspot, then turn on the camera. This connects by itself.", retry: true)
+            let hint = !address.isEmpty
+                ? "Not found yet. Check the camera is on and on the same Wi-Fi as this \(AppDelegate.pad ? "iPad" : "iPhone"), or clear the camera address to use the hotspot."
+                : AppDelegate.pad
+                ? "Not found yet. Check this iPad is on your iPhone's hotspot and the camera is on. The iPhone's Personal Hotspot screen shows a connection once the camera has joined."
+                : "Not found yet. Check your hotspot is on and the camera is on. It joins by itself, and the Personal Hotspot screen shows a connection once it has."
+            finish(hint, retry: true)
             return
         }
+        show("Found your camera. Logging in…")
         log("Connecting to \(host)")
         var found = [CChar](repeating: 0, count: 65)
         guard cam_ssh_hello(host, &found, 65) == 0 else {
@@ -749,17 +767,23 @@ final class Camera: ObservableObject {
         let opened = cam_ssh_login(login.user, login.password)
         log("Connection result \(opened)")
         switch opened {
-        case 0: break
+        case 0: show("Logged in. Opening the camera…")
         case CAM_BAD_LOGIN:
-            finish("That user or password didn't work. Use the ones on the camera's Access Authen. Info screen.", badLogin: true)
+            finish(typed == nil
+                   ? "The camera turned down its saved login. If its password was changed, type the new one."
+                   : "The camera turned down that user or password. Both have to match exactly, capitals too, and the user usually isn't \"admin\". They're on the camera's Access Authen. Info screen.",
+                   badLogin: true)
             return
         default:
-            finish("The camera wouldn't connect. Check that Remote Shooting is on.", retry: true)
+            finish("The camera answered but wouldn't log in. Check that Remote Shooting is on.", retry: true)
             return
         }
         var problem = ""
+        var started = false
         do {
             try start()
+            started = true
+            tell("Connected to \(cameraName)")
             Logins.save(SavedCamera(key: key, name: cameraName, login: login))
             DispatchQueue.main.async {
                 self.savedCameras = Logins.all()
@@ -774,7 +798,11 @@ final class Camera: ObservableObject {
             lock.lock()
             let leaving = stopping // a hang-up that failed partway is still the hang-up that was asked for
             lock.unlock()
-            if !leaving { problem = "Lost the camera. Looking for it again." }
+            if !leaving {
+                problem = (error as? PtpError)?.text == busy
+                    ? "The camera is busy with another remote. Close CamRemote on your computer or other device, and Sony's Monitor & Control."
+                    : started ? "Lost the camera. Looking for it again." : "The camera stopped answering while opening. Trying again."
+            }
         }
         cam_ssh_close()
         finish(problem, retry: !problem.isEmpty)
@@ -807,6 +835,7 @@ final class Camera: ObservableObject {
         let guid: [UInt8] = (0..<16).map { _ in UInt8.random(in: 0...255) }
         try sendPacket(0, 1, guid + name + u32(0x00010000))
         let (kind, body) = try readPacket(0)
+        if kind == 5 { throw PtpError(text: busy) } // Init Fail: another remote has it
         guard kind == 2, body.count >= 4 else { throw PtpError(text: "camera refused the start, type \(kind)") }
         cameraName = Self.modelName(body)
         try sendPacket(1, 3, Array(body[0..<4]))
