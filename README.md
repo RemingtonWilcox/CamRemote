@@ -190,6 +190,7 @@ On the camera, press **MENU**, then:
 | **Allow remote control.** | Network › Cnct./Remote Sht. › Remote Shoot Function › Remote Shooting › **On** |
 | **Find your login.** Leave **Access Authen.** on. Then take a photo of the **user** and **password** on **Access Authen. Info**. You'll need them in a minute. | Network › Network Option › Access Authen. Settings |
 | **Turn on touch.** This lets you click the picture to focus. | Touch Operation › **On** |
+| **Keep it awake.** Otherwise the camera sleeps after a minute and the app can't find it. | Setup › Power Setting Option › Power Save Start Time › **30 Min.** |
 
 > [!NOTE]
 > Menu names can differ on older firmware. If yours don't match, update the camera first, using the firmware from your country's Sony support site. CamRemote was tested on the A7S III with firmware 5.01.
