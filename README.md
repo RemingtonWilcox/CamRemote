@@ -4,9 +4,9 @@
 
 # CamRemote
 
-**The best way to run a Sony camera from your computer.**<br>
-Live picture, focus, exposure, video and photos, all in one window, with no cables.<br>
-It can even start filming by itself when an animal shows up.
+**Run your Sony camera from anywhere.**<br>
+Live picture, focus, exposure, video, photos, slow motion and time-lapse,<br>
+all in one clean window on your computer, with no cables.
 
 <br>
 
@@ -14,68 +14,189 @@ It can even start filming by itself when an animal shows up.
 &nbsp;
 <a href="https://github.com/RemingtonWilcox/CamRemote/releases/latest/download/CamRemote-Mac-AppleSilicon.dmg"><img src="https://img.shields.io/badge/Download_for_Mac-555555?style=for-the-badge" alt="Download for Mac" height="44" /></a>
 
-<sub>Free. No account. No subscription. <a href="https://github.com/RemingtonWilcox/CamRemote/releases/latest/download/CamRemote-Mac-Intel.dmg">Older Intel Mac? Use this one.</a></sub>
+<sub>Free and open source. No account, no subscription, no tracking. <a href="https://github.com/RemingtonWilcox/CamRemote/releases/latest/download/CamRemote-Mac-Intel.dmg">Older Intel Mac? Use this one.</a></sub><br>
+<sub>Tested on the Sony A7S III. <a href="#which-cameras-work">Which cameras work?</a></sub>
 
 <br><br>
 
-<img src="docs/chickadee.jpg" alt="A chickadee on a branch, seen through CamRemote's live view with the camera's focus box on it" width="640" />
+<img src="docs/window.jpg" alt="CamRemote's window: a cattle egret beside a red ginger flower in the live picture, the histogram and meter in the corner, and the Video tab on the right with the Record button, four saved setups and exposure" width="860" />
 
 </div>
 
 <br>
 
-## Why CamRemote
+## Your whole camera, in one window
+
+Everything you'd reach for on the camera is a click away, and the picture stays big in the middle.
 
 <table>
 <tr>
-<td width="50%" valign="top">
-<img src="docs/jay.jpg" alt="CamRemote drawing a green box around a Steller's jay at a bird feeder" />
+<td width="33%" valign="top">
+
+### See it
+
+The live picture over Wi-Fi, or full quality through an HDMI capture card. Histogram, zebras, peaking, a grid and the camera's own meter switch on from the bar under the picture.
+
 </td>
-<td width="50%" valign="top">
+<td width="33%" valign="top">
 
-### It films wildlife for you
+### Focus it
 
-Tick **Automatic recording** and walk away. The app watches the picture, starts recording when an animal shows up, focuses on it, and stops 15 seconds after it leaves.
+Click the picture to focus or track. Drag the focus ring, jump along the focus bar, or magnify to check what's sharp.
 
-This jay landed on the feeder. The app spotted it, rolled, and put a green box around it.
+</td>
+<td width="33%" valign="top">
+
+### Shoot it
+
+Video, photos, bursts, brackets, S&Q slow motion, time-lapse and long exposures. Save to the card, your computer, or both.
 
 </td>
 </tr>
 </table>
 
-### Everything is one click away
+<table>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/peaking.jpg" alt="Close-up of the egret's head and neck in CamRemote, outlined in blue where the picture is sharp" />
+</td>
+<td width="50%" valign="top">
 
-**Video** and **Photo** tabs switch the camera for you and keep what you change while shooting right in front of you. Anything you only set once lives in **Setup**, out of the way.
+### See what's sharp
+
+Click the bird and the camera focuses there. Turn on **Peaking** and the sharp edges light up, like the egret's eye and neck here, so you can tell what's in focus from across the yard. The camera's own focus boxes show what it's locked on, and the magnifier zooms in to check.
+
+</td>
+</tr>
+</table>
+
+### Clean, and quick
+
+Three tabs, nothing hidden in menus. **Video** and **Photo** switch the camera for you and keep what you change while shooting right in front of you. Anything you only set once lives in **Setup**, out of the way.
+
+The histogram and meter float over the corner of the picture: drag them anywhere, drag the corner to resize, and click for zebra and peaking levels. Settings your camera doesn't have are left out, so you only see what works. The window opens at the picture's shape, with no black bars, and comes back where you left it.
+
+The live picture runs at around 20 frames a second over Wi-Fi on the A7S III. If the Wi-Fi drops, the camera keeps recording and the app reconnects by itself.
 
 <p align="center">
-<img src="docs/tabs.png" alt="CamRemote's three tabs side by side: Video with the Record button, Photo with Take photo, Drive and Time-lapse, and Setup with the camera's video, audio and focus settings" width="760" />
+<img src="docs/tabs.png" alt="CamRemote's three tabs side by side: Video with the Record button and four saved setups, Photo with Take photo and the Drive choices, and Setup with saving, photo and focus settings" width="760" />
 </p>
+
+<br>
+
+## Run it from anywhere
+
+Hide the camera by a feeder, up a tree or across the yard, and run it from wherever you are.
 
 <table>
 <tr>
-<td width="33%" valign="top">
+<td width="50%" valign="top">
 
-### Real tools
+### From your phone
 
-Histogram, zebras, peaking, the camera's meter, a focus ring, a focus magnifier, and one-click base ISO on the A7S III.
-
-</td>
-<td width="33%" valign="top">
-
-### Put it anywhere
-
-Hide the camera by a feeder, up a tree or across the yard. If Wi-Fi drops, it keeps recording and the app reconnects by itself.
+Tick **Allow phone control** in **Setup** and open the address it shows on your phone. You get the live picture, record, tap to focus, the focus ring and the camera's settings. It works on your home Wi-Fi, and from anywhere with [Tailscale](https://tailscale.com).
 
 </td>
-<td width="33%" valign="top">
+<td width="50%" valign="top">
 
-### It's yours
+### From a computer, through your iPhone
 
-Free and open source. No account, no subscription, no tracking.
+No Wi-Fi where the camera is? Put it on your iPhone's hotspot, open the CamRemote iPhone app, and run it from a computer somewhere else over Tailscale. This comes with the [iPhone app](#coming-soon-camremote-for-iphone), which isn't out yet.
 
 </td>
 </tr>
 </table>
+
+<br>
+
+## Your setups, one click away
+
+**C1 to C4** save how the camera is set right now: mode, exposure, focus, and for video the file format and frame rate. The Video and Photo tabs each have their own four. Each button shows what's in it, like **S&Q 240fps** in XAVC S HD with its shutter, iris and ISO, and turns green while the camera matches it.
+
+**S&Q slow motion** is right on the Video tab. Pick how fast the camera shoots and how fast it plays back: 240fps played at 24p is ten times slower. Save that to C1 and slow motion is one click away.
+
+<p align="center">
+<img src="docs/presets.png" alt="The Video tab with four saved setups: 24p, 60p and 120p in XAVC HS 4K, and S&Q 240fps in XAVC S HD, each with its shutter, iris and ISO" width="345" />
+</p>
+
+<br>
+
+## Photos, time-lapse and long exposures
+
+The Photo tab has three ways to shoot:
+
+- **Photo:** pick **Single**, **Burst**, **Timer** or **Bracket** under **Drive**, then just the choices for that one: burst speed, timer delay, or bracket step and number of photos.
+- **Time-lapse:** pick how often and how many, and press **Start time-lapse**. The app tells you how long it'll shoot and how long the clip will play. It takes one photo every 1 to 60 seconds, up to 9,999 photos, using the camera's own interval shooting.
+- **Long exposure:** pick a length from 1 second to 8 minutes. Up to 30 seconds the camera times it. Longer, the app holds the shutter open on Bulb, so keep the window open until it's done. Tell it the ND filter on your lens and it suggests a length from the meter.
+
+<p align="center">
+<img src="docs/photo-modes.png" alt="The Photo tab three ways: Photo with a 1-stop, 3-photo bracket, Time-lapse with one photo every 10 seconds, and Long exposure set to 30 seconds with ND filter choices" width="760" />
+</p>
+
+<br>
+
+## It can even film wildlife for you
+
+Tick **Automatic recording** and walk away. The app watches the picture, starts recording when something shows up, focuses on it, and stops once it's been gone for a while.
+
+- **Record when it sees:** any **Animal**, a **Bird** only, or a **Person**.
+- **Stop once it's been gone for:** 10 seconds, 15 seconds, 30 seconds or a minute.
+- **Focus on it:** on or off.
+
+Here it has spotted the egret, started recording, put a green box around it and a red outline around the picture. The check runs on your computer, and no pictures leave it.
+
+<p align="center">
+<img src="docs/automatic-recording.jpg" alt="Automatic recording in CamRemote: a green box labelled animal around the egret, a red recording outline, REC 00:00:09 at the top left, and Animal, 15 s and Focus on it picked on the right" width="860" />
+</p>
+
+<br>
+
+## Coming soon: CamRemote for iPhone
+
+Run the camera with no computer at all, just your phone and its hotspot. The iPhone app has the live picture, tap to focus, exposure, video, S&Q, photos, burst, time-lapse, C1 to C3 saved setups and the animal trigger, and it can hand the camera to a computer anywhere over Tailscale.
+
+**You can't download it yet.** It's still being tested, and it'll come to TestFlight, Apple's beta testing app, first. [More about it](#on-your-iphone).
+
+<br>
+
+## Everything it does
+
+| | |
+|---|---|
+| **See** | Live view over Wi-Fi, or full quality through an HDMI capture card. Rotate it for a camera on its side |
+| **Focus** | Click the picture to focus or track, in MF or DMF drag the focus ring or jump along the focus bar. Focus boxes show what the camera is doing |
+| **Check focus** | Focus magnifier and peaking |
+| **Expose** | ISO, shutter and iris, with a histogram, zebras, the camera's meter and one-click base ISO on the A7S III |
+| **Record** | One big button, with a red outline around the picture while rolling |
+| **Slow motion** | S&Q, up to 240fps in HD on the A7S III |
+| **Shoot photos** | Single shots, bursts, self-timer, brackets, time-lapses and long exposures, saved to your card, your computer or both |
+| **Save your setups** | **C1** to **C4**, four for video and four for photos, each back with one click |
+| **Set up the camera** | Video format, frame rate, Super 35 crop, RAW or JPEG, white balance, audio and more, without touching a menu |
+| **Use both cards** | See what's left on each slot, and format a card from the app. It asks first |
+| **Run it from anywhere** | Phone control at home or over Tailscale, and soon from a computer through the iPhone app |
+| **Film wildlife** | **Automatic recording** starts and stops for animals, birds or people |
+| **Stay informed** | Battery and card warnings before you run out |
+| **Stop worrying** | Reconnects by itself, and the camera keeps recording if Wi-Fi drops |
+| **Get help** | **Send log to the developer** in **Setup** sends what went wrong in one click, only when you press it |
+
+**Handy keys:** **H** histogram · **Z** zebras · **P** peaking · **G** grid · **R** rotate · **F9** record, take a photo or start a long exposure (on a Mac, you may need to hold **fn**)
+
+<br>
+
+## Set it up in 3 steps
+
+Allow about 10 minutes. You only do this once.
+
+| | | |
+|---|---|---|
+| **1** | **[Install the app](#1-install-the-app)** | 2 minutes |
+| **2** | **[Set up your camera](#2-set-up-your-camera)** | 5 minutes |
+| **3** | **[Connect](#3-connect)** | 1 minute |
+
+> [!TIP]
+> **Have an AI assistant?** It can walk you through all of this. [Here's what to paste](#let-your-ai-do-it).
+
+**You'll need:** [a supported camera](#which-cameras-work), Wi-Fi at the place you're shooting, and a Windows 11 PC or a Mac on macOS 14.1 or newer.
 
 <br>
 
@@ -97,53 +218,6 @@ Update your camera to its latest firmware first. Some features, such as click to
 **A9 II:** Sony doesn't list it for Wi-Fi, but a user has it connected, with click to focus working. On the camera, turn **Ctrl w/ Smartphone** off, join your Wi-Fi under **Wi-Fi Settings › Access Point Set.**, then under **PC Remote Function** turn **PC Remote** on, set **PC Remote Cnct Method** to **Wi-Fi Access Point**, and choose **Pairing** while CamRemote is searching. To click to focus, set **Focus area** to **Spot S**, **Spot M** or **Spot L** (the camera calls them Flexible Spot). Time-lapse and card formatting don't work on it.
 
 **Won't work over Wi-Fi:** A7R IV, A7R IVA, A7C, RX0 II, BRC-AM7 and FR7. Cameras not listed at all, such as the A7 III or a6400, aren't supported by Sony's software.
-
-<br>
-
-## How it works
-
-<p align="center">
-<img src="docs/how-it-works.svg" alt="The camera and CamRemote talk over Wi-Fi, an HDMI capture card can add a sharper picture, and your phone can join in. When an animal appears, the app spots it, the camera records and focuses on it, and it stops 15 seconds after the animal leaves." width="860" />
-</p>
-
-<br>
-
-## Everything it does
-
-| | |
-|---|---|
-| **See** | Live view over Wi-Fi, or full quality through an HDMI capture card. Rotate it for a camera on its side |
-| **Focus** | Click the picture to focus or track, in MF or DMF drag the focus ring or jump along the focus bar. Focus boxes show what the camera is doing |
-| **Check focus** | Focus magnifier and peaking |
-| **Expose** | ISO, shutter and iris, with a histogram, zebras and the camera's meter |
-| **Record** | One big button, with a red outline around the picture while rolling |
-| **Shoot photos** | Single shots, bursts and time-lapses, saved to your card, your computer or both |
-| **Film wildlife** | **Automatic recording** does the rest |
-| **Set up the camera** | Video format, frame rate, S&Q slow motion, RAW or JPEG, white balance, audio and more, without touching a menu |
-| **Save your setups** | **C1** to **C4**, four for video and four for photos, each back with one click |
-| **Format a card** | Click **▾** next to the card readout. It asks first |
-| **Use your phone** | Tick **Allow phone control** in **Setup**, then open the address it shows |
-| **Stay informed** | Battery and card warnings before you run out |
-| **Stop worrying** | Reconnects by itself, and the camera keeps recording if Wi-Fi drops |
-
-**Handy keys:** **H** histogram · **Z** zebras · **P** peaking · **G** grid · **F9** record or take a photo (on a Mac, you may need to hold **fn**)
-
-<br>
-
-## Set it up in 3 steps
-
-Allow about 10 minutes. You only do this once.
-
-| | | |
-|---|---|---|
-| **1** | **[Install the app](#1-install-the-app)** | 2 minutes |
-| **2** | **[Set up your camera](#2-set-up-your-camera)** | 5 minutes |
-| **3** | **[Connect](#3-connect)** | 1 minute |
-
-> [!TIP]
-> **Have an AI assistant?** It can walk you through all of this. [Here's what to paste](#let-your-ai-do-it).
-
-**You'll need:** [a supported camera](#which-cameras-work), Wi-Fi at the place you're shooting, and a Windows 11 PC or a Mac on macOS 14.1 or newer.
 
 <br>
 
@@ -246,6 +320,8 @@ Don't ask me for my camera password.
 
 ## Something not working?
 
+**Send the developer a log.** In **Setup**, under **Something not working?**, say what happened if you like and click **Send log to the developer**. You'll get a short reference, like K7Q2MX, to quote when you get in touch. Nothing is sent until you click. The log includes your camera's model and its address on your home network, but no passwords, photos or video, and it's kept for 90 days.
+
 <details>
 <summary><b>My camera isn't in the list</b></summary>
 
@@ -336,7 +412,7 @@ That's normal after resetting the camera or changing its Access Authen. settings
 | **Wi-Fi live view** | 1024×576 at around 20 frames a second on the A7S III |
 | **Photos to your computer** | Full size, or a small JPEG. A full-size RAW took 4 to 12 seconds on the A7S III in our tests, depending on your network |
 | **Time-lapse** | One photo every 1 to 60 seconds, up to 9,999 photos, using the camera's own interval shooting |
-| **Animal detection** | Runs on your computer once a second. It knows birds and common mammals, and no pictures leave your computer |
+| **Animal detection** | Runs on your computer once a second. It knows birds, common mammals and people, and no pictures leave your computer |
 | **Phone control** | A web page on your phone, over your home network or Tailscale, protected by an access code. The computer stays on with the app open |
 | **Your camera password** | Stays on your computer, in Windows Credential Manager or your Mac's Keychain |
 | **Built on** | Sony's Camera Remote SDK v2.02.00 |
@@ -378,13 +454,17 @@ If you'd use one of these, [open an issue](https://github.com/RemingtonWilcox/Ca
 - **Tap does:** Focus, Tracking or Off. Off stops clicks doing anything. Sony's SDK doesn't offer the setting for a remote tap's function on the A7S III, so Tracking may only focus. The app tells you if the camera didn't start tracking.
 - **Picture source:** in **Setup**. **Camera over Wi-Fi** needs no cable. Any HDMI capture card your computer sees is listed too. Plugged one in after opening the app? Click **↻**. Set the camera's **HDMI Resolution** to **1080p** and turn **HDMI Info. Display** off. On a Mac, the app asks for Camera and Microphone access the first time you pick one.
 - **Format a card:** click **▾** next to the card readout. It works while the camera isn't recording, erases the whole card, and asks first. The app can't tell whether you've copied your footage off, so check that yourself.
-- **Rotate:** ⟲ / ⟳ in **Setup**, for a camera mounted in portrait.
-- **Burst:** set **Drive** to a burst speed, then hold **Take photo** down.
+- **Rotate:** ⟲ / ⟳ at the right of the bar under the picture, or **R** (Shift+R turns the other way), for a camera mounted on its side. The window reshapes to fit.
+- **Histogram and meter:** drag the box to move it anywhere over the picture, and drag its corner to resize it. Click it, or **Levels ▴** under the picture, to set the zebra level and the peaking strength and colour.
+- **Drive:** **Single**, **Burst**, **Timer** or **Bracket**, then that one's choices. For a bracket, **One press** takes the whole set and **Press each** takes one photo of it per press, and **2+** and **2−** take the normal photo and one brighter or darker. Other drive modes your camera has, like white balance brackets, are under **▾**.
+- **Burst:** pick **Burst** and a speed under **Drive**, then hold **Take photo** down.
+- **Long exposure:** needs the camera in **M**. Up to 30 seconds the camera times it itself. Longer ones use Bulb, with this app holding the shutter, so keep the window open and the computer awake until it's done. With **Long Exposure NR** on, the camera then takes as long again to finish. When you go back to **Photo**, your shutter speed comes back.
+- **Super 35 crop:** in **Setup**, on cameras that have it, like the A7S III and FX3. No Sony camera in this list records Open Gate over Sony's software.
 - **C1 to C4:** click an empty one to save how the camera is set now: mode, exposure, focus, and for video the format and frame rate. Click it again later to put all of that back. The Video and Photo tabs each have their own four. A preset turns green while the camera matches it. Right-click to save over it or clear it (Control-click on a Mac). If the camera's mode dial is somewhere a preset can't reach, the app says so.
 - **S&Q (slow and quick motion):** under **Recording** on the Video tab, switch between **Normal** and **S&Q**. In S&Q, **S&Q shoots at** is how many frames a second the camera captures, and **S&Q plays at** is the speed it's played back at, so 240fps played at 24p is ten times slower. The fastest rates need an HD file format. Save one to a preset, like 1080p at 240fps on C1, to get to it in one click.
-- **Time-lapse:** open **Time-lapse** under **Drive** and turn it on. The big button then says **Start time-lapse**, and **Stop time-lapse** once it's running.
+- **Time-lapse:** pick **Time-lapse** at the top of the Photo tab. The big button then says **Start time-lapse**, and **Stop time-lapse** once it's running.
 - **Photos on your computer:** choose **Computer**, **Card** or **Both** under **Saving** in **Setup**. They go to `Pictures/CamRemote` until you click **Change folder**. A full-size RAW can take 4 to 12 seconds to arrive, so for bursts and time-lapses use **Both** with **Small JPEG**: the card keeps the full files.
-- **Automatic recording:** turn it on under **Record** and leave **Record when it sees** on **Animal**. It runs on your computer, and no pictures leave it. It knows birds and a few other animals (cats, dogs, horses, sheep, cows, elephants, bears, zebras and giraffes), and something it doesn't know, like a squirrel, may not set it off. A green box follows the animal while the option is on. Set **Rotate** to match how the camera is mounted first: it sees far better the right way up. Takes stop at 5 minutes and start again if the animal is still there. If it keeps being set off by something that isn't an animal, like splashing water, it learns to ignore that spot for 10 minutes. It only stops takes it started itself.
+- **Automatic recording:** turn it on under **Record**, then pick what to watch for, how long to wait after it's gone, and whether to focus on it. It runs on your computer, and no pictures leave it. **Animal** means birds and a few other animals (cats, dogs, horses, sheep, cows, elephants, bears, zebras and giraffes), and something it doesn't know, like a squirrel, may not set it off. **Bird** ignores everything else, and **Person** watches for people instead. A green box follows what it found while the option is on. Set **Rotate** to match how the camera is mounted first: it sees far better the right way up. Takes stop at 5 minutes and start again if the animal is still there. If it keeps being set off by something that isn't an animal, like splashing water, it learns to ignore that spot for 10 minutes. It only stops takes it started itself.
 - **Updates:** when the app opens, it asks GitHub once for the latest version number. If there's a newer one, a green button appears at the bottom of the window. It opens the download page and installs nothing by itself.
 - **Shooting guides:** worked out from the preview, not the recorded file, so a Monitor LUT changes them. At Wi-Fi preview size, peaking shows the plane of focus. Use the magnifier for critical focus.
 - **Recording timer:** keeps counting through a dropped link or an app restart. A take already rolling when the app first sees it shows a **+**.
