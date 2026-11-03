@@ -161,14 +161,15 @@
                                 <TextBlock x:Name="ShutterLabel" Text="Take photo" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
                             </Button>
                             <!-- What the shutter button does: one photo (or a burst, timer or bracket), a time-lapse, or a long exposure -->
-                            <UniformGrid x:Name="PhotoModes" Rows="1" Margin="-2,8,-2,0" IsVisible="False">
-                                <ToggleButton x:Name="StillMode" Content="Photo" Margin="2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                            <!-- Widths follow the labels, so "Long exposure" isn't cut off -->
+                            <Grid x:Name="PhotoModes" ColumnDefinitions="*,1.2*,1.5*" Margin="-2,8,-2,0" IsVisible="False">
+                                <ToggleButton x:Name="StillMode" Content="Photo" Margin="2" Padding="2,5" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                               Click="OnPhotoModeClick" ToolTip.Tip="A photo per press, or a burst, self-timer or bracket." />
-                                <ToggleButton x:Name="TimeLapseMode" Content="Time-lapse" Margin="2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                <ToggleButton x:Name="TimeLapseMode" Grid.Column="1" Content="Time-lapse" Margin="2" Padding="2,5" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                               Click="OnPhotoModeClick" ToolTip.Tip="The camera takes a photo every so often by itself." />
-                                <ToggleButton x:Name="LongExposureMode" Content="Long exposure" Margin="2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                <ToggleButton x:Name="LongExposureMode" Grid.Column="2" Content="Long exposure" Margin="2" Padding="2,5" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                               Click="OnPhotoModeClick" ToolTip.Tip="Exposures from a second to several minutes, timed by this Mac." />
-                            </UniformGrid>
+                            </Grid>
                             <StackPanel x:Name="DrivePanel" Margin="0,4,0,0" IsVisible="False" />
                             <StackPanel x:Name="TimeLapseBox" Margin="0,4,0,0" IsVisible="False">
                                 <StackPanel x:Name="TimeLapsePanel" />
