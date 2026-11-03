@@ -33,6 +33,9 @@ enum Code {
     static let movieFormat: UInt16 = 0xD241
     static let recordSetting: UInt16 = 0xD242
     static let frameRate: UInt16 = 0xD286
+    static let sqFrameRate: UInt16 = 0xD052 // plain frames a second
+    static let sqPlayRate: UInt16 = 0xD0D0 // same numbers as frameRate
+    static let sqRecordSetting: UInt16 = 0xD0D1 // same numbers as recordSetting
     static let timeLapseMode: UInt16 = 0xD24F
     static let timeLapseStatus: UInt16 = 0xD250
     static let timeLapseDelay: UInt16 = 0xD16A
@@ -85,9 +88,21 @@ struct Preset: Codable {
     let values: [UInt16: Int64]
 }
 
-// The order they go back on. Format and frame rate decide which record settings exist.
-private let presetCodes = [Code.mode, Code.movieFormat, Code.frameRate, Code.recordSetting, Code.shutter, Code.aperture, Code.iso,
-                           Code.exposure, Code.whiteBalance, Code.colorTemp, Code.focusMode, Code.focusArea, Code.drive]
+// The order they go back on. Format and frame rate decide which record settings exist,
+// and the S&Q frame rate moves the shutter, so the shutter goes on after it.
+private let presetCodes = [Code.mode, Code.movieFormat, Code.frameRate, Code.recordSetting, Code.sqPlayRate, Code.sqRecordSetting,
+                           Code.sqFrameRate, Code.shutter, Code.aperture, Code.iso, Code.exposure, Code.whiteBalance, Code.colorTemp,
+                           Code.focusMode, Code.focusArea, Code.drive]
+
+// S&Q has its own frame rate and record setting, so only one pair is shown or saved at a time.
+private let normalMovieCodes = [Code.frameRate, Code.recordSetting]
+private let slowQuickCodes = [Code.sqFrameRate, Code.sqPlayRate, Code.sqRecordSetting]
+
+/// S&Q, in P, A, S, M, Auto or Flexible exposure, on the movie side or the photo dial.
+private func isSlowQuick(_ value: Int64) -> Bool {
+    let mode = value & modeMask
+    return (0x8059...0x805E).contains(mode) || (0x8084...0x8087).contains(mode)
+}
 
 /// One camera setting, ready to show.
 struct Row: Identifiable {
@@ -119,6 +134,9 @@ private let shownRows: [(UInt16, String, (Int64) -> String)] = [
     (Code.movieFormat, "File format", Format.named(Format.movieFormat)),
     (Code.frameRate, "Frame rate", Format.named(Format.frameRate)),
     (Code.recordSetting, "Record setting", Format.named(Format.recordSetting)),
+    (Code.sqFrameRate, "S&Q shoots at", { (1..<0xFFFF).contains($0) ? "\($0)fps" : "Other" }),
+    (Code.sqPlayRate, "S&Q plays at", Format.named(Format.frameRate)),
+    (Code.sqRecordSetting, "S&Q rec setting", Format.named(Format.recordSetting)),
     (Code.drive, "Drive", Format.drive),
     (Code.metering, "Metering", Format.named(Format.metering)),
     (Code.fileFormat, "File format", Format.named(Format.fileFormat)),
@@ -210,6 +228,8 @@ final class Camera: ObservableObject {
     @Published var recordingSince: Date?
     @Published var recordBusy = false
     @Published var photoMode = false
+    @Published var slowQuick = false
+    @Published var offersSlowQuick = false
     @Published var manualFocus = false
     @Published var battery = ""
     @Published var card = ""
@@ -363,6 +383,23 @@ final class Camera: ObservableObject {
         }
     }
 
+    /// Moves between normal movie and S&Q, keeping the same P, A, S or M. The camera allows this without the dial.
+    func useSlowQuick(_ on: Bool) {
+        queue {
+            guard let mode = self.settings[Code.mode] else { return }
+            let current = mode.value & modeMask
+            let letter = (0x8059...0x805C).contains(current) ? current - 0x8059 : (0x8050...0x8053).contains(current) ? current - 0x8050 : 3
+            let want = (on ? 0x8059 : 0x8050) + letter
+            guard let choice = mode.choices.first(where: { $0 & modeMask == want }),
+                  try self.setValue(Code.mode, choice) == ok else {
+                self.tell(on ? "The camera won't switch to S&Q right now." : "The camera won't leave S&Q right now.")
+                return
+            }
+            Thread.sleep(forTimeInterval: 0.5)
+            try self.refresh()
+        }
+    }
+
     func toggleRecord() {
         guard !recordBusy else { return }
         recordBusy = true
@@ -415,12 +452,29 @@ final class Camera: ObservableObject {
 
     func preset(_ slot: Int) -> Preset? { presets[presetKey(slot)] }
 
+    /// A preset in short lines, from its saved values. For video: frame rate, then format, then exposure.
+    /// For photos: exposure, then drive.
+    func describe(_ preset: Preset) -> [String] {
+        func text(_ code: UInt16) -> String {
+            guard let value = preset.values[code], let row = shownRows.first(where: { $0.0 == code }) else { return "" }
+            let shown = row.2(value)
+            return shown == "Other" ? "" : shown
+        }
+        func join(_ parts: String...) -> String { parts.filter { !$0.isEmpty }.joined(separator: " ") }
+        let exposure = join(text(Code.shutter), text(Code.aperture), text(Code.iso).replacingOccurrences(of: "ISO ", with: ""))
+        let mode = preset.values[Code.mode] ?? 0
+        let lines = isPhotoMode(mode) ? [exposure, text(Code.drive)]
+            : [isSlowQuick(mode) ? join("S&Q", text(Code.sqFrameRate)) : text(Code.frameRate), text(Code.movieFormat), exposure]
+        return lines.filter { !$0.isEmpty }
+    }
+
     func savePreset(_ slot: Int) {
         let key = presetKey(slot)
         queue {
-            let values = presetCodes.reduce(into: [UInt16: Int64]()) { $0[$1] = self.settings[$1]?.value }
-            let parts = (self.onPhotoMode ? [] : [Code.frameRate]) + [Code.shutter, Code.aperture, Code.iso]
-            let summary = parts.compactMap { self.text($0) }.joined(separator: " ").replacingOccurrences(of: "ISO ", with: "")
+            let skipped = isSlowQuick(self.settings[Code.mode]?.value ?? 0) ? normalMovieCodes : slowQuickCodes
+            let values = presetCodes.filter { !skipped.contains($0) }
+                .reduce(into: [UInt16: Int64]()) { $0[$1] = self.settings[$1]?.value }
+            let summary = self.describe(Preset(summary: "", values: values)).joined(separator: ", ")
             DispatchQueue.main.async {
                 self.presets[key] = Preset(summary: summary, values: values)
                 if let data = try? JSONEncoder().encode(self.presets) { UserDefaults.standard.set(data, forKey: "modePresets") }
@@ -449,13 +503,13 @@ final class Camera: ObservableObject {
                 guard let value = preset.values[code], let entry = self.settings[code], entry.value != value,
                       entry.choices.isEmpty || entry.choices.contains(value) else { continue }
                 _ = try self.setValue(code, value)
-                if code == Code.frameRate || code == Code.movieFormat {
-                    Thread.sleep(forTimeInterval: 0.3) // the other video settings' choices change with these
+                if [Code.movieFormat, Code.frameRate, Code.sqPlayRate, Code.sqRecordSetting, Code.sqFrameRate].contains(code) {
+                    Thread.sleep(forTimeInterval: 0.3) // the other video settings' choices change with these, and the shutter too
                     try self.refresh()
                 }
             }
             try self.refresh()
-            self.tell("C\(slot): \(preset.summary)")
+            self.tell("C\(slot): \(self.describe(preset).joined(separator: ", "))")
         }
     }
 
@@ -902,11 +956,6 @@ final class Camera: ObservableObject {
         }
     }
 
-    private func text(_ code: UInt16) -> String? {
-        guard let entry = settings[code], let row = shownRows.first(where: { $0.0 == code }) else { return nil }
-        return row.2(entry.value)
-    }
-
     private static func loadPresets() -> [Int: Preset] {
         guard let data = UserDefaults.standard.data(forKey: "modePresets") else { return [:] }
         return (try? JSONDecoder().decode([Int: Preset].self, from: data)) ?? [:]
@@ -923,8 +972,8 @@ final class Camera: ObservableObject {
     private func matches(_ preset: Preset, _ now: [UInt16: Int64]) -> Bool {
         let mode = (now[Code.mode] ?? 0) & modeMask
         var ignored: Set<UInt16> = []
-        if [2, 3, 0x8050, 0x8051].contains(mode) { ignored.insert(Code.shutter) }
-        if [2, 4, 0x8050, 0x8052].contains(mode) { ignored.insert(Code.aperture) }
+        if [2, 3, 0x8050, 0x8051, 0x8059, 0x805A, 0x805D].contains(mode) { ignored.insert(Code.shutter) }
+        if [2, 4, 0x8050, 0x8052, 0x8059, 0x805B, 0x805D].contains(mode) { ignored.insert(Code.aperture) }
         if now[Code.whiteBalance] != 0x8012 { ignored.insert(Code.colorTemp) }
         return preset.values.allSatisfy { ignored.contains($0) || now[$0] == $1 }
     }
@@ -943,8 +992,13 @@ final class Camera: ObservableObject {
         if timeLapseWasRunning, !timeLapseRunning { try endTimeLapse() }
         timeLapseWasRunning = timeLapseRunning
 
+        let isSlowQuickNow = isSlowQuick(settings[Code.mode]?.value ?? 0)
+        let modeChoices = settings[Code.mode]?.choices ?? []
+        let slowQuickOffered = !onPhotoMode && modeChoices.contains(where: isSlowQuick)
+            && modeChoices.contains { (0x8050...0x8053).contains($0 & modeMask) }
+        let hidden = isSlowQuickNow ? normalMovieCodes : slowQuickCodes
         var shown: [UInt16: Row] = [:]
-        for (code, label, format) in shownRows {
+        for (code, label, format) in shownRows where !hidden.contains(code) {
             guard let entry = settings[code] else { continue }
             let choices = entry.choices.map { Choice(value: $0, text: format($0), group: Format.group(code, $0)) }
             let usable = choices.filter { $0.text != "Other" && (code != Code.mode || isPhotoMode($0.value) == onPhotoMode) }
@@ -975,6 +1029,8 @@ final class Camera: ObservableObject {
             if isRecording != self.recording { self.recordingSince = isRecording ? Date() : nil }
             self.recording = isRecording
             self.photoMode = isPhoto
+            self.slowQuick = isSlowQuickNow
+            self.offersSlowQuick = slowQuickOffered
             self.manualFocus = isManual
             self.battery = batteryText
             self.card = cardText

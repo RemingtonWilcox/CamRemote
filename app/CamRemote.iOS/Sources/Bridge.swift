@@ -21,6 +21,7 @@ private let pageRows: [(code: UInt16, section: String, kind: String)] = [
     (Code.exposure, "exposure", "Stepper"), (Code.mode, "exposure", "Picker"), (Code.whiteBalance, "exposure", "Picker"),
     (Code.colorTemp, "exposure", "Picker"), (Code.focusMode, "focus", "Picker"), (Code.focusArea, "focus", "Picker"),
     (Code.movieFormat, "more", "Picker"), (Code.frameRate, "more", "Picker"), (Code.recordSetting, "more", "Picker"),
+    (Code.sqFrameRate, "more", "Picker"), (Code.sqPlayRate, "more", "Picker"), (Code.sqRecordSetting, "more", "Picker"),
     (Code.drive, "more", "Picker"), (Code.metering, "more", "Picker"), (Code.fileFormat, "more", "Picker"),
     (Code.jpegQuality, "more", "Picker"), (Code.imageSize, "more", "Picker"), (Code.aspectRatio, "more", "Picker"),
     (Code.silent, "more", "Picker"),

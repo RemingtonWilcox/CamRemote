@@ -135,9 +135,14 @@ struct ShootingView: View {
                             colorTempChip
                             chip(Code.metering)
                         } else {
+                            SlowQuickChip(camera: camera)
+                            // Only one of each pair is there, depending on S&Q.
                             chip(Code.frameRate)
+                            chip(Code.sqFrameRate)
+                            chip(Code.sqPlayRate)
                             chip(Code.movieFormat)
                             chip(Code.recordSetting)
+                            chip(Code.sqRecordSetting)
                             chip(Code.whiteBalance)
                             colorTempChip
                         }
@@ -648,9 +653,10 @@ struct SettingsBar: View {
                 part(Code.drive)
                 part(Code.aspectRatio)
             } else {
-                part(Code.frameRate, strong: true)
+                // The mode already says S&Q, so its frame rate needs nothing more.
+                part(camera.slowQuick ? Code.sqFrameRate : Code.frameRate, strong: true)
                 part(Code.movieFormat)
-                part(Code.recordSetting)
+                part(camera.slowQuick ? Code.sqRecordSetting : Code.recordSetting)
             }
         }
         .foregroundColor(.white)
@@ -815,6 +821,7 @@ struct ChipFace: View {
     let label: String
     let value: String
     let on: Bool
+    var more: [String] = [] // smaller lines under the value, the last one dimmer
 
     var body: some View {
         VStack(spacing: 1) {
@@ -824,6 +831,13 @@ struct ChipFace: View {
                 .foregroundColor(on ? .good : .white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
+            ForEach(more.indices, id: \.self) { i in
+                Text(more[i])
+                    .font(.caption2)
+                    .foregroundColor(i == 0 && more.count > 1 ? .white : .dim)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
         }
         .padding(.horizontal, 4)
         .frame(maxWidth: .infinity, minHeight: 46)
@@ -837,7 +851,8 @@ struct PresetChip: View {
     let slot: Int
 
     var body: some View {
-        ChipFace(label: "C\(slot)", value: camera.preset(slot)?.summary ?? "Empty", on: camera.activeSlot == slot)
+        let lines = camera.preset(slot).map(camera.describe) ?? []
+        ChipFace(label: "C\(slot)", value: lines.first ?? "Empty", on: camera.activeSlot == slot, more: Array(lines.dropFirst()))
             .overlay {
                 if camera.activeSlot == slot { RoundedRectangle(cornerRadius: 8).stroke(Color.good, lineWidth: 2) }
             }
@@ -846,6 +861,21 @@ struct PresetChip: View {
                 UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
                 camera.savePreset(slot)
             }
+    }
+}
+
+/// Slow and quick motion, keeping the same P, A, S or M. Only when the camera lets the app switch.
+struct SlowQuickChip: View {
+    @ObservedObject var camera: Camera
+
+    var body: some View {
+        if camera.offersSlowQuick {
+            Button { camera.useSlowQuick(!camera.slowQuick) } label: {
+                ChipFace(label: "S&Q", value: camera.slowQuick ? "On" : "Off", on: camera.slowQuick)
+            }
+            .buttonStyle(Press())
+            .disabled(camera.recording || camera.timeLapseRunning)
+        }
     }
 }
 
@@ -885,6 +915,9 @@ struct SetupSheet: View {
                     chip(Code.movieFormat)
                     chip(Code.frameRate)
                     chip(Code.recordSetting)
+                    chip(Code.sqFrameRate)
+                    chip(Code.sqPlayRate)
+                    chip(Code.sqRecordSetting)
                 }
                 section("PHOTO")
                 ChipGrid {
