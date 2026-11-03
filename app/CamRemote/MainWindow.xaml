@@ -315,7 +315,15 @@
                                         ToolTip="Makes a new access code. Phones already signed in will need it." />
                             </StackPanel>
 
-                            <TextBlock HorizontalAlignment="Center" Margin="0,24,0,0" FontSize="11">
+                            <TextBlock Text="SOMETHING NOT WORKING?" Style="{StaticResource Section}" />
+                            <TextBlock Text="What happened? (optional)" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,0,0,4" />
+                            <TextBox x:Name="LogNote" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="48" MaxLength="2000" />
+                            <Button x:Name="SendLogButton" Content="Send log to the developer" Style="{StaticResource PanelButton}" Margin="0,6,0,0"
+                                    Click="OnSendLogClick" />
+                            <TextBlock x:Name="SendLogResult" TextWrapping="Wrap" FontSize="12" Margin="0,6,0,0"
+                                       Text="It sends what the app did, with your camera's model and its address on your network. No passwords, photos or video." />
+
+                            <TextBlock HorizontalAlignment="Center" Margin="0,18,0,0" FontSize="11">
                                 <Hyperlink Click="OnShowLogClick" Foreground="{StaticResource Dim}"
                                            ToolTip="Shows camremote.log in Explorer, to send along when something went wrong.">Show log file</Hyperlink>
                             </TextBlock>

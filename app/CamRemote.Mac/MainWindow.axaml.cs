@@ -522,6 +522,17 @@ public partial class MainWindow : Window
         else ShowMessage("There's no log yet.");
     }
 
+    /// <summary>Sends the log to the developer, with what went wrong if they wrote it. Nothing is sent before this.</summary>
+    private async void OnSendLogClick(object? sender, RoutedEventArgs e)
+    {
+        SendLogButton.IsEnabled = false;
+        SendLogResult.Text = "Sending…";
+        var (reference, problem) = await LogSender.SendAsync(LogNote.Text ?? "");
+        SendLogResult.Text = reference != null ? $"Sent, thank you. Its reference is {reference}." : problem;
+        if (reference != null) LogNote.Text = "";
+        SendLogButton.IsEnabled = true;
+    }
+
     private async void OnChangePhotos(object? sender, RoutedEventArgs e)
     {
         var picked = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Save photos to this folder" });

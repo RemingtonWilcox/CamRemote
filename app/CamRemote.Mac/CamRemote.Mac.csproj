@@ -19,6 +19,7 @@
     <Compile Include="..\CamRemote\CameraModels.cs" Link="Shared\CameraModels.cs" />
     <Compile Include="..\CamRemote\Log.cs" Link="Shared\Log.cs" />
     <Compile Include="..\CamRemote\UpdateCheck.cs" Link="Shared\UpdateCheck.cs" />
+    <Compile Include="..\CamRemote\LogSender.cs" Link="Shared\LogSender.cs" />
     <Compile Include="..\CamRemote\PictureZoom.cs" Link="Shared\PictureZoom.cs" />
     <Compile Include="..\CamRemote\CameraService.cs" Link="Shared\CameraService.cs" />
     <Compile Include="..\CamRemote\Format.cs" Link="Shared\Format.cs" />

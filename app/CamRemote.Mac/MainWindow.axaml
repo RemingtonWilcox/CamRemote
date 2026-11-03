@@ -274,7 +274,15 @@
                                         ToolTip.Tip="Makes a new access code. Phones already signed in will need it." />
                             </StackPanel>
 
-                            <TextBlock Text="Show log file" Classes="Small" FontSize="11" HorizontalAlignment="Center" Margin="0,24,0,0"
+                            <TextBlock Text="SOMETHING NOT WORKING?" Classes="Section" />
+                            <TextBlock Text="What happened? (optional)" Classes="Small" Margin="0,0,0,4" />
+                            <TextBox x:Name="LogNote" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="48" MaxLength="2000" />
+                            <Button x:Name="SendLogButton" Content="Send log to the developer" Margin="0,6,0,0" HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center" Click="OnSendLogClick" />
+                            <TextBlock x:Name="SendLogResult" TextWrapping="Wrap" FontSize="12" Margin="0,6,0,0"
+                                       Text="It sends what the app did, with your camera's model and its address on your network. No passwords, photos or video." />
+
+                            <TextBlock Text="Show log file" Classes="Small" FontSize="11" HorizontalAlignment="Center" Margin="0,18,0,0"
                                        TextDecorations="Underline" Cursor="Hand" PointerPressed="OnShowLogPressed"
                                        ToolTip.Tip="Shows camremote.log in Finder, to send along when something went wrong." />
                         </StackPanel>
