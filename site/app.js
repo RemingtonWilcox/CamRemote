@@ -17,6 +17,25 @@
     : null;
   $$('.reveal').forEach((el) => (revealer ? revealer.observe(el) : el.classList.add('in')));
 
+  /* ---------- Numbers count up the first time they're seen ---------- */
+  if (!reduced && 'IntersectionObserver' in window) {
+    const counter = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (!e.isIntersecting) return;
+        counter.unobserve(e.target);
+        const el = e.target, to = +el.dataset.count, t0 = performance.now(), ms = 1300;
+        const show = (v) => { el.textContent = el.dataset.sep ? v.toLocaleString('en') : String(v); };
+        const tick = (t) => {
+          const k = Math.min(1, (t - t0) / ms), eased = 1 - Math.pow(1 - k, 3);
+          show(Math.round(to * eased));
+          if (k < 1) requestAnimationFrame(tick);
+        };
+        show(0); requestAnimationFrame(tick);
+      });
+    }, { threshold: 0.6 });
+    $$('[data-count]').forEach((el) => counter.observe(el));
+  }
+
   /* ---------- Name, version and links from config.js ---------- */
   $$('.nm').forEach((el) => { el.textContent = S.name || ''; });
   $$('[data-version]').forEach((el) => { el.textContent = S.version || ''; });
@@ -503,7 +522,7 @@
 
   // The app's keys: H Z P G and F9
   addEventListener('keydown', (e) => {
-    if (e.target.closest('input, textarea, select, [contenteditable]') || e.ctrlKey || e.metaKey || e.altKey) return;
+    if ((e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable]')) || e.ctrlKey || e.metaKey || e.altKey) return;
     if (!labVisible) return;
     const k = e.key.toLowerCase();
     const map = { h: 'histogram', z: 'zebras', p: 'peaking', g: 'grid' };
