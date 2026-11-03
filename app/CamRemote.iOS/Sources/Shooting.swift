@@ -909,7 +909,7 @@ struct PresetChip: View {
     let slot: Int
 
     var body: some View {
-        let lines = camera.preset(slot).map(camera.describe) ?? []
+        let lines = camera.presetLines(slot)
         ChipFace(label: "C\(slot)", value: lines.first ?? "Empty", on: camera.activeSlot == slot, more: Array(lines.dropFirst()))
             .overlay {
                 if camera.activeSlot == slot { RoundedRectangle(cornerRadius: 8).stroke(Color.good, lineWidth: 2) }
@@ -957,6 +957,7 @@ struct SetupSheet: View {
     @State private var chooser: Row?
     @State private var showCredits = false
     @State private var forgetting: SavedCamera?
+    @State private var askFormat = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -1015,11 +1016,18 @@ struct SetupSheet: View {
                     .padding(12)
                     .background(Color.panel, in: RoundedRectangle(cornerRadius: 10))
                 }
+                if camera.join == nil {
+                    section("CARD")
+                    Button(camera.formatting ? "Formatting…" : "Format card…") { askFormat = true }
+                        .buttonStyle(Big(color: .panel))
+                        .disabled(camera.formatting || camera.recording || camera.timeLapseRunning)
+                }
                 section("CONNECTION")
-                Text("Photos and video stay on the camera's card.")
+                Text(camera.join.map { "Using the camera through the CamRemote at \($0.address.replacingOccurrences(of: ":8787", with: "")). It keeps the camera when you leave." }
+                     ?? "Photos and video stay on the camera's card.")
                     .font(.footnote)
                     .foregroundColor(.dim)
-                Button("Disconnect") {
+                Button(camera.join == nil ? "Disconnect" : "Leave") {
                     dismiss()
                     camera.disconnect()
                 }
@@ -1047,6 +1055,11 @@ struct SetupSheet: View {
             Button("Forget", role: .destructive) { camera.forget(saved) }
         } message: { _ in
             Text("Its login is removed from this device and your others. You'll type it again to connect.")
+        }
+        .confirmationDialog("Erase the camera's card?", isPresented: $askFormat, titleVisibility: .visible) {
+            Button("Erase card", role: .destructive) { camera.formatCard() }
+        } message: {
+            Text("Every photo and video on it is deleted, and it can't be undone. Copy anything you want to keep first.")
         }
     }
 

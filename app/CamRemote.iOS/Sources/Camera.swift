@@ -64,6 +64,8 @@ enum Code {
     static let nearFar: UInt16 = 0xD2D1
     static let touch: UInt16 = 0xD2E4
     static let touchCancel: UInt16 = 0xD2E5
+    static let formatMedia: UInt16 = 0xD2CA // named in libgphoto2's ptp.h, like the newer one below
+    static let formatMediaCard: UInt16 = 0xD2E2
 }
 
 struct Choice: Identifiable {
@@ -252,6 +254,14 @@ final class Camera: ObservableObject {
     @Published var guideImage: UIImage?
     @Published var histogram: [CGFloat] = []
     @Published var overPercent = 0.0
+    @Published var busyElsewhere = false // the last try found another remote holding the camera
+    @Published var joinedPresets: [Int: [String]] = [:] // the other CamRemote's C1 to C4, while using its camera
+    @Published var formatting = false
+
+    var join: JoinLink? // main thread only: set while this app uses a camera another CamRemote holds
+    var frameJpeg: Data? // main thread only: the camera's own picture, passed on as it is to an iPad on the hotspot
+    private var refused: [UInt16: Set<Int64>] = [:] // values the camera listed but wouldn't take in this mode
+    private var refusedIn: [Int64] = []
 
     private let lock = NSLock()
     private var pending: [() throws -> Void] = []
@@ -314,6 +324,7 @@ final class Camera: ObservableObject {
     }
 
     func disconnect() {
+        if join != nil { return leave() }
         if shutterHeld {
             shutterUp(now: true)
         } else if shutterWaiting {
@@ -350,29 +361,55 @@ final class Camera: ObservableObject {
     }
 
     func set(_ code: UInt16, _ value: Int64) {
-        queue {
-            let rc = try self.setValue(code, value)
-            if rc != ok { self.tell("The camera didn't accept that right now.") }
-            try self.refresh()
-        }
+        if let join { return join.post("set", ["id": String(code), "value": String(value)], camera: self) }
+        queue { _ = try self.change(code, value) }
     }
 
     /// One change at a time, so a fast drag doesn't queue them up. Returns false if one is still on its way.
     func step(_ code: UInt16, by: Int) -> Bool {
         guard !stepSending else { return false }
+        if join != nil {
+            guard let row = rows[code], let at = row.choices.firstIndex(where: { $0.text == row.text }),
+                  row.choices.indices.contains(at + by) else { return true }
+            set(code, row.choices[at + by].value)
+            return true
+        }
         stepSending = true
         queue {
             defer { DispatchQueue.main.async { self.stepSending = false } }
-            guard let entry = self.settings[code], let at = entry.choices.firstIndex(of: entry.value),
-                  entry.choices.indices.contains(at + by) else { return }
-            if try self.setValue(code, entry.choices[at + by]) != ok { self.tell("The camera didn't accept that right now.") }
-            try self.refresh()
+            // A refused ISO is dropped, and the step carries on to the next one the camera takes.
+            for _ in 0..<4 {
+                guard let entry = self.settings[code], let at = self.usable(code, entry).firstIndex(of: entry.value),
+                      self.usable(code, entry).indices.contains(at + by) else { return }
+                if try self.change(code, self.usable(code, entry)[at + by], quiet: true) { return }
+            }
         }
         return true
     }
 
+    private func usable(_ code: UInt16, _ entry: Setting) -> [Int64] {
+        entry.choices.filter { !(refused[code]?.contains($0) ?? false) }
+    }
+
+    /// Some values are listed but not taken in every mode, like ISO 80 while filming. The camera says OK and stays put,
+    /// so a refused ISO is dropped from the list until the mode or format changes.
+    private func change(_ code: UInt16, _ value: Int64, quiet: Bool = false) throws -> Bool {
+        let rc = try setValue(code, value)
+        if code == Code.iso, rc == ok { Thread.sleep(forTimeInterval: 0.3) }
+        try refresh()
+        if code == Code.iso, settings[code]?.value != value {
+            refused[code, default: []].insert(value)
+            try refresh()
+            if !quiet { tell("The camera won't take \(Format.iso(value)) in this mode, so it's off the list.") }
+            return false
+        }
+        if rc != ok { tell("The camera didn't accept that right now.") }
+        return rc == ok
+    }
+
     /// Photo and video are programs on the camera's mode dial, so the dial has to allow the switch.
     func useMode(photo: Bool) {
+        if let join { return join.post("mode", ["photo": photo], camera: self) }
         queue {
             guard let mode = self.settings[Code.mode] else { return }
             let current = mode.value & modeMask
@@ -393,6 +430,7 @@ final class Camera: ObservableObject {
 
     /// Moves between normal movie and S&Q, keeping the same P, A, S or M. The camera allows this without the dial.
     func useSlowQuick(_ on: Bool) {
+        if let join { return join.post("slowquick", ["on": on], camera: self) }
         queue {
             guard let mode = self.settings[Code.mode] else { return }
             let current = mode.value & modeMask
@@ -412,6 +450,11 @@ final class Camera: ObservableObject {
         guard !recordBusy else { return }
         recordBusy = true
         recordSent = Date()
+        if let join {
+            join.post("record", ["on": !recording], camera: self)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { self.recordBusy = false } // the other app's state catches up
+            return
+        }
         queue {
             defer { DispatchQueue.main.async { self.recordBusy = false } }
             try self.refresh()
@@ -436,6 +479,7 @@ final class Camera: ObservableObject {
     /// Stops a take even while another press is still on its way, since this one goes out after it.
     /// For when the app is about to leave the screen.
     func stopRecording() {
+        if let join { return join.post("record", ["on": false], camera: self) }
         queue {
             try self.refresh()
             if self.settings[Code.recording]?.value == 1 { try self.stopTake() }
@@ -460,6 +504,11 @@ final class Camera: ObservableObject {
 
     func preset(_ slot: Int) -> Preset? { presets[presetKey(slot)] }
 
+    /// What a C button shows: this app's own preset, or the other CamRemote's while using its camera.
+    func presetLines(_ slot: Int) -> [String] {
+        join != nil ? joinedPresets[slot] ?? [] : preset(slot).map(describe) ?? []
+    }
+
     /// A preset in short lines, from its saved values. For video: frame rate, then format, then exposure.
     /// For photos: exposure, then drive.
     func describe(_ preset: Preset) -> [String] {
@@ -477,6 +526,10 @@ final class Camera: ObservableObject {
     }
 
     func savePreset(_ slot: Int) {
+        if let join {
+            join.post("preset", ["slot": slot, "save": true], camera: self, done: "Saved to C\(slot).")
+            return
+        }
         let key = presetKey(slot)
         queue {
             let skipped = isSlowQuick(self.settings[Code.mode]?.value ?? 0) ? normalMovieCodes : slowQuickCodes
@@ -493,6 +546,14 @@ final class Camera: ObservableObject {
 
     /// The camera's own C1 to C3 stay as they are. These live in the app, so nothing on the camera gets overwritten.
     func applyPreset(_ slot: Int) {
+        if let join {
+            guard joinedPresets[slot] != nil else {
+                message = "Press and hold C\(slot) to save your current settings there."
+                return
+            }
+            join.post("preset", ["slot": slot, "save": false], camera: self)
+            return
+        }
         guard let preset = preset(slot) else {
             message = "Press and hold C\(slot) to save your current settings there."
             return
@@ -522,6 +583,10 @@ final class Camera: ObservableObject {
     }
 
     func startTimeLapse(intervalSeconds: Int, shots: Int, delaySeconds: Int) {
+        guard join == nil else {
+            message = "Start time-lapses on the device that has the camera. It keeps count."
+            return
+        }
         queue {
             guard self.settings[Code.timeLapseMode] != nil else {
                 self.tell("This camera doesn't offer time-lapse.")
@@ -568,9 +633,14 @@ final class Camera: ObservableObject {
 
     /// The camera doesn't report a count of its own, but its shots left drops by one a photo.
     /// Nil in video mode, where the camera reports no shots left.
+    /// The count only drops once a photo is written, which ran one behind the camera, so the clock fills in the photo
+    /// that's due and still being written. It never runs more than one ahead of the card.
     private func photosTaken(_ plan: TimeLapsePlan) -> Int? {
         guard onPhotoMode, let before = plan.cardShots, let left = settings[Code.cardShots]?.value else { return nil }
-        return max(0, min(plan.shots, before - Int(left)))
+        let counted = before - Int(left)
+        let interval = plan.ends.timeIntervalSince(plan.starts) / Double(max(1, plan.shots))
+        let due = Date() < plan.starts || interval <= 0 ? 0 : Int(Date().timeIntervalSince(plan.starts) / interval) + 1
+        return max(0, min(plan.shots, max(counted, min(due, counted + 1))))
     }
 
     /// Runs when a connection opens, so a time-lapse that ended while the app was away doesn't look like it's still going.
@@ -581,9 +651,52 @@ final class Camera: ObservableObject {
     }
 
     func stopTimeLapse() {
+        guard join == nil else {
+            message = "Stop it on the device that has the camera."
+            return
+        }
         queue {
             try self.pressShutter()
             try self.refresh()
+        }
+    }
+
+    /// Erases the card, once the person has said yes. Sony doesn't document this over PTP: libgphoto2 names 0xD2CA, and 0xD2E2 on
+    /// newer cameras. Each is pressed like a button, and the card's room going up is what shows it worked.
+    func formatCard() {
+        guard join == nil else {
+            message = "Format the card on the device that has the camera."
+            return
+        }
+        guard !recording, !timeLapseRunning, !formatting else {
+            message = "Stop first, then format the card."
+            return
+        }
+        formatting = true
+        queue {
+            defer { DispatchQueue.main.async { self.formatting = false } }
+            try self.refresh()
+            let room = { (self.settings[Code.cardShots]?.value ?? 0, self.settings[Code.cardTime]?.value ?? 0) }
+            let before = room()
+            for code in [Code.formatMedia, Code.formatMediaCard] {
+                let rc = try self.button(code, down)
+                Thread.sleep(forTimeInterval: 0.1)
+                _ = try self.button(code, up)
+                guard rc == ok else { continue }
+                for _ in 0..<30 {
+                    Thread.sleep(forTimeInterval: 0.5)
+                    try self.refresh()
+                    let now = room()
+                    if now.0 > before.0 || now.1 > before.1 {
+                        self.log(String(format: "Formatted with %04X", code))
+                        self.tell("The card is formatted.")
+                        return
+                    }
+                }
+                self.log(String(format: "%04X said OK but the card's room didn't change", code))
+                break
+            }
+            self.tell("The camera didn't show the card being erased. If it was empty already, that's fine. If not, use the camera's menu: Shooting › Media › Format.")
         }
     }
 
@@ -608,6 +721,10 @@ final class Camera: ObservableObject {
     func shutterDown() -> Bool {
         guard !shutterHeld, !shutterWaiting, Date().timeIntervalSince(shutterReleased) > pressGap else { return false }
         shutterHeld = true
+        if let join {
+            join.post("shutter", ["down": true], camera: self)
+            return true
+        }
         queue {
             self.shutterPressed = Date()
             _ = try self.button(Code.halfPress, down)
@@ -620,6 +737,7 @@ final class Camera: ObservableObject {
         guard shutterHeld else { return }
         shutterHeld = false
         shutterReleased = Date()
+        if let join { return join.post("shutter", ["down": false], camera: self) } // the other app waits for focus itself
         shutterWaiting = !now
         queue { try self.letGo(waiting: !now) }
     }
@@ -649,6 +767,10 @@ final class Camera: ObservableObject {
     func focusStep(_ step: Int) -> Bool {
         guard !focusSending else { return false }
         focusSending = true
+        if let join {
+            join.post("focusstep", ["step": step], camera: self) { self.focusSending = false }
+            return true
+        }
         queue {
             defer { DispatchQueue.main.async { self.focusSending = false } }
             _ = try self.send(pressOp, Code.nearFar, withUnsafeBytes(of: Int16(step).littleEndian, Array.init))
@@ -659,6 +781,7 @@ final class Camera: ObservableObject {
     /// `x` and `y` run from 0 to 1 across the picture. Manual focus drops to autofocus for this one tap, then returns.
     func focus(x: Double, y: Double) {
         guard !tapBusy else { return }
+        if let join { return join.post("focus", ["x": x, "y": y], camera: self) }
         tapBusy = true
         let point = UInt32(x * 639) << 16 | UInt32(y * 479)
         queue {
@@ -709,6 +832,7 @@ final class Camera: ObservableObject {
 
     private func finish(_ problem: String, retry: Bool = false, badLogin: Bool = false, newCamera: Bool = false) {
         DispatchQueue.main.async {
+            guard self.join == nil else { return } // a try that ended after this device went through another CamRemote
             self.problem = problem
             self.keepTrying = retry
             self.loginRefused = badLogin
@@ -784,6 +908,8 @@ final class Camera: ObservableObject {
         do {
             try start()
             started = true
+            refused = [:]
+            DispatchQueue.main.async { self.busyElsewhere = false }
             tell("Connected to \(cameraName)")
             Logins.save(SavedCamera(key: key, name: cameraName, login: login))
             DispatchQueue.main.async {
@@ -799,11 +925,13 @@ final class Camera: ObservableObject {
             lock.lock()
             let leaving = stopping // a hang-up that failed partway is still the hang-up that was asked for
             lock.unlock()
+            let held = (error as? PtpError)?.text == busy
             if !leaving {
-                problem = (error as? PtpError)?.text == busy
-                    ? "The camera is busy with another remote. Close CamRemote on your computer or other device, and Sony's Monitor & Control."
+                problem = held
+                    ? "Another remote has the camera. If it's CamRemote on your iPhone or computer, use the camera through it below."
                     : started ? "Lost the camera. Looking for it again." : "The camera stopped answering while opening. Trying again."
             }
+            DispatchQueue.main.async { self.busyElsewhere = held && !leaving }
         }
         cam_ssh_close()
         finish(problem, retry: !problem.isEmpty)
@@ -910,7 +1038,9 @@ final class Camera: ObservableObject {
                 let (rc, data) = try op(0x1009, [liveView])
                 if rc == ok, takeFrameSlot() {
                     if let image = jpeg(data) {
+                        let raw = jpegStart(data).map { Data(data[$0...]) }
                         DispatchQueue.main.async {
+                            self.frameJpeg = raw
                             self.frame = image
                             self.frameTime = Date()
                             self.freeFrameSlot()
@@ -953,7 +1083,7 @@ final class Camera: ObservableObject {
     }
 
     /// The camera sends a clean picture, so these are worked out here. Off the camera thread, and only about eight times a second.
-    private func readGuides(_ image: UIImage) {
+    func readGuides(_ image: UIImage) {
         lock.lock()
         let wanted = guides
         let run = (wanted.histogram || wanted.zebra || wanted.peaking) && !guidesBusy && Date().timeIntervalSince(lastGuides) > 0.12
@@ -1014,9 +1144,12 @@ final class Camera: ObservableObject {
         return result == KERN_SUCCESS ? Int(info.phys_footprint / 1_048_576) : 0
     }
 
+    private func jpegStart(_ data: [UInt8]) -> Int? {
+        data.indices.dropLast().first { data[$0] == 0xFF && data[$0 + 1] == 0xD8 }
+    }
+
     private func jpeg(_ data: [UInt8]) -> UIImage? {
-        guard let start = data.indices.dropLast().first(where: { data[$0] == 0xFF && data[$0 + 1] == 0xD8 }) else { return nil }
-        return UIImage(data: Data(data[start...]))
+        jpegStart(data).flatMap { UIImage(data: Data(data[$0...])) }
     }
 
     /// The camera holds new photos for the app, and refuses to record until they're collected.
@@ -1062,6 +1195,12 @@ final class Camera: ObservableObject {
         }
         settings.merge(fresh) { $1 }
         settings[Code.exposure]?.choices.sort() // the camera lists these from plus to minus
+        // What the camera refuses depends on the mode and format, so a change there gives refused values another go.
+        let refusedNow = [Code.mode, Code.movieFormat, Code.frameRate, Code.sqFrameRate].map { settings[$0]?.value ?? 0 }
+        if refusedNow != refusedIn {
+            refusedIn = refusedNow
+            refused = [:]
+        }
 
         let timeLapseRunning = settings[Code.timeLapseStatus]?.value == 1
         if timeLapseWasRunning, !timeLapseRunning { try endTimeLapse() }
@@ -1075,7 +1214,7 @@ final class Camera: ObservableObject {
         var shown: [UInt16: Row] = [:]
         for (code, label, format) in shownRows where !hidden.contains(code) {
             guard let entry = settings[code] else { continue }
-            let choices = entry.choices.map { Choice(value: $0, text: format($0), group: Format.group(code, $0)) }
+            let choices = usable(code, entry).map { Choice(value: $0, text: format($0), group: Format.group(code, $0)) }
             let usable = choices.filter { $0.text != "Other" && (code != Code.mode || isPhotoMode($0.value) == onPhotoMode) }
             shown[code] = Row(code: code, label: label, text: format(entry.value), choices: usable)
         }

@@ -27,6 +27,9 @@ targets:
       properties:
         CFBundleDisplayName: CamRemote
         NSLocalNetworkUsageDescription: CamRemote connects to your camera over your hotspot or Wi-Fi.
+        # Another CamRemote on the hotspot or home Wi-Fi answers over plain http, like it does for a computer.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
         UILaunchScreen: {}
         UIRequiresFullScreen: true
         UISupportedInterfaceOrientations:
