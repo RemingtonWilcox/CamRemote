@@ -38,6 +38,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _longTimer;
     private DateTime? _longEnds; // while a long exposure is open
     private bool _longBulb; // the shutter is held open by this app, rather than timed by the camera
+    private long? _shutterBeforeLong; // put back on leaving the Long exposure tab, so the next photo isn't a bulb
     private readonly double[] _hold = [-100, -100];
     private DateTime _holdSince = DateTime.Now;
     private bool _useWifi; // picture from the camera's live view instead of the capture card
@@ -604,6 +605,11 @@ public partial class MainWindow : Window
             return;
         }
         _longExposure = sender == LongExposureMode;
+        if (!_longExposure && _shutterBeforeLong is long before)
+        {
+            _shutterBeforeLong = null;
+            if (_cam.State == LinkState.Connected) _cam.Set(PropCode.ShutterSpeed, before);
+        }
         bool timeLapse = sender == TimeLapseMode;
         if (timeLapse != _cam.TimeLapseOn)
         {
@@ -626,7 +632,7 @@ public partial class MainWindow : Window
         seconds >= 60 ? $"{seconds / 60:0.#} min" : seconds >= 1 ? $"{seconds:0.#} s" : Format.Shutter(ShutterValue(seconds));
 
     // Sony's shutter value for whole seconds, or for 1/n.
-    private static long ShutterValue(double seconds) => seconds >= 1 ? ((long)Math.Round(seconds) << 16) | 1 : 0x10000 | (long)Math.Round(1 / seconds);
+    private static long ShutterValue(double seconds) => seconds >= 1 ? ((long)Math.Round(seconds * 10) << 16) | 10 : 0x10000 | (long)Math.Round(1 / seconds);
 
     private void MakeLongExposureButtons()
     {
@@ -706,13 +712,15 @@ public partial class MainWindow : Window
             return;
         }
         int seconds = _settings.LongExposureSeconds;
-        long timed = ShutterValue(seconds);
-        _longBulb = !shutter.Choices().Contains(timed);
+        // Sony writes 2 s as 20/10, so find the camera's own value by its length.
+        long timed = shutter.Choices().FirstOrDefault(v => v != 0 && Math.Abs(Format.ShutterSeconds(v) - seconds) < 0.05);
+        _longBulb = timed == 0;
         if (_longBulb && !shutter.Choices().Contains(0))
         {
             ShowMessage("The camera isn't offering Bulb, so it can't go past 30 s. Check it's in M with Drive on Single.");
             return;
         }
+        _shutterBeforeLong ??= shutter.Value;
         _cam.Set(PropCode.ShutterSpeed, _longBulb ? 0 : timed);
         // Give the shutter speed a moment to land, then press.
         _longEnds = DateTime.Now + TimeSpan.FromSeconds(seconds + 0.6);
