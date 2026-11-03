@@ -385,6 +385,15 @@ While connected, CamRemote is in charge of the settings. The dials go back to no
 </details>
 
 <details>
+<summary><b>An update won't install because CamRemote is in use</b></summary>
+
+<br>
+
+Versions before 1.0.9 could leave a hidden copy running after you closed them, while they were still looking for the camera. Restart your computer, then open the installer again. Newer installers work around it on their own.
+
+</details>
+
+<details>
 <summary><b>It says the camera's fingerprint changed</b></summary>
 
 <br>
