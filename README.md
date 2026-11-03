@@ -217,7 +217,7 @@ If your computer asks about network access, say yes:
 
 ## On your iPhone
 
-There's also an iPhone app that runs the camera with no computer at all, just your phone's hotspot. It has the live picture, tap to focus, exposure, video, photos, burst and time-lapse. Photos and video stay on the camera's card.
+There's also an iPhone app that runs the camera with no computer at all, just your phone's hotspot. It has the live picture, tap to focus, exposure, video, S&Q, photos, burst, time-lapse and C1 to C3 saved setups. Photos and video stay on the camera's card. Close CamRemote on your computer first: the camera only takes one remote at a time.
 
 It can also record when an animal shows up, with the same rules as on a computer: turn on **Record when an animal shows up** on the Video page. **It only works while CamRemote is open on the phone's screen.** iPhones stop apps that aren't on screen, so if you lock the phone or switch apps, it stops watching (and stops a take it started). While the option is on, the app keeps the screen awake, so keep the phone plugged in: a screen that's on for hours, the hotspot and the detector all use battery. The first time you turn it on, the detector takes up to a minute to get ready.
 
@@ -272,6 +272,8 @@ Use the exact **user** and **password** from **Access Authen. Info**. Capitals m
 <br>
 
 Close Sony's phone app. The camera only takes one remote at a time.
+
+The same goes for CamRemote itself: the computer and the iPhone app can't both be connected. Each keeps trying while it's open, so if the phone lets go (the screen locks, or you switch apps), the computer takes the camera back. Close CamRemote on the computer before you use the phone.
 
 </details>
 
