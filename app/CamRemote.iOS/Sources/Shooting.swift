@@ -833,6 +833,7 @@ struct SilentChip: View {
 struct SetupSheet: View {
     @ObservedObject var camera: Camera
     @State private var chooser: Row?
+    @State private var showCredits = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -882,11 +883,14 @@ struct SetupSheet: View {
                     camera.disconnect()
                 }
                 .buttonStyle(Big(color: .panel))
-                Text("CamRemote \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
-                    .font(.caption2)
-                    .foregroundColor(.dim)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 12)
+                HStack(spacing: 12) {
+                    Text("CamRemote \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
+                    Button("Credits") { showCredits = true }
+                }
+                .font(.caption2)
+                .foregroundColor(.dim)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 12)
             }
             .padding()
         }
@@ -895,6 +899,7 @@ struct SetupSheet: View {
             ChoiceSheet(row: row) { camera.set(row.code, $0) }
                 .presentationDetents([.medium, .large])
         }
+        .sheet(isPresented: $showCredits) { CreditsSheet() }
     }
 
     private func section(_ title: String) -> some View {
@@ -905,6 +910,30 @@ struct SetupSheet: View {
         if let row = camera.rows[code] {
             Chip(row: row) { chooser = row }
         }
+    }
+}
+
+/// The licences of what's inside the app, which they require it to show.
+struct CreditsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    private var notices: String {
+        Bundle.main.url(forResource: "Notices", withExtension: "txt").flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Credits").font(.title3.weight(.semibold))
+                    Spacer()
+                    Button("Done") { dismiss() }
+                }
+                Text(notices).font(.caption).foregroundColor(.dim)
+            }
+            .padding()
+        }
+        .background(Color.page.ignoresSafeArea())
     }
 }
 

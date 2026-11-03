@@ -13,4 +13,9 @@ The ready-made downloads include these parts, each under its own licence:
 - **RF-DETR Nano** (the animal detector's model): © Roboflow. Apache 2.0.
 - **Microsoft Visual C++ Runtime** (Windows): © Microsoft. Redistributed under the Visual Studio licence terms.
 
+The iPhone app has no Sony software in it. It includes these parts, and shows their full licences under **Setup › Credits**:
+
+- **libssh2:** © Sara Golemon, Daniel Stenberg and others. BSD-3-Clause.
+- **Mbed TLS:** © The Mbed TLS Contributors. Apache 2.0.
+
 Sony's SDK itself includes open-source libraries. Their notices follow. libusb is covered by the LGPL 2.1: it stays a separate, replaceable library in the download, and its source code is published with each release.

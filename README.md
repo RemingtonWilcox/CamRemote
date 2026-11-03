@@ -211,6 +211,14 @@ If your computer asks about network access, say yes:
 
 <br>
 
+## On your iPhone
+
+There's also an iPhone app that runs the camera with no computer at all, just your phone's hotspot. It has the live picture, tap to focus, exposure, video, photos, burst and time-lapse. Photos and video stay on the camera's card, and it doesn't have animal detection yet.
+
+**You can't download it yet.** It's still being tested, and it'll come to TestFlight, Apple's beta testing app, first. If you have a Mac and a paid Apple developer account, you can [build it yourself](#build-the-iphone-app).
+
+<br>
+
 ## Let your AI do it
 
 Using ChatGPT, Claude or another assistant? Paste this in, and it'll guide you one step at a time, from the camera menus to your first connection:
@@ -391,6 +399,16 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 ./build-mac.sh
 ```
 
+<a id="build-the-iphone-app"></a>**iPhone:** it doesn't use Sony's SDK or need anything in `vendor/`. On a Mac with Xcode, install CMake and XcodeGen, then:
+
+```bash
+cd app/CamRemote.iOS
+./build-deps.sh
+DEVELOPMENT_TEAM=<your team id> ./build-iphone.sh
+```
+
+Run these in Terminal on the Mac itself, so signing can reach your Keychain. Then install the app on your phone from Xcode's **Devices** window.
+
 **Making the downloads:** `package-windows.ps1` builds the installer with Inno Setup. `package-mac.sh` builds both notarized disk images, and its comments explain the one-time setup. Upload those files and `libusb-source.zip` to a GitHub release.
 
 **How it's put together:**
@@ -398,6 +416,7 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 - `native/CamBridge/`: a small C++ library that wraps Sony's SDK in a flat C API returning JSON. `MacSupport.mm` adds the Mac's Keychain, keep-awake, capture and audio code.
 - `app/CamRemote/`: the Windows app (WPF, .NET 10) and the camera code both apps share.
 - `app/CamRemote.Mac/`: the Mac app (Avalonia, .NET 10). A change to a window or control usually needs making in both.
+- `app/CamRemote.iOS/`: the iPhone app (SwiftUI). It talks to the camera directly over SSH and PTP/IP, and shares no code with the others.
 - `tools/`: generates names from the SDK headers, draws the icon, writes the notices and holds the packaging settings.
 
 Notes from Sony's SDK reference (v2.02.00) for the A7S III:
@@ -414,6 +433,6 @@ Notes from Sony's SDK reference (v2.02.00) for the A7S III:
 
 <br>
 
-CamRemote's code is MIT licensed (see `LICENSE`). The downloads include Sony's Camera Remote SDK libraries under [Sony's licence](https://support.d-imaging.sony.co.jp/app/sdk/licenseagreement/en-US.html), plus open-source parts listed in `NOTICES.md`. The SDK isn't in this repository.
+CamRemote's code is MIT licensed (see `LICENSE`). The downloads for Windows and Mac include Sony's Camera Remote SDK libraries under [Sony's licence](https://support.d-imaging.sony.co.jp/app/sdk/licenseagreement/en-US.html), plus open-source parts listed in `NOTICES.md`. The SDK isn't in this repository, and the iPhone app doesn't use it.
 
 </details>
