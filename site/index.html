@@ -1,0 +1,921 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- This page loads nothing from anyone else until you press play on the video. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-src https://www.youtube-nocookie.com; connect-src 'none'; form-action 'none'; base-uri 'self'; object-src 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+
+  <!-- APP NAME: also set in config.js. Change both if the name changes. -->
+  <title>CamRemote · Run your Sony camera from anywhere</title>
+  <meta name="description" content="Free Windows, Mac, iPhone and iPad apps that run a Sony camera over Wi-Fi: live picture, focus, exposure, video, photos, slow motion, time-lapse, and automatic recording when wildlife shows up.">
+  <meta property="og:title" content="CamRemote · Run your Sony camera from anywhere">
+  <meta property="og:site_name" content="CamRemote">
+  <!-- /APP NAME -->
+  <meta property="og:description" content="Live picture, focus, exposure, video, photos, slow motion and time-lapse, from across the yard or across town. Free and open source.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="assets/social-card.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#07080a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f5f6f7" media="(prefers-color-scheme: light)">
+
+  <link rel="icon" type="image/png" href="assets/favicon-64.png">
+  <link rel="apple-touch-icon" href="assets/icon-180.png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="theme.js"></script>
+  <script src="config.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body id="top">
+
+<!-- Icons, drawn once and reused below -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-focus" viewBox="0 0 24 24"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><circle cx="12" cy="12" r="3.2"/></symbol>
+    <symbol id="i-loupe" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.6-4.6M10.5 7.5v6M7.5 10.5h6"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></symbol>
+    <symbol id="i-rec" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-slow" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9.5 2.5h5"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 7h3l1.6-2.4h6.8L17 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.6"/></symbol>
+    <symbol id="i-presets" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4" rx="1.2"/><rect x="3" y="10" width="18" height="4" rx="1.2"/><rect x="3" y="16" width="18" height="4" rx="1.2"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></symbol>
+    <symbol id="i-cards" viewBox="0 0 24 24"><path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M9.5 3v4M12 3v4M14.5 4v3"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3Z"/></symbol>
+    <symbol id="i-bird" viewBox="0 0 24 24"><path d="M3 15c3.5.6 6.5-.4 8.6-3.2L15 7.5c.8-1 2.4-1.4 3.6-.6L21 8.5l-2.6.8-1.5 4.4C15.8 17 12.6 19 8.5 19H6"/><circle cx="17" cy="8.3" r=".6" fill="currentColor"/><path d="M9.5 19l-1 2.5M12 18.5 11.5 21"/></symbol>
+    <symbol id="i-battery" viewBox="0 0 24 24"><rect x="2.5" y="7" width="17" height="10" rx="2"/><path d="M22 10.5v3"/><path d="M5.5 10v4M8.5 10v4" /></symbol>
+    <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2.5 8.8a14 14 0 0 1 19 0M5.8 12.3a9.2 9.2 0 0 1 12.4 0M9.2 15.7a4.4 4.4 0 0 1 5.6 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-4-7.5"/><path d="M9.5 9.5a2.6 2.6 0 0 1 5 1c0 1.8-2.5 2.2-2.5 3.8"/><circle cx="12" cy="17.3" r=".7" fill="currentColor"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.2 7.5 9.5 4.4-1.3 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="m8.8 12.2 2.2 2.2 4.3-4.6"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M16 7l3 3M14 9l2 2"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M13.5 4l-3 16"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2.5V6M15 2.5V6M9 18v3.5M15 18v3.5M2.5 9H6M2.5 15H6M18 9h3.5M18 15h3.5"/><rect x="9.5" y="9.5" width="5" height="5" rx=".8"/></symbol>
+    <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8c-1.5-3.5-5.5-4-5.5-1.6C6.5 8 9 8 12 8Zm0 0c1.5-3.5 5.5-4 5.5-1.6C17.5 8 15 8 12 8Z"/></symbol>
+    <symbol id="i-user-off" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5M3 3l18 18"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4 18-7Z"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5L8 5.5Z" fill="currentColor"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v12M6.5 10.5 12 16l5.5-5.5M5 20h14"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.6"/><path d="M10.5 5h3"/></symbol>
+    <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="4.5" y="5" width="15" height="10.5" rx="1.4"/><path d="M2 18.5h20"/></symbol>
+    <symbol id="i-desktop" viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="12.5" rx="1.6"/><path d="M9 20.5h6M12 16.5v4"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 8.6a5 5 0 0 1-.5 9.9H7Z"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 11 12 4l8.5 7M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/></symbol>
+    <symbol id="i-windows" viewBox="0 0 24 24"><path d="M3 5.4 10.4 4.4v7.1H3V5.4ZM11.6 4.2 21 3v8.5h-9.4V4.2ZM3 12.6h7.4v7.1L3 18.6v-6ZM11.6 12.6H21V21l-9.4-1.3v-7.1Z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-apple" viewBox="0 0 24 24"><path d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.8-3.5.8-.7 0-1.8-.8-3-.8-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.5 1.3-2.6-.1 0-2.5-.9-2.5-3.6ZM14.2 5.6c.6-.8 1.1-1.9 1-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1 .1 2.1-.5 2.7-1.3Z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-linux" viewBox="0 0 24 24"><path d="M12 3c-2.2 0-3.4 1.8-3.4 4.2 0 1.6-.6 2.7-1.6 4.3-1.2 1.9-2 3.7-1.5 5.8M12 3c2.2 0 3.4 1.8 3.4 4.2 0 1.6.6 2.7 1.6 4.3 1.2 1.9 2 3.7 1.5 5.8M5.5 17.3c-1 .6-1.6 1.5-1 2.3.8 1.1 3.6.7 4.8 1.4M18.5 17.3c1 .6 1.6 1.5 1 2.3-.8 1.1-3.6.7-4.8 1.4M9.3 21h5.4"/><circle cx="10.6" cy="7.4" r=".6" fill="currentColor"/><circle cx="13.4" cy="7.4" r=".6" fill="currentColor"/></symbol>
+    <symbol id="s-github" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M12 2.2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 2.9.8.1-.7.4-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2.2Z"/></symbol>
+    <symbol id="s-youtube" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M21.6 7.2a2.6 2.6 0 0 0-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4A2.6 2.6 0 0 0 2.4 7.2C2 8.8 2 12 2 12s0 3.2.4 4.8c.2.9.9 1.6 1.8 1.8 1.6.4 7.8.4 7.8.4s6.2 0 7.8-.4c.9-.2 1.6-.9 1.8-1.8.4-1.6.4-4.8.4-4.8s0-3.2-.4-4.8ZM10 15V9l5.2 3L10 15Z"/></symbol>
+    <symbol id="s-instagram" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="s-tiktok" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M16.6 3c.3 2.2 1.6 3.6 3.8 3.8v3a7 7 0 0 1-3.8-1.2v6.2a5.8 5.8 0 1 1-5.8-5.8c.3 0 .6 0 .9.1v3.1a2.8 2.8 0 1 0 1.9 2.6V3h3Z"/></symbol>
+    <symbol id="s-x" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M17.8 3h3.1l-6.8 7.7 8 10.3h-6.2l-4.9-6.3L5.4 21H2.3l7.3-8.3L2 3h6.4l4.4 5.8L17.8 3Zm-1.1 16.2h1.7L7.4 4.7H5.6l11.1 14.5Z"/></symbol>
+    <symbol id="s-discord" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M19.3 5.4A16.6 16.6 0 0 0 15.2 4l-.5 1a15.4 15.4 0 0 0-5.4 0L8.8 4a16.6 16.6 0 0 0-4.1 1.4C2.1 9.3 1.4 13.1 1.8 16.8a16.7 16.7 0 0 0 5 2.6l1.1-1.7c-.6-.2-1.2-.5-1.7-.9l.4-.3a11.8 11.8 0 0 0 10.8 0l.4.3c-.5.4-1.1.7-1.7.9l1.1 1.7a16.6 16.6 0 0 0 5-2.6c.5-4.3-.8-8.1-2.9-11.4ZM8.7 14.6c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm6.6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z"/></symbol>
+  </defs>
+</svg>
+
+<a class="skip" href="#main">Skip to the content</a>
+
+<!-- ============================== NAV ============================== -->
+<header class="nav" id="nav">
+  <div class="nav-in">
+    <a class="brand" href="#top" aria-label="Back to the top">
+      <img src="assets/icon-180.png" alt="" width="30" height="30">
+      <span class="nm"></span>
+    </a>
+    <nav class="nav-links" id="navLinks" aria-label="Sections">
+      <a href="#features">Features</a>
+      <a href="#anywhere">Anywhere</a>
+      <a href="#iphone">iPhone &amp; iPad</a>
+      <a href="#cameras">Cameras</a>
+      <a href="#setup">Set up</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="icon-btn" id="themeBtn" type="button" aria-label="Switch between light and dark">
+        <svg class="ic ic-sun"><use href="#i-sun"/></svg><svg class="ic ic-moon"><use href="#i-moon"/></svg>
+      </button>
+      <a class="icon-btn" data-link="github" href="#" aria-label="The code on GitHub"><svg class="ic"><use href="#s-github"/></svg></a>
+      <a class="btn btn-sm btn-primary" href="#download">Download</a>
+      <button class="icon-btn menu-btn" id="menuBtn" type="button" aria-label="Open the menu" aria-expanded="false" aria-controls="navLinks"><svg class="ic"><use href="#i-menu"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ============================== HERO ============================== -->
+<section class="hero">
+  <div class="hero-glow" aria-hidden="true"></div>
+  <div class="hero-grid" aria-hidden="true"></div>
+  <div class="wrap hero-copy">
+    <a class="pill reveal" href="#iphone">
+      <span class="pill-dot"></span>
+      <span>Version <span data-version></span> is out<span class="hide-sm"> · iPhone &amp; iPad beta on TestFlight</span></span>
+      <svg class="ic"><use href="#i-arrow"/></svg>
+    </a>
+    <h1 class="reveal">Run your Sony camera<br><span class="grad">from anywhere.</span></h1>
+    <p class="lede reveal">Live picture, focus, exposure, video, photos, slow motion and time-lapse, from across the yard or across town. One clean window on your computer, or your phone, with no cables.</p>
+    <div class="cta reveal" id="heroCta">
+      <a class="btn btn-primary btn-lg" data-dl="primary" href="#download">
+        <svg class="ic"><use href="#i-down"/></svg><span>Download free</span>
+      </a>
+      <a class="btn btn-ghost btn-lg" data-dl="secondary" href="#download"><span>All downloads</span></a>
+      <a class="btn btn-text btn-lg" href="#watch"><svg class="ic"><use href="#i-play"/></svg><span>Watch the video</span></a>
+    </div>
+    <p class="fine reveal" id="heroFine">Free and open source. No account, no subscription, no tracking.</p>
+  </div>
+
+  <div class="wrap hero-stage">
+    <div class="stage" id="stage">
+      <figure class="screen">
+        <img src="assets/window.jpg" width="1760" height="905" alt="The app's window: a cattle egret beside a red ginger flower in the live picture, the histogram and meter in the corner, and the Video tab on the right with the Record button, four saved setups and exposure.">
+      </figure>
+      <div class="chip-float c1" aria-hidden="true"><span class="rec-dot"></span>REC <b class="mono" id="heroRec">00:00:09</b></div>
+      <div class="chip-float c2" aria-hidden="true"><svg class="ic"><use href="#i-wifi"/></svg>Live view · <b>~20 fps</b></div>
+      <div class="chip-float c3" aria-hidden="true"><svg class="ic"><use href="#i-bird"/></svg>Bird seen · recording</div>
+      <div class="chip-float c4" aria-hidden="true"><svg class="ic"><use href="#i-pin"/></svg>Across town</div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <ul class="ribbon reveal" aria-label="Where it runs">
+      <li><svg class="ic"><use href="#i-windows"/></svg><span><b>Windows 11</b>x64</span></li>
+      <li><svg class="ic"><use href="#i-apple"/></svg><span><b>macOS 14.1+</b>Apple &amp; Intel</span></li>
+      <li><svg class="ic"><use href="#i-phone"/></svg><span><b>iPhone</b>free beta</span></li>
+      <li><svg class="ic"><use href="#i-laptop"/></svg><span><b>iPad</b>free beta</span></li>
+      <li><svg class="ic"><use href="#i-camera"/></svg><span><b>Sony cameras</b>over Wi-Fi</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================== VIDEO ============================== -->
+<section class="section" id="watch">
+  <div class="wrap">
+    <div class="head center reveal">
+      <p class="eyebrow"><span class="dot dot-rec"></span>Watch</p>
+      <h2 data-video-title>How far away can I run my camera?</h2>
+      <p class="sub">From 20 metres to across town, then not even there. One question, one camera at the feeder.</p>
+    </div>
+    <!-- PLACEHOLDER: set youtubeId in config.js. Nothing loads from YouTube until someone presses play. -->
+    <div class="video reveal" id="video">
+      <img class="video-poster" src="assets/liveview.jpg" alt="" loading="lazy">
+      <div class="video-shade"></div>
+      <div class="video-hud" aria-hidden="true">
+        <span class="mono">20 m</span><span class="mono">porch</span><span class="mono">inside</span><span class="mono">across town</span><span class="mono">not even there</span>
+      </div>
+      <button class="play" id="playBtn" type="button" aria-label="Play the video">
+        <svg class="ic"><use href="#i-play"/></svg>
+      </button>
+      <p class="video-note" id="videoNote"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== ONE WINDOW / LAB ============================== -->
+<section class="section" id="features">
+  <div class="wrap">
+    <div class="head reveal">
+      <p class="eyebrow"><span class="dot"></span>Your whole camera, in one window</p>
+      <h2>Everything you'd reach for on the camera is a click away.</h2>
+      <p class="sub">And the picture stays big in the middle.</p>
+    </div>
+
+    <div class="trio">
+      <article class="card reveal">
+        <svg class="ic ic-lg"><use href="#i-eye"/></svg>
+        <h3>See it</h3>
+        <p>The live picture over Wi-Fi, or full quality through an HDMI capture card. Histogram, zebras, peaking, a grid and the camera's own meter, one click each.</p>
+      </article>
+      <article class="card reveal">
+        <svg class="ic ic-lg"><use href="#i-focus"/></svg>
+        <h3>Focus it</h3>
+        <p>Click the picture to focus or track. Drag the focus ring, jump along the focus bar, or magnify to check what's sharp.</p>
+      </article>
+      <article class="card reveal">
+        <svg class="ic ic-lg"><use href="#i-camera"/></svg>
+        <h3>Shoot it</h3>
+        <p>Video, photos, bursts, brackets, S&amp;Q slow motion, time-lapse and long exposures. Save to the card, your computer, or both.</p>
+      </article>
+    </div>
+
+    <!-- The live-view lab: a working model of the window's picture tools -->
+    <div class="lab reveal" id="lab">
+      <div class="lab-top">
+        <div class="lab-title">
+          <span class="badge">Try it</span>
+          <span>A working model of the window. <b>Click the bird</b> to focus, then switch on the tools.</span>
+        </div>
+        <span class="lab-keys" aria-hidden="true"><kbd>H</kbd><kbd>Z</kbd><kbd>P</kbd><kbd>G</kbd><kbd>F9</kbd> work here too</span>
+      </div>
+
+      <div class="lab-body">
+        <div class="mon">
+          <div class="mon-status" aria-hidden="true">
+            <span class="rec-tag" id="labRecTag"><span class="rec-dot"></span>REC <b class="mono" id="labRecTime">00:00:00</b></span>
+            <b>Movie M</b><b>24p</b><b>XAVC HS 4K</b><b class="hide-sm">100M 420 10bit</b>
+            <span class="grow"></span>
+            <span class="hide-sm">Battery 22%</span><span>Card 1: 56m 46s</span>
+          </div>
+          <div class="mon-pic" id="monPic">
+            <div class="mon-zoom" id="monZoom">
+              <canvas id="labCanvas" width="1600" height="900" aria-label="Live picture of a cattle egret. Click to focus." role="img"></canvas>
+              <canvas id="labOverlay" width="1024" height="576" aria-hidden="true"></canvas>
+              <div class="grid3" id="labGrid" aria-hidden="true"></div>
+              <div class="focus-box" id="focusBox" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            </div>
+            <div class="hint" id="labHint">Click the bird to focus</div>
+            <div class="histo" id="histo" aria-hidden="true">
+              <canvas id="histCanvas" width="520" height="140"></canvas>
+              <div class="histo-row"><span class="warn" id="overTxt">Over 70%: 0%</span><span id="underTxt">Under 3%: 0%</span></div>
+              <div class="meter">
+                <b id="meterTxt">2.0 stops dark</b>
+                <div class="meter-scale"><span id="meterMark"></span>
+                  <i>-3</i><i>-2</i><i>-1</i><i>0</i><i>+1</i><i>+2</i><i>+3</i>
+                </div>
+              </div>
+            </div>
+            <div class="toast" id="labToast" role="status" aria-live="polite"></div>
+          </div>
+          <div class="mon-tools" role="toolbar" aria-label="Picture tools">
+            <span class="hide-sm mon-conn">Connected.</span>
+            <span class="grow"></span>
+            <button type="button" class="tool" data-tool="grid" aria-pressed="false">Grid</button>
+            <button type="button" class="tool" data-tool="zebras" aria-pressed="false">Zebras</button>
+            <button type="button" class="tool" data-tool="peaking" aria-pressed="false">Peaking</button>
+            <button type="button" class="tool" data-tool="histogram" aria-pressed="true">Histogram</button>
+            <div class="levels-wrap">
+              <button type="button" class="tool" id="levelsBtn" aria-expanded="false" aria-controls="levels">Levels ▴</button>
+              <div class="levels" id="levels" hidden>
+                <p>Zebra level</p>
+                <div class="seg" data-group="zebra">
+                  <button type="button" data-v="70" class="on">70%</button><button type="button" data-v="80">80%</button><button type="button" data-v="90">90%</button><button type="button" data-v="95">95%</button><button type="button" data-v="100">100%</button>
+                </div>
+                <p>Peaking strength</p>
+                <div class="seg" data-group="peakStrength">
+                  <button type="button" data-v="0">Low</button><button type="button" data-v="1" class="on">Medium</button><button type="button" data-v="2">High</button>
+                </div>
+                <p>Peaking colour</p>
+                <div class="seg swatches" data-group="peakColor">
+                  <button type="button" data-v="#ff3030" aria-label="Red"><i style="background:#ff3030"></i></button><button type="button" data-v="#ffe030" aria-label="Yellow"><i style="background:#ffe030"></i></button><button type="button" data-v="#30e0ff" class="on" aria-label="Cyan"><i style="background:#30e0ff"></i></button><button type="button" data-v="#ffffff" aria-label="White"><i style="background:#fff"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="panel" aria-label="Camera controls">
+          <div class="panel-conn"><span class="ok-dot"></span>Camera connected</div>
+          <button type="button" class="rec-btn" id="recBtn"><span class="rec-dot"></span><span id="recLabel">Record</span></button>
+          <p class="panel-h">Exposure</p>
+          <div class="stepper" data-exp="iso"><button type="button" aria-label="Lower ISO">◀</button><div><small>ISO</small><b></b></div><button type="button" aria-label="Raise ISO">▶</button></div>
+          <div class="stepper" data-exp="shutter"><button type="button" aria-label="Faster shutter">◀</button><div><small>Shutter</small><b></b></div><button type="button" aria-label="Slower shutter">▶</button></div>
+          <div class="stepper" data-exp="iris"><button type="button" aria-label="Wider iris">◀</button><div><small>Iris</small><b></b></div><button type="button" aria-label="Narrower iris">▶</button></div>
+          <div class="pair">
+            <button type="button" class="soft" data-base="640">Base ISO 640</button>
+            <button type="button" class="soft" data-base="12800">Base ISO 12800</button>
+          </div>
+          <p class="panel-h">Focus</p>
+          <p class="panel-l">Tap does</p>
+          <div class="seg seg-panel" data-group="tap">
+            <button type="button" data-v="focus" class="on">Focus</button><button type="button" data-v="track">Tracking</button>
+          </div>
+          <p class="panel-l">Magnifier</p>
+          <div class="seg seg-panel" data-group="mag">
+            <button type="button" data-v="1" class="on">Off</button><button type="button" data-v="2">×2</button><button type="button" data-v="4">×4</button>
+          </div>
+        </aside>
+      </div>
+      <p class="lab-foot">A model in your browser, not a camera. In the app these come from the A7S III over Wi-Fi, at around 20 pictures a second.</p>
+    </div>
+
+    <!-- Peaking: the real thing -->
+    <div class="split reveal">
+      <figure class="shot shot-tilt">
+        <img src="assets/peaking.jpg" width="720" height="405" loading="lazy" alt="Close-up of the egret's head and neck in the app, outlined in blue where the picture is sharp.">
+        <figcaption>Peaking on the real egret: the eye and neck light up.</figcaption>
+      </figure>
+      <div class="split-copy">
+        <p class="eyebrow"><span class="dot"></span>See what's sharp</p>
+        <h2>Tell what's in focus from across the yard.</h2>
+        <p>Click the bird and the camera focuses there. Turn on <b>Peaking</b> and the sharp edges light up. The camera's own focus boxes show what it's locked on, and the magnifier zooms in to check.</p>
+        <ul class="ticks">
+          <li><svg class="ic"><use href="#i-check"/></svg>Click to focus, or to track</li>
+          <li><svg class="ic"><use href="#i-check"/></svg>Focus ring and focus bar in MF or DMF</li>
+          <li><svg class="ic"><use href="#i-check"/></svg>×2 and ×4 magnifier</li>
+          <li><svg class="ic"><use href="#i-check"/></svg>Right-click cancels a touch focus or tracking</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== TABS ============================== -->
+<section class="section section-alt" id="tabs">
+  <div class="wrap">
+    <div class="head reveal">
+      <p class="eyebrow"><span class="dot"></span>Clean, and quick</p>
+      <h2>Three tabs. Nothing hidden in menus.</h2>
+      <p class="sub"><b>Video</b> and <b>Photo</b> switch the camera for you and keep what you change while shooting right in front of you. Anything you only set once lives in <b>Setup</b>, out of the way.</p>
+    </div>
+    <div class="tabs-show reveal" id="tabsShow">
+      <div class="seg seg-big" role="tablist" aria-label="Tabs in the app">
+        <button type="button" role="tab" data-tab="0" aria-selected="true">Video</button>
+        <button type="button" role="tab" data-tab="1" aria-selected="false">Photo</button>
+        <button type="button" role="tab" data-tab="2" aria-selected="false">Setup</button>
+      </div>
+      <div class="tabs-stage">
+        <div class="tabs-img" data-active="0">
+          <img src="assets/tabs.png" width="1071" height="875" loading="lazy" alt="The app's three tabs side by side: Video with the Record button and four saved setups, Photo with Take photo and the Drive choices, and Setup with saving, photo and focus settings.">
+          <button type="button" class="tabs-col" data-tab="0" aria-label="Video tab"></button>
+          <button type="button" class="tabs-col" data-tab="1" aria-label="Photo tab"></button>
+          <button type="button" class="tabs-col" data-tab="2" aria-label="Setup tab"></button>
+        </div>
+        <div class="tabs-copy" aria-live="polite">
+          <div class="tab-text" data-tab="0">
+            <h3>Video</h3>
+            <p>One big Record button, with a red outline around the picture while rolling. Automatic recording, your four video setups, exposure, Base ISO and focus, all on one page.</p>
+          </div>
+          <div class="tab-text" data-tab="1" hidden>
+            <h3>Photo</h3>
+            <p>Take photo, Time-lapse or Long exposure. Pick Single, Burst, Timer or Bracket under Drive, then only the choices for that one. Four more setups, just for photos.</p>
+          </div>
+          <div class="tab-text" data-tab="2" hidden>
+            <h3>Setup</h3>
+            <p>Where photos are saved, file format, video format and frame rate, Super 35, white balance, audio and more, without touching a camera menu. Settings your camera doesn't have are left out.</p>
+          </div>
+          <ul class="mini-list">
+            <li>The histogram and meter float over the picture: drag them anywhere.</li>
+            <li>The window opens at the picture's shape, with no black bars.</li>
+            <li>If the Wi-Fi drops, the camera keeps recording and the app reconnects by itself.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== PRESETS + S&Q ============================== -->
+<section class="section" id="presets">
+  <div class="wrap">
+    <div class="head reveal">
+      <p class="eyebrow"><span class="dot dot-ok"></span>Your setups, one click away</p>
+      <h2>C1 to C4. Click, and the camera is set.</h2>
+      <p class="sub">Each saves how the camera is set right now: mode, exposure, focus, and for video the file format and frame rate. Video and Photo each have their own four.</p>
+    </div>
+
+    <div class="presets-grid">
+      <div class="preset-demo reveal">
+        <div class="preset-status mono" id="presetStatus" aria-live="polite">24p · XAVC HS 4K · 1/50 · F2.8 · ISO 640</div>
+        <div class="preset-shot">
+          <img src="assets/presets.png" width="345" height="375" loading="lazy" alt="The Video tab with four saved setups: 24p, 60p and 120p in XAVC HS 4K, and S&amp;Q 240fps in XAVC S HD, each with its shutter, iris and ISO.">
+          <button type="button" class="hot" data-preset="0" style="top:42.4%;height:12.3%" aria-label="C1: 24p, XAVC HS 4K" aria-pressed="true"></button>
+          <button type="button" class="hot" data-preset="1" style="top:56.3%;height:11.5%" aria-label="C2: 60p, XAVC HS 4K" aria-pressed="false"></button>
+          <button type="button" class="hot" data-preset="2" style="top:69.9%;height:11.2%" aria-label="C3: 120p, XAVC HS 4K" aria-pressed="false"></button>
+          <button type="button" class="hot" data-preset="3" style="top:83.2%;height:11.5%" aria-label="C4: S&amp;Q 240fps, XAVC S HD" aria-pressed="false"></button>
+          <div class="c1-cover" aria-hidden="true"><div><span>C1</span><b>24p</b><em>XAVC HS 4K</em><small>1/50 · F2.8 · ISO 640</small></div></div>
+        </div>
+        <p class="caption">Click a setup. It turns green while the camera matches it.</p>
+      </div>
+
+      <div class="sq reveal" id="sq">
+        <p class="eyebrow"><span class="dot"></span>S&amp;Q slow motion</p>
+        <h3>Ten times slower, in one click.</h3>
+        <p>Pick how fast the camera shoots and how fast it plays back. Save it to C4 and slow motion is right there.</p>
+        <div class="sq-controls">
+          <div>
+            <p class="lbl">S&amp;Q shoots at</p>
+            <div class="seg" data-group="sqShoot">
+              <button type="button" data-v="60">60fps</button><button type="button" data-v="120">120fps</button><button type="button" data-v="240" class="on">240fps</button>
+            </div>
+          </div>
+          <div>
+            <p class="lbl">S&amp;Q plays at</p>
+            <div class="seg" data-group="sqPlay">
+              <button type="button" data-v="24" class="on">24p</button><button type="button" data-v="30">30p</button><button type="button" data-v="60">60p</button>
+            </div>
+          </div>
+        </div>
+        <div class="sq-out">
+          <span class="sq-big"><b id="sqFactor">10</b>× slower</span>
+          <span class="sq-small" id="sqText">One second of a take-off plays for 10 seconds.</span>
+        </div>
+        <div class="lanes" aria-hidden="true">
+          <div class="lane"><span>Real life</span><div class="track"><svg class="ic bird" id="birdFast"><use href="#i-bird"/></svg></div><em>1 s</em></div>
+          <div class="lane"><span>On screen</span><div class="track"><svg class="ic bird" id="birdSlow"><use href="#i-bird"/></svg></div><em id="sqSecs">10 s</em></div>
+        </div>
+        <p class="fine">Up to 240fps in HD on the A7S III. The fastest rates need an HD file format.</p>
+      </div>
+    </div>
+
+    <div class="baseiso reveal">
+      <div>
+        <p class="eyebrow"><span class="dot"></span>Base ISO</p>
+        <h3>The A7S III's two native ISOs, one click each.</h3>
+      </div>
+      <p><b>640</b> and <b>12800</b> in S-Log3. 12800 is the cleanest choice in low light. The buttons only appear on the A7S III; other cameras use the ISO control.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== PHOTO ============================== -->
+<section class="section section-alt" id="photo">
+  <div class="wrap">
+    <div class="head reveal">
+      <p class="eyebrow"><span class="dot"></span>Photos, time-lapse and long exposures</p>
+      <h2>Three ways to shoot, one tab.</h2>
+    </div>
+    <div class="photo-show reveal" id="photoShow">
+      <div class="seg seg-big" role="tablist" aria-label="Photo modes">
+        <button type="button" role="tab" data-mode="0" aria-selected="true">Photo</button>
+        <button type="button" role="tab" data-mode="1" aria-selected="false">Time-lapse</button>
+        <button type="button" role="tab" data-mode="2" aria-selected="false">Long exposure</button>
+      </div>
+      <div class="photo-stage">
+        <div class="col-crop" data-mode="0">
+          <img src="assets/photo-modes.png" width="1071" height="875" loading="lazy" alt="The Photo tab three ways: Photo with a 1-stop, 3-photo bracket, Time-lapse with one photo every 10 seconds, and Long exposure set to 30 seconds with ND filter choices.">
+        </div>
+
+        <div class="photo-panes">
+          <div class="pane" data-mode="0">
+            <h3>Photo</h3>
+            <p>Pick a drive, then just the choices for that one.</p>
+            <div class="seg" data-group="drive">
+              <button type="button" data-v="single">Single</button><button type="button" data-v="burst">Burst</button><button type="button" data-v="timer">Timer</button><button type="button" data-v="bracket" class="on">Bracket</button>
+            </div>
+            <p class="pane-out" id="driveOut"></p>
+            <p class="fine">Save to your card, your computer, or both. A full-size RAW takes 4 to 12 seconds to arrive over Wi-Fi, so for bursts use <b>Both</b> with <b>Small JPEG</b>.</p>
+          </div>
+
+          <div class="pane" data-mode="1" hidden>
+            <h3>Time-lapse</h3>
+            <p>Pick how often and how many. The app tells you how long it'll shoot and how long the clip will play.</p>
+            <label class="range">
+              <span>One photo every <b id="tlEveryTxt">10 s</b></span>
+              <input type="range" id="tlEvery" min="1" max="60" value="10">
+            </label>
+            <label class="range">
+              <span>Photos <b id="tlCountTxt">600</b></span>
+              <input type="range" id="tlCount" min="0" max="100" value="56">
+            </label>
+            <div class="readout">
+              <div><small>Shoots for</small><b id="tlShoots">1h 40m</b></div>
+              <div><small>Plays for</small><b id="tlPlays">25 s</b><small>at 24 fps</small></div>
+            </div>
+            <p class="fine">One photo every 1 to 60 seconds, up to 9,999 photos, using the camera's own interval shooting.</p>
+          </div>
+
+          <div class="pane" data-mode="2" hidden>
+            <h3>Long exposure</h3>
+            <p>Pick a length from 1 second to 8 minutes.</p>
+            <div class="seg seg-wrap" data-group="lexp">
+              <button type="button" data-v="1">1 s</button><button type="button" data-v="2">2 s</button><button type="button" data-v="4">4 s</button><button type="button" data-v="8">8 s</button><button type="button" data-v="15">15 s</button><button type="button" data-v="30" class="on">30 s</button><button type="button" data-v="60">1 min</button><button type="button" data-v="120">2 min</button><button type="button" data-v="240">4 min</button><button type="button" data-v="480">8 min</button>
+            </div>
+            <div class="lexp-out" id="lexpOut">
+              <div class="ring"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17"/><circle cx="20" cy="20" r="17" id="lexpArc"/></svg><b id="lexpLen">30 s</b></div>
+              <p id="lexpText"></p>
+            </div>
+            <p class="fine">Tell it the ND filter on your lens and it suggests a length from the meter. Long exposures need the camera in <b>M</b>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== AUTOMATIC RECORDING ============================== -->
+<section class="section" id="auto">
+  <div class="wrap">
+    <div class="head center reveal">
+      <p class="eyebrow"><span class="dot dot-ok"></span>Automatic recording</p>
+      <h2>It can even film wildlife for you.</h2>
+      <p class="sub">Tick <b>Automatic recording</b> and walk away. The app watches the picture, starts recording when something shows up, focuses on it, and stops once it's been gone for a while.</p>
+    </div>
+
+    <div class="auto reveal" id="autoDemo">
+      <div class="auto-pic" id="autoPic">
+        <img src="assets/liveview.jpg" width="1600" height="900" loading="lazy" alt="A cattle egret at the edge of a garden, as the app's live picture.">
+        <div class="scan" aria-hidden="true"></div>
+        <div class="det" id="autoBox" aria-hidden="true"><span id="autoLabel">animal</span></div>
+        <div class="auto-rec" id="autoRec" aria-hidden="true"><span class="rec-dot"></span>REC <b class="mono" id="autoTime">00:00:00</b></div>
+        <div class="auto-state mono" id="autoState" role="status" aria-live="polite">Watching for animals…</div>
+      </div>
+      <div class="auto-side">
+        <p class="lbl">Record when it sees</p>
+        <div class="seg seg-panel" data-group="autoWhat">
+          <button type="button" data-v="animal" class="on">Animal</button><button type="button" data-v="bird">Bird</button><button type="button" data-v="person">Person</button>
+        </div>
+        <p class="lbl">Stop once it's been gone for</p>
+        <div class="seg seg-panel" data-group="autoGone">
+          <button type="button" data-v="10">10 s</button><button type="button" data-v="15" class="on">15 s</button><button type="button" data-v="30">30 s</button><button type="button" data-v="60">1 min</button>
+        </div>
+        <label class="check"><input type="checkbox" id="autoFocus" checked><span></span>Focus on it</label>
+        <ol class="auto-steps" id="autoSteps">
+          <li data-s="watch">Watching the picture, once a second</li>
+          <li data-s="seen">Something shows up</li>
+          <li data-s="rec">Focuses and starts recording</li>
+          <li data-s="gone">It leaves, the timer runs</li>
+          <li data-s="stop">Stops the take</li>
+        </ol>
+        <button type="button" class="btn btn-ghost btn-sm" id="autoReplay">Play it again</button>
+      </div>
+    </div>
+
+    <div class="trio trio-sm">
+      <div class="card flat reveal"><svg class="ic"><use href="#i-cpu"/></svg><p><b>Runs on your computer.</b> No pictures leave it.</p></div>
+      <div class="card flat reveal"><svg class="ic"><use href="#i-bird"/></svg><p><b>Knows birds, common mammals and people.</b> Something it doesn't know, like a squirrel, may not set it off.</p></div>
+      <div class="card flat reveal"><svg class="ic"><use href="#i-shield"/></svg><p><b>Learns to ignore</b> a spot that keeps setting it off, like splashing water, for 10 minutes.</p></div>
+    </div>
+
+    <figure class="shot shot-wide reveal">
+      <img src="assets/automatic-recording.jpg" width="1760" height="875" loading="lazy" alt="Automatic recording in the app: a green box labelled animal around the egret, a red recording outline, REC 00:00:09 at the top left, and Animal, 15 s and Focus on it picked on the right.">
+      <figcaption>The real thing: it has spotted the egret, started recording, and put a red outline around the picture.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================== ANYWHERE ============================== -->
+<section class="section section-dark" id="anywhere">
+  <div class="wrap">
+    <div class="head center reveal">
+      <p class="eyebrow"><span class="dot"></span>Run it from anywhere</p>
+      <h2>How far away can you run your camera?</h2>
+      <p class="sub">Hide the camera by a feeder, up a tree or across the yard. Then keep walking.</p>
+    </div>
+
+    <div class="journey reveal" id="journey">
+      <div class="dist" aria-hidden="true">
+        <div class="dist-track"><div class="dist-fill" id="distFill"></div></div>
+        <div class="dist-cam"><svg class="ic"><use href="#i-camera"/></svg></div>
+        <div class="dist-you" id="distYou"><span id="distLabel">20 m</span></div>
+      </div>
+
+      <div class="steps" role="tablist" aria-label="How far away">
+        <button type="button" role="tab" data-step="0" aria-selected="true"><b>1</b>20 m</button>
+        <button type="button" role="tab" data-step="1" aria-selected="false"><b>2</b>The porch</button>
+        <button type="button" role="tab" data-step="2" aria-selected="false"><b>3</b>Inside</button>
+        <button type="button" role="tab" data-step="3" aria-selected="false"><b>4</b>At the desk</button>
+        <button type="button" role="tab" data-step="4" aria-selected="false"><b>5</b>Across town</button>
+        <button type="button" role="tab" data-step="5" aria-selected="false"><b>6</b>Not even there</button>
+      </div>
+
+      <div class="chain" id="chain" aria-live="polite"></div>
+      <div class="journey-copy">
+        <h3 id="jTitle"></h3>
+        <p id="jText"></p>
+      </div>
+    </div>
+
+    <div class="duo">
+      <article class="card glass reveal">
+        <svg class="ic ic-lg"><use href="#i-phone"/></svg>
+        <h3>From your phone</h3>
+        <p>Tick <b>Allow phone control</b> in <b>Setup</b> and open the address it shows on your phone. You get the live picture, record, tap to focus, the focus ring and the camera's settings. It works on your home Wi-Fi, and from anywhere with <a href="https://tailscale.com" rel="noopener">Tailscale</a>.</p>
+        <p class="fine">Protected by an access code. The computer stays on with the app open. On an iPhone, Share › Add to Home Screen makes it a full-screen app.</p>
+      </article>
+      <article class="card glass reveal">
+        <svg class="ic ic-lg"><use href="#i-laptop"/></svg>
+        <h3>From a computer, through your iPhone</h3>
+        <p>No Wi-Fi where the camera is? Put it on your iPhone's hotspot, open the iPhone app, turn on <b>Allow control from a computer</b>, and run it from a computer somewhere else over Tailscale.</p>
+        <p class="fine">Uses mobile data: about 100, 280 or 750 MB an hour while a computer is watching, at 1, 3 or 8 pictures a second. Nothing while none is. It only works while the app stays open on the iPhone's screen.</p>
+      </article>
+    </div>
+    <p class="rule reveal"><b>Two rules behind it all:</b> the camera is on one network at a time, and one device runs it while the others join in.</p>
+  </div>
+</section>
+
+<!-- ============================== IPHONE & IPAD ============================== -->
+<section class="section" id="iphone">
+  <div class="wrap">
+    <div class="ios">
+      <div class="ios-copy reveal">
+        <p class="eyebrow"><span class="dot"></span>iPhone &amp; iPad · free beta</p>
+        <h2>No computer at all.<br>Just your phone and its hotspot.</h2>
+        <p class="sub"><span class="nm"></span> for iPhone and iPad runs the camera on its own, out where there's no Wi-Fi. It's a free beta on TestFlight, Apple's app for testing, before it comes to the App Store.</p>
+        <ul class="chips">
+          <li>Live picture</li><li>Tap to focus</li><li>Exposure</li><li>Video</li><li>S&amp;Q</li><li>Photos</li><li>Burst</li><li>Time-lapse</li><li>C1 to C3</li><li>Automatic recording</li><li>Hand it to a computer</li>
+        </ul>
+        <div class="cta">
+          <a class="btn btn-primary btn-lg" data-link="testflight" href="#"><svg class="ic"><use href="#i-apple"/></svg><span>Join the free beta</span></a>
+        </div>
+        <p class="fine">iOS and iPadOS 16 or newer. Photos and video stay on the camera's card. It only works while the app is open on screen, so keep the phone plugged in for long sessions. Close the app on your computer first: the camera takes one remote at a time.</p>
+      </div>
+
+      <div class="devices reveal" aria-label="iPhone and iPad screenshots">
+        <!-- PLACEHOLDER: set screens.ipad and screens.iphone in config.js -->
+        <div class="ipad">
+          <div class="dev-screen" data-screen="ipad">
+            <div class="ph"><img src="assets/liveview.jpg" alt="" loading="lazy"><span class="ph-tag">iPad screenshot coming soon</span></div>
+          </div>
+        </div>
+        <div class="iphone">
+          <div class="dev-screen" data-screen="iphone">
+            <div class="ph"><img src="assets/liveview.jpg" alt="" loading="lazy"><span class="ph-tag">iPhone screenshot coming soon</span></div>
+          </div>
+          <i class="island"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== EVERYTHING ============================== -->
+<section class="section section-alt" id="everything">
+  <div class="wrap">
+    <div class="head reveal">
+      <p class="eyebrow"><span class="dot"></span>Everything it does</p>
+      <h2>The whole list.</h2>
+    </div>
+    <div class="bento">
+      <article class="tile t-wide reveal"><svg class="ic"><use href="#i-eye"/></svg><h3>See</h3><p>Live view over Wi-Fi, or full quality through an HDMI capture card. Rotate it for a camera on its side.</p></article>
+      <article class="tile reveal"><svg class="ic"><use href="#i-focus"/></svg><h3>Focus</h3><p>Click to focus or track. In MF or DMF, drag the focus ring or jump along the focus bar.</p></article>
+      <article class="tile reveal"><svg class="ic"><use href="#i-loupe"/></svg><h3>Check focus</h3><p>Focus magnifier and peaking.</p></article>
+      <article class="tile reveal"><svg class="ic"><use href="#i-sun"/></svg><h3>Expose</h3><p>ISO, shutter and iris, with a histogram, zebras, the camera's meter and one-click Base ISO on the A7S III.</p></article>
+      <article class="tile reveal"><svg class="ic"><use href="#i-rec"/></svg><h3>Record</h3><p>One big button, with a red outline around the picture while rolling.</p></article>
+      <article class="tile reveal"><svg class="ic"><use href="#i-slow"/></svg><h3>Slow motion</h3><p>S&amp;Q, up to 240fps in HD on the A7S III.</p></article>
+      <article class="tile reveal"><svg class="ic"><use href="#i-presets"/></svg><h3>Save your setups</h3><p>C1 to C4: four for video and four for photos.</p></article>
+      <article class="tile t-wide reveal"><svg class="ic"><use href="#i-camera"/></svg><h3>Shoot photos</h3><p>Single shots, bursts, self-timer, brackets, time-lapses and long exposures, saved to your card, your computer or both.</p></article>
+      <article class="tile reveal"><svg class="ic"><use href="#i-sliders"/></svg><h3>Set up the camera</h3><p>Video format, frame rate, Super 35 crop, RAW or JPEG, white balance, audio and more, without a menu.</p></article>
+      <article class="tile reveal"><svg class="ic"><use href="#i-cards"/></svg><h3>Use both cards</h3><p>See what's left on each slot, and format a card from the app. It asks first.</p></article>
+      <article class="tile t-wide reveal"><svg class="ic"><use href="#i-globe"/></svg><h3>Run it from anywhere</h3><p>Phone control at home or over Tailscale, and a computer through the iPhone app.</p></article>
+      <article class="tile t-wide reveal"><svg class="ic"><use href="#i-bird"/></svg><h3>Film wildlife</h3><p>Automatic recording starts and stops for animals, birds or people.</p></article>
+      <article class="tile reveal"><svg class="ic"><use href="#i-battery"/></svg><h3>Stay informed</h3><p>Battery and card warnings before you run out.</p></article>
+      <article class="tile reveal"><svg class="ic"><use href="#i-wifi"/></svg><h3>Stop worrying</h3><p>Reconnects by itself, and the camera keeps recording if Wi-Fi drops.</p></article>
+      <article class="tile t-wide reveal"><svg class="ic"><use href="#i-send"/></svg><h3>Get help</h3><p><b>Send log to the developer</b> in Setup, one click, only when you press it.</p></article>
+    </div>
+    <div class="keys reveal">
+      <span class="keys-h">Handy keys</span>
+      <span><kbd>H</kbd> histogram</span><span><kbd>Z</kbd> zebras</span><span><kbd>P</kbd> peaking</span><span><kbd>G</kbd> grid</span><span><kbd>R</kbd> rotate</span><span><kbd>F9</kbd> record, take a photo or start a long exposure</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== DOWNLOAD ============================== -->
+<section class="section" id="download">
+  <div class="wrap">
+    <div class="head center reveal">
+      <p class="eyebrow"><span class="dot dot-ok"></span>Download · version <span data-version></span></p>
+      <h2>Free. For your computer and your phone.</h2>
+      <p class="sub">No account, no subscription, no tracking.</p>
+    </div>
+    <div class="platforms">
+      <article class="plat reveal" data-os="windows">
+        <span class="you">Your computer</span>
+        <svg class="ic plat-ic"><use href="#i-windows"/></svg>
+        <h3>Windows</h3>
+        <p class="req">Windows 11, x64</p>
+        <a class="btn btn-primary" data-dl="windows" href="#"><svg class="ic"><use href="#i-down"/></svg>Download for Windows</a>
+        <details>
+          <summary>How to install</summary>
+          <ol>
+            <li>Open <b data-file="windows">the installer</b> from your downloads.</li>
+            <li>If a blue <b>Windows protected your PC</b> box appears, click <b>More info</b>, then <b>Run anyway</b>. It shows up because the app is new and free, not because anything is wrong.</li>
+            <li>It installs itself and puts an icon on your desktop.</li>
+          </ol>
+        </details>
+      </article>
+      <article class="plat reveal" data-os="mac">
+        <span class="you">Your computer</span>
+        <svg class="ic plat-ic"><use href="#i-apple"/></svg>
+        <h3>Mac</h3>
+        <p class="req">macOS 14.1 or newer</p>
+        <a class="btn btn-primary" data-dl="macApple" href="#"><svg class="ic"><use href="#i-down"/></svg>Download for Mac</a>
+        <a class="sublink" data-dl="macIntel" href="#">Older Intel Mac? Use this one.</a>
+        <details>
+          <summary>How to install</summary>
+          <ol>
+            <li>Open <b data-file="macApple">the disk image</b> from your downloads and drag the app onto <b>Applications</b>.</li>
+            <li>Open it from Applications. If your Mac asks whether you're sure, click <b>Open</b>.</li>
+            <li>Click <b>Allow</b> when it asks about your <b>local network</b>. Without this, the app can't find the camera.</li>
+          </ol>
+          <p>Not sure which Mac? Apple menu › <b>About This Mac</b>. <b>Chip: Apple</b> uses the main download, <b>Processor: Intel</b> the Intel one.</p>
+        </details>
+      </article>
+      <article class="plat reveal" data-os="ios">
+        <span class="you">Your device</span>
+        <svg class="ic plat-ic"><use href="#i-phone"/></svg>
+        <h3>iPhone &amp; iPad</h3>
+        <p class="req">iOS 16 or newer · free beta</p>
+        <a class="btn btn-primary" data-link="testflight" href="#"><svg class="ic"><use href="#i-apple"/></svg>Join on TestFlight</a>
+        <details>
+          <summary>What's TestFlight?</summary>
+          <p>Apple's free app for trying apps before they reach the App Store. Install TestFlight, open the invite link, and tap <b>Install</b>. The App Store version comes later.</p>
+        </details>
+      </article>
+    </div>
+    <div class="nope reveal">
+      <span><svg class="ic"><use href="#i-windows"/></svg>Windows on ARM</span>
+      <span><svg class="ic"><use href="#i-linux"/></svg>Linux</span>
+      <span><svg class="ic"><use href="#i-x"/></svg>Android</span>
+      <p>Not supported, sorry.</p>
+    </div>
+    <p class="center fine reveal">Every version and its notes are on <a data-link="releases" href="#">GitHub releases</a>. The app looks once at launch for a newer version and shows a button; it never installs anything by itself.</p>
+  </div>
+</section>
+
+<!-- ============================== CAMERAS ============================== -->
+<section class="section section-alt" id="cameras">
+  <div class="wrap">
+    <div class="head reveal">
+      <p class="eyebrow"><span class="dot"></span>Which cameras work?</p>
+      <h2>Will it work with your camera?</h2>
+      <p class="sub">It's tested on the <b>A7S III</b>. Sony says its remote software can control the cameras below over Wi-Fi, so they should work too, but nobody has tried most of them yet.</p>
+    </div>
+
+    <div class="checker reveal">
+      <label class="search">
+        <svg class="ic"><use href="#i-loupe"/></svg>
+        <input id="camSearch" type="search" placeholder="Your camera, like A7 IV" autocomplete="off" spellcheck="false" aria-describedby="camVerdict">
+      </label>
+      <div class="verdict" id="camVerdict" role="status" aria-live="polite"></div>
+    </div>
+
+    <div class="legend reveal">
+      <span><i class="st st-tested"></i>Tested</span>
+      <span><i class="st st-user"></i>Confirmed by a user</span>
+      <span><i class="st st-should"></i>Should work, not tried yet</span>
+      <span><i class="st st-no"></i>Won't work over Wi-Fi</span>
+    </div>
+    <div class="cams reveal" id="cams"></div>
+
+    <p class="fine reveal">Update your camera to its latest firmware first. Some features, such as click to focus, may behave differently on your camera. Cameras not listed at all, such as the A7 III or a6400, aren't supported by Sony's software. Have one that works? <a data-link="issues" href="#">Tell us on GitHub</a>.</p>
+  </div>
+</section>
+
+<!-- ============================== SETUP ============================== -->
+<section class="section" id="setup">
+  <div class="wrap">
+    <div class="head reveal">
+      <p class="eyebrow"><span class="dot"></span>Set it up in 3 steps</p>
+      <h2>About 10 minutes, once.</h2>
+      <p class="sub">You'll need a supported camera, Wi-Fi where you're shooting, and a Windows 11 PC or a Mac on macOS 14.1 or newer.</p>
+    </div>
+
+    <ol class="timeline">
+      <li class="reveal">
+        <span class="t-num">1</span>
+        <div>
+          <h3>Install the app <small>2 minutes</small></h3>
+          <p>Download it above and open it. The first time, you'll see a short note about Sony's terms: click <b>OK</b> or <b>I agree</b>.</p>
+        </div>
+      </li>
+      <li class="reveal">
+        <span class="t-num">2</span>
+        <div>
+          <h3>Set up your camera <small>5 minutes</small></h3>
+          <p>Close Sony's <b>Monitor &amp; Control</b> app first. On the camera, press <b>MENU</b>, then tick these off. These are the A7S III's menus; most newer Sony cameras are very similar.</p>
+          <ul class="menu-list" id="menuList">
+            <li><label><input type="checkbox"><span class="box"><svg class="ic"><use href="#i-check"/></svg></span><span><b>Join your Wi-Fi.</b> Pick your network and type its password.<code>Network › Wi-Fi › Wi-Fi Connect › On, then Access Point Set.</code></span></label></li>
+            <li><label><input type="checkbox"><span class="box"><svg class="ic"><use href="#i-check"/></svg></span><span><b>Allow remote control.</b><code>Network › Cnct./Remote Sht. › Remote Shoot Function › Remote Shooting › On</code></span></label></li>
+            <li><label><input type="checkbox"><span class="box"><svg class="ic"><use href="#i-check"/></svg></span><span><b>Find your login.</b> Leave Access Authen. on, then take a photo of the <b>user</b> and <b>password</b> on Access Authen. Info.<code>Network › Network Option › Access Authen. Settings</code></span></label></li>
+            <li><label><input type="checkbox"><span class="box"><svg class="ic"><use href="#i-check"/></svg></span><span><b>Turn on touch,</b> so you can click the picture to focus.<code>Touch Operation › On</code></span></label></li>
+            <li><label><input type="checkbox"><span class="box"><svg class="ic"><use href="#i-check"/></svg></span><span><b>Keep it awake,</b> or it sleeps after a minute and the app can't find it.<code>Setup › Power Setting Option › Power Save Start Time › 30 Min.</code></span></label></li>
+          </ul>
+          <p class="fine">Menu names can differ on older firmware. Tested on the A7S III with firmware 5.01.</p>
+        </div>
+      </li>
+      <li class="reveal">
+        <span class="t-num">3</span>
+        <div>
+          <h3>Connect <small>1 minute</small></h3>
+          <p>With your computer and camera on the <b>same Wi-Fi</b>, click <b>Connect camera…</b>, pick your camera, and type the user and password from your photo. If your computer asks about network access, say yes.</p>
+          <p><b>That's it.</b> Your picture appears, and from then on it reconnects by itself whenever you open it.</p>
+        </div>
+      </li>
+    </ol>
+
+    <div class="ai reveal">
+      <div>
+        <p class="eyebrow"><span class="dot"></span>Have an AI assistant?</p>
+        <h3>Let it walk you through, one step at a time.</h3>
+        <p>Paste this into ChatGPT, Claude or another assistant.</p>
+      </div>
+      <div class="prompt">
+        <pre id="aiPrompt"></pre>
+        <button type="button" class="btn btn-ghost btn-sm" id="copyPrompt"><svg class="ic"><use href="#i-copy"/></svg><span>Copy</span></button>
+      </div>
+    </div>
+
+    <div class="faq reveal">
+      <h3>Something not working?</h3>
+      <details>
+        <summary>My camera isn't in the list</summary>
+        <p>Check the camera is on, on the same Wi-Fi as your computer (not a guest network), and has <b>Remote Shooting</b> on. Still missing? Find its address under Network › Wi-Fi › <b>Display Wi-Fi Info.</b> and type that IP address into the box in the app. On a Mac, check System Settings › Privacy &amp; Security › <b>Local Network</b>.</p>
+      </details>
+      <details>
+        <summary>It says the user or password is wrong</summary>
+        <p>Use the exact <b>user</b> and <b>password</b> from <b>Access Authen. Info</b>. Capitals matter, and the user often isn't <code>admin</code>.</p>
+      </details>
+      <details>
+        <summary>It won't connect while Monitor &amp; Control is open</summary>
+        <p>Close Sony's phone app. The camera only takes one remote at a time, and that goes for the computer and the iPhone app too.</p>
+      </details>
+      <details>
+        <summary>The picture is choppy or keeps dropping</summary>
+        <p>The camera's Wi-Fi signal is weak. Move your router or a mesh point closer to the camera. Recording carries on in the camera even if the link drops.</p>
+      </details>
+      <details>
+        <summary>Still stuck?</summary>
+        <p>In <b>Setup</b>, under <b>Something not working?</b>, click <b>Send log to the developer</b>. You'll get a short reference, like K7Q2MX, to quote when you get in touch. Nothing is sent until you click, and it holds no passwords, photos or video. It's kept for 90 days.</p>
+      </details>
+      <p class="fine">The full guide is in the <a data-link="github" href="#">README on GitHub</a>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== TRUST ============================== -->
+<section class="section section-alt" id="trust">
+  <div class="wrap">
+    <div class="head center reveal">
+      <p class="eyebrow"><span class="dot"></span>Free, private, open</p>
+      <h2>Yours, with no strings.</h2>
+    </div>
+    <div class="trust">
+      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-gift"/></svg><h3>Free</h3><p>No subscription, no in-app purchases. The code is MIT licensed.</p></div>
+      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-user-off"/></svg><h3>No account</h3><p>Nothing to sign up for. Open it and connect.</p></div>
+      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-shield"/></svg><h3>No tracking</h3><p>No analytics in the app, and none on this page either: no cookies, nothing loaded from anyone else.</p></div>
+      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-key"/></svg><h3>Your password stays put</h3><p>In Windows Credential Manager or your Mac's Keychain.</p></div>
+      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-cpu"/></svg><h3>Detection runs locally</h3><p>The animal detector runs on your own computer or phone.</p></div>
+      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-code"/></svg><h3>Open source</h3><p>Read every line on <a data-link="github" href="#">GitHub</a>, and build it yourself if you like.</p></div>
+    </div>
+
+    <details class="specs reveal">
+      <summary>Specifications</summary>
+      <dl>
+        <dt>Computer</dt><dd>Windows 11 x64, or macOS 14.1 or newer on Apple or Intel. Windows on ARM and Linux aren't supported.</dd>
+        <dt>iPhone and iPad</dt><dd>iOS and iPadOS 16 or newer. Free beta on TestFlight.</dd>
+        <dt>Connection</dt><dd>Wi-Fi on the same network as the camera, with an optional HDMI capture card for the picture.</dd>
+        <dt>Wi-Fi live view</dt><dd>1024×576 at around 20 frames a second on the A7S III.</dd>
+        <dt>Photos to your computer</dt><dd>Full size, or a small JPEG. A full-size RAW took 4 to 12 seconds on the A7S III in our tests, depending on your network.</dd>
+        <dt>Time-lapse</dt><dd>One photo every 1 to 60 seconds, up to 9,999 photos, using the camera's own interval shooting.</dd>
+        <dt>Animal detection</dt><dd>Runs on your computer once a second. It knows birds, common mammals and people.</dd>
+        <dt>Phone control</dt><dd>A web page on your phone, over your home network or Tailscale, protected by an access code.</dd>
+        <dt>Built on</dt><dd>Sony's Camera Remote SDK v2.02.00 on Windows and Mac.</dd>
+        <dt>Price</dt><dd>Free. MIT licence.</dd>
+      </dl>
+    </details>
+
+    <div class="honest reveal">
+      <h3>Good to know</h3>
+      <ul>
+        <li><b>Only tested on the A7S III.</b> The A9 II is confirmed by a user. The other cameras on the list should work, but nobody has tried them yet.</li>
+        <li><b>Warranty:</b> Sony's terms say a camera controlled through an app like this is no longer covered by its manufacturer warranty.</li>
+        <li><b><span class="nm"></span> isn't made by, endorsed by or supported by Sony.</b></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== CLOSER ============================== -->
+<section class="closer">
+  <div class="hero-glow" aria-hidden="true"></div>
+  <div class="wrap center">
+    <img class="closer-icon reveal" src="assets/icon-180.png" width="88" height="88" alt="">
+    <h2 class="reveal">Put the camera where the birds are.<br><span class="grad">Run it from wherever you are.</span></h2>
+    <div class="cta center reveal">
+      <a class="btn btn-primary btn-lg" href="#download"><svg class="ic"><use href="#i-down"/></svg>Download free</a>
+      <a class="btn btn-ghost btn-lg" data-link="github" href="#"><svg class="ic"><use href="#s-github"/></svg>Star on GitHub</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============================== FOOTER ============================== -->
+<footer class="foot">
+  <div class="wrap foot-in">
+    <div class="foot-brand">
+      <a class="brand" href="#top"><img src="assets/icon-180.png" alt="" width="30" height="30"><span class="nm"></span></a>
+      <p>Run your Sony camera from anywhere. Free and open source.</p>
+      <!-- PLACEHOLDER: social links are set in config.js -->
+      <ul class="socials" id="socials" aria-label="Follow along"></ul>
+    </div>
+    <nav class="foot-cols" aria-label="More">
+      <div>
+        <h4>App</h4>
+        <a href="#features">Features</a><a href="#anywhere">Run it from anywhere</a><a href="#iphone">iPhone &amp; iPad</a><a href="#download">Download</a>
+      </div>
+      <div>
+        <h4>Help</h4>
+        <a href="#cameras">Which cameras work</a><a href="#setup">Set it up</a><a data-link="issues" href="#">Report a problem</a><a data-link="discord" href="#">Discord</a>
+      </div>
+      <div>
+        <h4>Code</h4>
+        <a data-link="github" href="#">GitHub</a><a data-link="releases" href="#">Releases</a><a data-link="agentsGuide" href="#">Guide for AI assistants</a>
+      </div>
+    </nav>
+  </div>
+  <div class="wrap foot-legal">
+    <p><span class="nm"></span> isn't made by, endorsed by or supported by Sony. Sony, Alpha and the camera names are trademarks of Sony Group Corporation, used here only to say which cameras work. Windows and Mac downloads include Sony's Camera Remote SDK libraries under Sony's licence.</p>
+    <p>This page sets no cookies and loads nothing from anyone else. The video loads from YouTube only if you press play.</p>
+  </div>
+</footer>
+
+</body>
+</html>
