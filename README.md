@@ -221,6 +221,12 @@ There's also an iPhone app that runs the camera with no computer at all, just yo
 
 It can also record when an animal shows up, with the same rules as on a computer: turn on **Record when an animal shows up** on the Video page. **It only works while CamRemote is open on the phone's screen.** iPhones stop apps that aren't on screen, so if you lock the phone or switch apps, it stops watching (and stops a take it started). While the option is on, the app keeps the screen awake, so keep the phone plugged in: a screen that's on for hours, the hotspot and the detector all use battery. The first time you turn it on, the detector takes up to a minute to get ready.
 
+**Control it from a computer through the phone.** Leave the camera outside on your phone's hotspot and run it from a computer somewhere else. Both need [Tailscale](https://tailscale.com) signed in to the same account. In the iPhone app, open **Setup** and turn on **Allow control from a computer**. Then, on the computer, open the Tailscale address it shows and type the access code. You get the same page as phone control on a computer: live picture, record, tap to focus, the focus ring and camera settings.
+
+- **It only works while CamRemote stays open on the iPhone's screen.** iOS pauses apps in the background, so locking the phone or switching apps cuts the computer off until you come back. While the switch is on, the screen stays on, so keep the phone plugged in.
+- **It uses mobile data.** The computer gets a smaller picture than the phone shows: 640 pixels wide, and 1, 3 or 8 pictures a second, which you pick in Setup. That's about 100, 280 or 750 MB an hour while a computer is watching, and nothing while none is. Setup shows how much it has really sent.
+- **The access code** stays hidden until you tap **Show code**. **New code** signs out every computer that used the old one. Only Tailscale and local network addresses are answered.
+
 **You can't download it yet.** It's still being tested, and it'll come to TestFlight, Apple's beta testing app, first. If you have a Mac and a paid Apple developer account, you can [build it yourself](#build-the-iphone-app).
 
 <br>

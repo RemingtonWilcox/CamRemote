@@ -80,6 +80,10 @@ struct CamRemoteApp: App {
                 // This also runs each time the connect screen comes back, and Disconnect has to stay disconnected.
                 guard !launched else { return }
                 launched = true
+                // The animal trigger keeps it awake even while the camera is away, so it can reconnect and carry on.
+                let animals = animals
+                Bridge.shared.alsoAwake = { animals.on }
+                Bridge.shared.attach(camera)
                 connectIfReady()
             }
             .onChange(of: phase) { now in
@@ -97,20 +101,15 @@ struct CamRemoteApp: App {
                 }
             }
             .onChange(of: camera.link) { link in
-                keepAwake()
+                Bridge.shared.keepAwake() // on while connected, while a computer may be watching or while watching for animals
                 resumeIfNeeded(phase) // a quick trip out of the app can come back before the old connection has closed
             }
-            .onChange(of: animals.on) { _ in keepAwake() }
+            .onChange(of: animals.on) { _ in Bridge.shared.keepAwake() }
             // Only while the app is open, so turning the camera on is all it takes.
             .onReceive(Timer.publish(every: 4, on: .main, in: .common).autoconnect()) { _ in
                 if camera.link == .off, camera.keepTrying, !camera.editingLogin, phase == .active { connectIfReady() }
             }
         }
-    }
-
-    /// The animal trigger keeps it awake even while the camera is away, so it can reconnect and carry on.
-    private func keepAwake() {
-        UIApplication.shared.isIdleTimerDisabled = camera.link == .on || animals.on
     }
 
     /// Takes the phase as an argument because inside `onChange` the `phase` property still holds the old value.
@@ -144,6 +143,7 @@ struct ConnectView: View {
         ScrollView {
             VStack(spacing: 12) {
                 Text("CamRemote").font(.largeTitle.weight(.semibold)).padding(.top, 72)
+                BridgeBadge()
                 if askForLogin { loginForm } else { waiting }
             }
             .frame(maxWidth: .infinity)
@@ -168,6 +168,7 @@ struct ConnectView: View {
                 .font(.footnote)
                 .foregroundColor(.dim)
                 .padding(.top, 24)
+            BridgeSection().padding(.top, 24) // so it can be turned on or off without a camera
         }
     }
 

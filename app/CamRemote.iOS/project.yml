@@ -13,6 +13,11 @@ targets:
         optional: true
         includes: [rfdetr_nano.onnx]
         buildPhase: resources
+      # The page CamRemote on a computer serves to phones. Served again from here to a computer.
+      - path: ../CamRemote/phone.html
+        buildPhase: resources
+      - path: ../CamRemote/phone-icon.png
+        buildPhase: resources
     dependencies:
       - framework: deps/onnxruntime.xcframework
         embed: false
