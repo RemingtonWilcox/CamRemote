@@ -34,6 +34,13 @@ Common failures:
 
 **Never commit anything under `vendor\`**, and never commit `app\CamRemote\SdkNames.g.cs` (it's generated from Sony's headers). Both are in `.gitignore`; keep it that way. Sony's licence allows its libraries inside the finished app, not the SDK itself.
 
+## Cameras people rely on
+
+Users have confirmed these working. Before changing code they depend on, check the change still works the same way, and keep README.md's instructions for them matching the app's wording.
+
+- **A7S III:** the camera everything is tested on.
+- **A9 II** (confirmed by a user, 1.0.7): it connects over Wi-Fi with PC Remote and Pairing. Over Wi-Fi it refuses remote touch, so a click to focus falls back to moving the focus area: `MoveFocusSpot` in `CameraService.cs`, used by `TouchFocus` when `RemoteTouchOperation` fails. That needs **Focus area** on a Flexible Spot, and the message `SpotNeeded` tells them so. Keep that fallback, and keep every Flexible Spot choice reachable in the Focus area control.
+
 ## Don't
 
 - Don't ask for, type or store the camera's Access Authen. password. The person types it into the app; the app keeps it in Windows Credential Manager or the macOS Keychain.
