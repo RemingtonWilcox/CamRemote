@@ -967,6 +967,7 @@ struct SetupSheet: View {
                     camera.disconnect()
                 }
                 .buttonStyle(Big(color: .panel))
+                SendLogSection(camera: camera)
                 HStack(spacing: 12) {
                     Text("CamRemote \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
                     Button("Credits") { showCredits = true }

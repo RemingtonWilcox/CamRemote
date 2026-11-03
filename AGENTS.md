@@ -46,5 +46,5 @@ Users have confirmed these working. Before changing code they depend on, check t
 - Don't ask for, type or store the camera's Access Authen. password. The person types it into the app; the app keeps it in Windows Credential Manager or the macOS Keychain.
 - Don't change firewall rules, network settings or router settings. If a Windows Firewall or macOS privacy prompt appears, the person answers it.
 - Don't change camera firmware or camera settings for them.
-- Don't add telemetry, auto-updaters or background services. ONNX Runtime reports to Microsoft by default, so keep the switch in `BirdModel` that turns it off. The app looks once at launch for a newer release on GitHub and only shows a button; keep it that way.
+- Don't add telemetry, auto-updaters or background services. ONNX Runtime reports to Microsoft by default, so keep the switch in `BirdModel` that turns it off. The app looks once at launch for a newer release on GitHub and only shows a button; keep it that way. **Send log** (in Setup) is the one thing that sends anything about the user, and only when they press it: the log goes to the Cloudflare Worker in `tools/log-receiver`, which keeps it for 90 days. Never send it automatically, and keep passwords, access codes and tokens out of the log.
 - Don't remove the first-launch agreement. Sony's licence requires it for anyone distributing the app.

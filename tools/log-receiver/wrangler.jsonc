@@ -1,0 +1,9 @@
+// The Cloudflare Worker behind Send log. Deploy with: npx wrangler deploy (from this folder).
+{
+  "name": "camremote-logs",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "kv_namespaces": [{ "binding": "LOGS", "id": "a52bc46931ac4dd88985bf37557c22e5" }],
+  "ratelimits": [{ "name": "LIMIT", "namespace_id": "1001", "simple": { "limit": 3, "period": 60 } }]
+}

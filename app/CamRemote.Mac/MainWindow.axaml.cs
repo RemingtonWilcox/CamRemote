@@ -289,6 +289,7 @@ public partial class MainWindow : Window
         _live.Stop();
         _meter.Dispose();
         _video.Stop();
+        Hide(); // closing can wait a few seconds for the camera to let go
         _cam.Dispose();
         if (OperatingSystem.IsMacOS()) MacNative.cb_awake(0);
         _ = _phone?.DisposeAsync();
@@ -521,6 +522,17 @@ public partial class MainWindow : Window
     {
         if (System.IO.File.Exists(Log.FilePath)) System.Diagnostics.Process.Start("open", ["-R", Log.FilePath]);
         else ShowMessage("There's no log yet.");
+    }
+
+    /// <summary>Sends the log to the developer, with what went wrong if they wrote it. Nothing is sent before this.</summary>
+    private async void OnSendLogClick(object? sender, RoutedEventArgs e)
+    {
+        SendLogButton.IsEnabled = false;
+        SendLogResult.Text = "Sending…";
+        var (reference, problem) = await LogSender.SendAsync(LogNote.Text ?? "");
+        SendLogResult.Text = reference != null ? $"Sent, thank you. Its reference is {reference}." : problem;
+        if (reference != null) LogNote.Text = "";
+        SendLogButton.IsEnabled = true;
     }
 
     private async void OnChangePhotos(object? sender, RoutedEventArgs e)

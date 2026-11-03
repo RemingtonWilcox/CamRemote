@@ -264,6 +264,7 @@ public partial class MainWindow : Window
         _bird.Stop();
         _live.Stop();
         _meter.Dispose();
+        Hide(); // closing can wait a few seconds for the camera to let go
         _cam.Dispose(); // before any await: the window may be gone by the time an await resumes, and this thread would keep the app alive
         if (_phone != null) await _phone.DisposeAsync();
         await _video.DisposeAsync();
@@ -498,6 +499,17 @@ public partial class MainWindow : Window
     {
         if (System.IO.File.Exists(Log.FilePath)) System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{Log.FilePath}\"");
         else ShowMessage("There's no log yet.");
+    }
+
+    /// <summary>Sends the log to the developer, with what went wrong if they wrote it. Nothing is sent before this.</summary>
+    private async void OnSendLogClick(object sender, RoutedEventArgs e)
+    {
+        SendLogButton.IsEnabled = false;
+        SendLogResult.Text = "Sending…";
+        var (reference, problem) = await LogSender.SendAsync(LogNote.Text);
+        SendLogResult.Text = reference != null ? $"Sent, thank you. Its reference is {reference}." : problem;
+        if (reference != null) LogNote.Text = "";
+        SendLogButton.IsEnabled = true;
     }
 
     private void OnChangePhotos(object sender, RoutedEventArgs e)

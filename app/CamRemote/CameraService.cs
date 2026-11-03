@@ -1290,6 +1290,10 @@ public sealed class CameraService : IDisposable
         _frameThread.Join(1000);
         Run(Native.cb_release);
         _queue.CompleteAdding();
-        _worker.Join(3000);
+        // Closing while Sony's SDK is still searching or connecting leaves a copy of the app that Windows can't
+        // finish closing, and that can't be ended until a restart. So let the SDK finish and let go first.
+        var since = DateTime.Now;
+        bool done = _worker.Join(TimeSpan.FromSeconds(20));
+        Log.Write(done ? $"Sony's SDK let go after {(DateTime.Now - since).TotalSeconds:0.0} s." : "Sony's SDK still hadn't let go after 20 s.");
     }
 }
