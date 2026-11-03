@@ -155,6 +155,7 @@ struct ConnectView: View {
                 .font(.footnote)
                 .foregroundColor(.dim)
                 .padding(.top, 24)
+            BridgeSection().padding(.top, 24) // so it can be turned on or off without a camera
         }
     }
 
