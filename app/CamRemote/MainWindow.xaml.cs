@@ -262,6 +262,7 @@ public partial class MainWindow : Window
         _bird.Stop();
         _live.Stop();
         _meter.Dispose();
+        Hide(); // closing can wait a few seconds for the camera to let go
         _cam.Dispose(); // before any await: the window may be gone by the time an await resumes, and this thread would keep the app alive
         if (_phone != null) await _phone.DisposeAsync();
         await _video.DisposeAsync();

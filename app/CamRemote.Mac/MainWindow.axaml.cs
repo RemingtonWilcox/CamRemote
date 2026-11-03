@@ -287,6 +287,7 @@ public partial class MainWindow : Window
         _live.Stop();
         _meter.Dispose();
         _video.Stop();
+        Hide(); // closing can wait a few seconds for the camera to let go
         _cam.Dispose();
         if (OperatingSystem.IsMacOS()) MacNative.cb_awake(0);
         _ = _phone?.DisposeAsync();
