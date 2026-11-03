@@ -645,7 +645,7 @@ public sealed class CameraService : IDisposable
             return "Tap does is set to Off, so clicks do nothing. Pick Focus or Tracking.";
         uint xy = TouchPoint(fx, fy);
         Log.Write($"Tap at {fx:0.00}, {fy:0.00}: focus mode {Get(PropCode.FocusMode)?.Value}, tap function {Get(PropCode.FunctionOfTouchOperation)?.Value}, " +
-                  $"touch allowed {Get(PropCode.RemoteTouchOperationEnableStatus)?.Value}");
+                  $"touch allowed {Get(PropCode.RemoteTouchOperationEnableStatus)?.Value}, spot movable {Get(PropCode.AF_Area_Position)?.Writable}");
         if (IsManualFocus)
         {
             if (Get(PropCode.FocusMode)?.Writable != true) return "The camera isn't letting focus mode change right now.";
@@ -684,13 +684,9 @@ public sealed class CameraService : IDisposable
             {
                 EnableTouch(track ? TouchFnTracking : TouchFnFocus);
                 int err = Native.cb_set_prop((uint)PropCode.RemoteTouchOperation, xy, TypeUInt32);
-                if (err != 0) SayFailed("The camera couldn't focus there.", err);
-                else if (halfPress)
-                {
-                    Native.cb_set_prop((uint)PropCode.S1, S1Locked, TypeUInt16Array);
-                    Thread.Sleep(FocusHoldMs);
-                    Native.cb_set_prop((uint)PropCode.S1, S1Unlocked, TypeUInt16Array);
-                }
+                if (err != 0 && MoveFocusSpot(xy, IsPhotoMode)) return; // the A9 II over Wi-Fi refuses remote touch
+                if (err != 0) SayFailed(Get(PropCode.AF_Area_Position) is { Writable: false } ? SpotNeeded : "The camera couldn't focus there.", err);
+                else if (halfPress) HalfPress();
                 else if (track)
                 {
                     Thread.Sleep(1200);
@@ -706,15 +702,35 @@ public sealed class CameraService : IDisposable
         }
         if (Get(PropCode.AF_Area_Position) is { Writable: true })
         {
-            Run(() =>
-            {
-                int err = Native.cb_set_prop((uint)PropCode.AF_Area_Position, xy, TypeUInt32);
-                if (err != 0) SayFailed("The camera couldn't move its focus area there.", err);
-            });
+            bool photo = IsPhotoMode;
+            Run(() => MoveFocusSpot(xy, photo));
             return null;
         }
         return "The camera isn't accepting touch focus right now. Put it in movie mode with Touch Operation on, " +
                "or set Focus Area to a Spot type.";
+    }
+
+    private const string SpotNeeded = "To click to focus on this camera, set Focus area to a Flexible Spot.";
+
+    /// <summary>
+    /// Runs on the camera thread. For cameras without remote touch: moves a spot focus area to the tap, and in
+    /// photo mode half-presses so the camera focuses there. False if the focus area can't move.
+    /// </summary>
+    private bool MoveFocusSpot(uint xy, bool halfPress)
+    {
+        if (Get(PropCode.AF_Area_Position) is not { Writable: true }) return false;
+        int err = Native.cb_set_prop((uint)PropCode.AF_Area_Position, xy, TypeUInt32);
+        if (err != 0) SayFailed("The camera couldn't move its focus area there.", err);
+        else if (halfPress) HalfPress();
+        return true;
+    }
+
+    /// <summary>Runs on the camera thread.</summary>
+    private void HalfPress()
+    {
+        Native.cb_set_prop((uint)PropCode.S1, S1Locked, TypeUInt16Array);
+        Thread.Sleep(FocusHoldMs);
+        Native.cb_set_prop((uint)PropCode.S1, S1Unlocked, TypeUInt16Array);
     }
 
     private static uint TouchPoint(double fx, double fy)
