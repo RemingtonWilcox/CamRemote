@@ -32,6 +32,7 @@
     <Compile Include="..\CamRemote\SdkNames.g.cs" Link="Shared\SdkNames.g.cs" />
     <Compile Include="..\CamRemote\Settings.cs" Link="Shared\Settings.cs" />
     <Compile Include="..\CamRemote\SonyRemote.cs" Link="Shared\SonyRemote.cs" />
+    <Compile Include="..\CamRemote\RemoteLink.cs" Link="Shared\RemoteLink.cs" />
     <EmbeddedResource Include="..\CamRemote\phone.html" LogicalName="phone.html" />
     <EmbeddedResource Include="..\CamRemote\phone-icon.png" LogicalName="phone-icon.png" />
   </ItemGroup>

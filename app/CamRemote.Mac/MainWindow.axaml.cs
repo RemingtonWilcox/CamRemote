@@ -588,9 +588,34 @@ public partial class MainWindow : Window
         }
         var dlg = new ConnectWindow(_cam, _settings);
         if (!await dlg.ShowDialog<bool>(this)) return;
+        if (dlg.Joined is { } link)
+        {
+            Join(link);
+            return;
+        }
         _cam.HoldReconnect = false;
         _linkSince = DateTime.Now;
         await dlg.ConnectAsync(ShowMessage, AskFingerprint);
+    }
+
+    /// <summary>
+    /// Swaps this window for the joined camera until the person leaves it. Meanwhile this app doesn't try the
+    /// camera itself: it takes one remote at a time, and the other CamRemote has it.
+    /// </summary>
+    private void Join(RemoteLink link)
+    {
+        bool held = _cam.HoldReconnect;
+        _cam.HoldReconnect = true;
+        var join = new JoinWindow(link, _settings);
+        join.Closed += (_, _) =>
+        {
+            _cam.HoldReconnect = held;
+            _linkSince = DateTime.Now;
+            Show();
+            Activate();
+        };
+        join.Show();
+        Hide();
     }
 
     private void OnRecClick(object? sender, RoutedEventArgs e) => _cam.ToggleRecord();

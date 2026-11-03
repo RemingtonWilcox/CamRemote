@@ -1,0 +1,107 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="CamRemote.JoinWindow"
+        Title="CamRemote" Width="1400" Height="860" MinWidth="900" MinHeight="560"
+        WindowStartupLocation="CenterScreen" Background="#16181B">
+    <Grid ColumnDefinitions="*,340" RowDefinitions="Auto,*">
+
+        <!-- Status strip over the picture -->
+        <DockPanel Grid.Row="0" Grid.Column="0" Margin="14,10" LastChildFill="False">
+            <Border x:Name="RecBadge" DockPanel.Dock="Left" Background="{StaticResource Rec}" CornerRadius="4"
+                    Padding="8,2" Margin="0,0,12,0" IsVisible="False">
+                <TextBlock Text="● REC" FontSize="15" FontWeight="Bold" Foreground="White" />
+            </Border>
+            <TextBlock x:Name="CamSummary" DockPanel.Dock="Left" VerticalAlignment="Center" FontSize="17" FontWeight="SemiBold" />
+            <TextBlock x:Name="CardText" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="18,0,0,0" FontSize="15" />
+            <TextBlock x:Name="BatteryText" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="18,0,0,0" FontSize="15" />
+        </DockPanel>
+
+        <!-- The host's live picture. Click to focus. -->
+        <Border Grid.Row="1" Grid.Column="0" Background="Black">
+            <Panel>
+                <TextBlock x:Name="NoSignal" Text="Waiting for the picture…" Foreground="{StaticResource Dim}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <LayoutTransformControl x:Name="PictureTurn" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Panel>
+                        <Image x:Name="Picture" Stretch="Uniform" Cursor="Cross" PointerPressed="OnPicturePressed" />
+                        <Image x:Name="AssistLayer" Stretch="Uniform" IsHitTestVisible="False" />
+                        <Canvas IsHitTestVisible="False">
+                            <Ellipse x:Name="FocusMark" Width="20" Height="20" Stroke="#C0FFFFFF" StrokeThickness="1.5" IsVisible="False" />
+                        </Canvas>
+                    </Panel>
+                </LayoutTransformControl>
+                <Border x:Name="AlertBox" Background="#CC1B1E22" CornerRadius="6" Padding="12,6" Margin="0,14,0,0"
+                        HorizontalAlignment="Center" VerticalAlignment="Top" IsVisible="False">
+                    <TextBlock x:Name="AlertText" Foreground="{StaticResource Warn}" FontSize="14" TextWrapping="Wrap" />
+                </Border>
+                <Border x:Name="Hud" Background="#B0101214" CornerRadius="6" Padding="8" Margin="14"
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="280" IsHitTestVisible="False">
+                    <StackPanel>
+                        <Image x:Name="Histogram" Height="40" Stretch="Fill" />
+                        <TextBlock x:Name="OverText" Classes="Small" Margin="0,4,0,0" />
+                        <TextBlock x:Name="MeterText" Classes="Small" />
+                    </StackPanel>
+                </Border>
+                <Border x:Name="Toast" Background="#E61B1E22" CornerRadius="6" Padding="14,8" Margin="0,0,0,24"
+                        HorizontalAlignment="Center" VerticalAlignment="Bottom" IsVisible="False">
+                    <TextBlock x:Name="ToastText" Foreground="White" FontSize="14" TextWrapping="Wrap" MaxWidth="560" />
+                </Border>
+            </Panel>
+        </Border>
+
+        <!-- Controls -->
+        <Border x:Name="SidePanel" Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" BorderBrush="#333" BorderThickness="1,0,0,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="16,14,16,0">
+                    <DockPanel>
+                        <Button Content="Leave" Click="OnLeaveClick" Padding="10,3" DockPanel.Dock="Right"
+                                ToolTip.Tip="Stop using the camera through the other CamRemote" />
+                        <Ellipse x:Name="LinkDot" Width="10" Height="10" Fill="#666" Margin="0,0,8,0" DockPanel.Dock="Left" />
+                        <TextBlock x:Name="LinkText" Text="Joining…" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    </DockPanel>
+                    <TextBlock x:Name="HostText" Classes="Small" Margin="18,2,0,0" TextTrimming="CharacterEllipsis" />
+                    <Button x:Name="RecButton" Click="OnRecClick" Height="56" Margin="0,14,0,0" IsEnabled="False"
+                            HorizontalAlignment="Stretch" VerticalContentAlignment="Center" ToolTip.Tip="Start / stop recording (F9)">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Ellipse x:Name="RecDot" Width="18" Height="18" Fill="{StaticResource Rec}" Margin="0,0,10,0" />
+                            <TextBlock x:Name="RecLabel" Text="Record" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,4,0,0">
+                    <StackPanel Margin="16,0,16,16">
+                        <UniformGrid x:Name="BaseIsoPanel" Rows="1" Margin="0,10,0,0" IsVisible="False" />
+                        <TextBlock Text="EXPOSURE" Classes="Section" />
+                        <StackPanel x:Name="ExposureRows" />
+                        <TextBlock Text="FOCUS" Classes="Section" />
+                        <StackPanel x:Name="FocusRows" />
+                        <StackPanel x:Name="FocusRing" IsVisible="False" Margin="0,6,0,0">
+                            <TextBlock Text="Focus ring (manual focus)" Classes="Label" Margin="0,0,0,4" />
+                            <UniformGrid x:Name="RingButtons" Rows="1" />
+                        </StackPanel>
+                        <Button x:Name="StopTracking" Content="Stop tracking" Click="OnStopTrackingClick" Margin="0,8,0,0"
+                                HorizontalAlignment="Stretch" IsVisible="False" />
+                        <StackPanel x:Name="MagnifyBox" IsVisible="False" Margin="0,8,0,0">
+                            <TextBlock Text="Magnify" Classes="Label" Margin="0,0,0,4" />
+                            <UniformGrid x:Name="MagnifyButtons" Rows="1" />
+                        </StackPanel>
+                        <TextBlock Text="GUIDES" Classes="Section" />
+                        <UniformGrid Rows="1">
+                            <ToggleButton x:Name="HistToggle" Content="Histogram" Margin="0,0,4,0" Click="OnGuideClick" HorizontalAlignment="Stretch" />
+                            <ToggleButton x:Name="ZebraToggle" Content="Zebras" Margin="0,0,4,0" Click="OnGuideClick" HorizontalAlignment="Stretch" />
+                            <ToggleButton x:Name="PeakToggle" Content="Peaking" Margin="0,0,4,0" Click="OnGuideClick" HorizontalAlignment="Stretch" />
+                        </UniformGrid>
+                        <Button Content="Turn the picture 90°" Click="OnRotateClick" Margin="0,4,4,0" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center" ToolTip.Tip="For a camera on its side. Only on this computer." />
+                        <TextBlock x:Name="AudioHead" Text="AUDIO" Classes="Section" />
+                        <StackPanel x:Name="AudioRows" />
+                        <TextBlock x:Name="MoreHead" Text="MORE" Classes="Section" />
+                        <StackPanel x:Name="MoreRows" />
+                        <TextBlock Classes="Small" TextWrapping="Wrap" Margin="0,18,0,0"
+                                   Text="The camera is held by the other CamRemote, which passes the picture and your changes on. Presets, photos and automatic recording are there." />
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

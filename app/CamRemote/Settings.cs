@@ -18,6 +18,7 @@ public sealed class Preset
 public sealed class Settings
 {
     private const string VaultResource = "CamRemote camera";
+    private const string JoinResource = "CamRemote join";
 
     public string VideoDeviceId { get; set; } = "";
     public string CameraIp { get; set; } = "";
@@ -41,6 +42,7 @@ public sealed class Settings
     public int PhonePort { get; set; } = 8787;
     public string PhoneCode { get; set; } = ""; // typed once on a phone
     public string PhoneToken { get; set; } = ""; // what the phone keeps afterwards
+    public string JoinAddress { get; set; } = ""; // another CamRemote this one last used a camera through
     public string PhotoFolder { get; set; } = ""; // blank means Pictures/CamRemote
     public string RecordSubject { get; set; } = "Animal"; // what automatic recording looks for
     public int RecordStopAfter { get; set; } = 15; // seconds with nothing seen before automatic recording stops
@@ -104,9 +106,27 @@ public sealed class Settings
         try { foreach (var c in vault.FindAllByResource(VaultResource)) vault.Remove(c); } catch { /* none saved */ }
         if (password.Length > 0) vault.Add(new PasswordCredential(VaultResource, CameraUser, password));
     }
+
+    /// <summary>What another CamRemote handed this one after its access code was typed.</summary>
+    public string LoadJoinToken()
+    {
+        try { var c = new PasswordVault().Retrieve(JoinResource, JoinAddress); c.RetrievePassword(); return c.Password; }
+        catch { return ""; }
+    }
+
+    public void SaveJoinToken(string token)
+    {
+        var vault = new PasswordVault();
+        try { foreach (var c in vault.FindAllByResource(JoinResource)) vault.Remove(c); } catch { /* none saved */ }
+        if (token.Length > 0) vault.Add(new PasswordCredential(JoinResource, JoinAddress, token));
+    }
 #else
     public string LoadPassword() => MacNative.LoadSecret(VaultResource, CameraUser);
 
     public void SavePassword(string password) => MacNative.SaveSecret(VaultResource, CameraUser, password);
+
+    public string LoadJoinToken() => MacNative.LoadSecret(JoinResource, JoinAddress);
+
+    public void SaveJoinToken(string token) => MacNative.SaveSecret(JoinResource, JoinAddress, token);
 #endif
 }
