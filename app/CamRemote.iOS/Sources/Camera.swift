@@ -252,6 +252,7 @@ final class Camera: ObservableObject {
     private var focusSending = false // main thread only
     private var stepSending = false // main thread only
     private var tapBusy = false // main thread only
+    private(set) var recordSent = Date.distantPast // main thread only
 
     private static let folder = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
 
@@ -365,19 +366,12 @@ final class Camera: ObservableObject {
     func toggleRecord() {
         guard !recordBusy else { return }
         recordBusy = true
+        recordSent = Date()
         queue {
             defer { DispatchQueue.main.async { self.recordBusy = false } }
             try self.refresh()
             if self.settings[Code.recording]?.value == 1 {
-                _ = try self.button(Code.movieButton, up)
-                Thread.sleep(forTimeInterval: 0.5)
-                try self.refresh()
-                if self.settings[Code.recording]?.value == 1 {
-                    _ = try self.button(Code.movieButton, down)
-                    Thread.sleep(forTimeInterval: 0.08)
-                    _ = try self.button(Code.movieButton, up)
-                }
-                Thread.sleep(forTimeInterval: 1) // the camera refuses the next press while it finishes the file
+                try self.stopTake()
             } else {
                 try self.collectPhotos()
                 _ = try self.button(Code.movieButton, down)
@@ -392,6 +386,28 @@ final class Camera: ObservableObject {
             }
             try self.refresh()
         }
+    }
+
+    /// Stops a take even while another press is still on its way, since this one goes out after it.
+    /// For when the app is about to leave the screen.
+    func stopRecording() {
+        queue {
+            try self.refresh()
+            if self.settings[Code.recording]?.value == 1 { try self.stopTake() }
+            try self.refresh()
+        }
+    }
+
+    private func stopTake() throws {
+        _ = try button(Code.movieButton, up)
+        Thread.sleep(forTimeInterval: 0.5)
+        try refresh()
+        if settings[Code.recording]?.value == 1 {
+            _ = try button(Code.movieButton, down)
+            Thread.sleep(forTimeInterval: 0.08)
+            _ = try button(Code.movieButton, up)
+        }
+        Thread.sleep(forTimeInterval: 1) // the camera refuses the next press while it finishes the file
     }
 
     /// Video and Photo each have their own C1 to C3, so these are numbered 1 to 3 and 11 to 13.
