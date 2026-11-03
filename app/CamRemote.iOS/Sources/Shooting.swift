@@ -1040,6 +1040,7 @@ struct SetupSheet: View {
                     .padding(.top, 12)
                 HStack(spacing: 12) {
                     Link("Help", destination: URL(string: "https://github.com/RemingtonWilcox/CamRemote#something-not-working")!)
+                    Link("Instagram", destination: URL(string: "https://www.instagram.com/remingtonwilcox/")!)
                     Button("Credits") { showCredits = true }
                 }
                 .font(.caption2)

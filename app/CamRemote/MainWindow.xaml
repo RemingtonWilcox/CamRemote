@@ -376,6 +376,9 @@
                                 <Run Text="  ·  " Foreground="{StaticResource Dim}" />
                                 <Hyperlink Click="OnHelpClick" Foreground="{StaticResource Dim}"
                                            ToolTip="Opens the help on GitHub: what to try when something isn't working.">Help</Hyperlink>
+                                <Run Text="  ·  " Foreground="{StaticResource Dim}" />
+                                <Hyperlink Click="OnInstagramClick" Foreground="{StaticResource Dim}"
+                                           ToolTip="Opens @remingtonwilcox on Instagram.">Instagram</Hyperlink>
                             </TextBlock>
                             <TextBlock x:Name="AboutText" HorizontalAlignment="Center" Margin="0,6,0,0" FontSize="11" Foreground="{StaticResource Dim}" />
                         </StackPanel>

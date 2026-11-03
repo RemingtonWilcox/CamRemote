@@ -775,6 +775,8 @@ public partial class MainWindow : Window
     /// <summary>Shows the log in Explorer, so it's easy to send along when something went wrong.</summary>
     private void OnHelpClick(object sender, RoutedEventArgs e) => UpdateCheck.OpenHelp();
 
+    private void OnInstagramClick(object sender, RoutedEventArgs e) => UpdateCheck.OpenInstagram();
+
     private void OnShowLogClick(object sender, RoutedEventArgs e)
     {
         if (System.IO.File.Exists(Log.FilePath)) System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{Log.FilePath}\"");
