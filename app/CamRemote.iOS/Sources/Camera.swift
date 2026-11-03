@@ -13,6 +13,9 @@ private let cardOnly: Int64 = 0x10
 private let continuousFocus: Int64 = 0x8004
 let zebraPercent = 90
 private let pressGap = 0.35
+private let focusing: Int64 = 5 // what the focus state reads while autofocus is still hunting
+private let settleTime = 0.3 // the focus state takes a moment to move after a press
+private let focusWait = 2.0
 private let matchingModes: [(photo: Int64, movie: Int64)] = [(2, 0x8050), (3, 0x8051), (4, 0x8052), (1, 0x8053)]
 private let modeMask: Int64 = 0xFFFF // the camera adds a group number above the mode, like 0x78053 for Movie M
 private let sizes: [UInt16: Int] = [1: 1, 2: 1, 3: 2, 4: 2, 5: 4, 6: 4, 7: 8, 8: 8, 9: 16, 10: 16]
@@ -26,6 +29,7 @@ enum Code {
     static let colorTemp: UInt16 = 0xD20F
     static let focusMode: UInt16 = 0x500A
     static let focusArea: UInt16 = 0xD22C
+    static let focusState: UInt16 = 0xD213
     static let movieFormat: UInt16 = 0xD241
     static let recordSetting: UInt16 = 0xD242
     static let frameRate: UInt16 = 0xD286
@@ -244,6 +248,7 @@ final class Camera: ObservableObject {
     private var shutterPressed = Date()
     private var shutterHeld = false // main thread only
     private var shutterReleased = Date.distantPast // main thread only
+    private var shutterWaiting = false // main thread only: lifted, but still pressed until the camera has focus
     private var focusSending = false // main thread only
     private var stepSending = false // main thread only
     private var tapBusy = false // main thread only
@@ -280,7 +285,11 @@ final class Camera: ObservableObject {
     }
 
     func disconnect() {
-        if shutterHeld { shutterUp() }
+        if shutterHeld {
+            shutterUp(now: true)
+        } else if shutterWaiting {
+            queue { try self.letGo(waiting: false) }
+        }
         lock.lock()
         stopping = true
         lock.unlock()
@@ -519,7 +528,7 @@ final class Camera: ObservableObject {
     /// Works like the real button: held down, the camera follows its own drive mode, so burst keeps firing.
     /// Returns false for a spare tap, which is ignored because it would only pile up.
     func shutterDown() -> Bool {
-        guard !shutterHeld, Date().timeIntervalSince(shutterReleased) > pressGap else { return false }
+        guard !shutterHeld, !shutterWaiting, Date().timeIntervalSince(shutterReleased) > pressGap else { return false }
         shutterHeld = true
         queue {
             self.shutterPressed = Date()
@@ -529,16 +538,33 @@ final class Camera: ObservableObject {
         return true
     }
 
-    func shutterUp() {
+    func shutterUp(now: Bool = false) {
         guard shutterHeld else { return }
         shutterHeld = false
         shutterReleased = Date()
-        queue {
-            let held = Date().timeIntervalSince(self.shutterPressed)
-            if held < 0.12 { Thread.sleep(forTimeInterval: 0.12 - held) } // a tap still has to reach the camera as a press
-            _ = try self.button(Code.fullPress, up)
-            _ = try self.button(Code.halfPress, up)
+        shutterWaiting = !now
+        queue { try self.letGo(waiting: !now) }
+    }
+
+    /// In autofocus the camera doesn't fire until it has focus, and a quick tap would be over by then.
+    /// So the press stays on until the camera has what it needs, without holding up the picture.
+    private func letGo(waiting: Bool) throws {
+        let held = Date().timeIntervalSince(shutterPressed)
+        if held < 0.12 { Thread.sleep(forTimeInterval: 0.12 - held) } // a tap still has to reach the camera as a press
+        if waiting {
+            try refresh()
+            let hunting = settings[Code.focusState]?.value == focusing
+            if held < settleTime || (hunting && held < focusWait) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    self.queue { try self.letGo(waiting: true) }
+                }
+                return
+            }
+            if hunting { tell("The camera couldn't find focus, so it didn't take the photo.") }
         }
+        _ = try button(Code.fullPress, up)
+        _ = try button(Code.halfPress, up)
+        DispatchQueue.main.async { self.shutterWaiting = false }
     }
 
     /// One focus move at a time, so a slow link doesn't queue them up. Returns false if one is still on its way.
@@ -597,6 +623,7 @@ final class Camera: ObservableObject {
             self.link = .off
             self.recordBusy = false
             self.shutterHeld = false
+            self.shutterWaiting = false
             self.focusSending = false
             self.tapBusy = false
             self.stepSending = false

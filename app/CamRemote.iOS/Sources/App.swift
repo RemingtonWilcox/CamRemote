@@ -84,12 +84,12 @@ struct CamRemoteApp: App {
                     camera.disconnect()
                 } else if now == .active {
                     camera.releaseHold()
-                    resumeIfNeeded()
+                    resumeIfNeeded(now)
                 }
             }
             .onChange(of: camera.link) { link in
                 UIApplication.shared.isIdleTimerDisabled = link == .on
-                resumeIfNeeded() // a quick trip out of the app can come back before the old connection has closed
+                resumeIfNeeded(phase) // a quick trip out of the app can come back before the old connection has closed
             }
             // Only while the app is open, so turning the camera on is all it takes.
             .onReceive(Timer.publish(every: 4, on: .main, in: .common).autoconnect()) { _ in
@@ -98,8 +98,9 @@ struct CamRemoteApp: App {
         }
     }
 
-    private func resumeIfNeeded() {
-        guard resume, phase == .active, camera.link == .off else { return }
+    /// Takes the phase as an argument because inside `onChange` the `phase` property still holds the old value.
+    private func resumeIfNeeded(_ current: ScenePhase) {
+        guard resume, current == .active, camera.link == .off else { return }
         resume = false
         connectIfReady()
     }
