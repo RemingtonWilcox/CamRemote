@@ -94,7 +94,7 @@ CamRemote is tested on the **A7S III**. Sony says its remote software can contro
 
 Update your camera to its latest firmware first. Some features, such as click to focus, may behave differently on your camera.
 
-**A9 II:** Sony doesn't list it for Wi-Fi, but a user has it connected, with click to focus working. On the camera, turn **Ctrl w/ Smartphone** off, join your Wi-Fi under **Wi-Fi Settings › Access Point Set.**, then under **PC Remote Function** turn **PC Remote** on, set **PC Remote Cnct Method** to **Wi-Fi Access Point**, and choose **Pairing** while CamRemote is searching. To click to focus, set **Focus area** to a **Flexible Spot**. Time-lapse and card formatting don't work on it.
+**A9 II:** Sony doesn't list it for Wi-Fi, but a user has it connected, with click to focus working. On the camera, turn **Ctrl w/ Smartphone** off, join your Wi-Fi under **Wi-Fi Settings › Access Point Set.**, then under **PC Remote Function** turn **PC Remote** on, set **PC Remote Cnct Method** to **Wi-Fi Access Point**, and choose **Pairing** while CamRemote is searching. To click to focus, set **Focus area** to **Spot S**, **Spot M** or **Spot L** (the camera calls them Flexible Spot). Time-lapse and card formatting don't work on it.
 
 **Won't work over Wi-Fi:** A7R IV, A7R IVA, A7C, RX0 II, BRC-AM7 and FR7. Cameras not listed at all, such as the A7 III or a6400, aren't supported by Sony's software.
 
@@ -295,7 +295,7 @@ Check that **Tap does** isn't set to **Off**, and that **Touch operation** is on
 
 If there's no **Touch operation** in **Setup**, the camera doesn't let the app change it, so make sure **Touch Operation** is on in the camera's own menu.
 
-On the A9 II, set **Focus area** to a **Flexible Spot**. A click then moves the spot there and focuses.
+On the A9 II, set **Focus area** to **Spot S**, **Spot M** or **Spot L** (the camera calls them Flexible Spot). A click then moves the spot there and focuses.
 
 </details>
 

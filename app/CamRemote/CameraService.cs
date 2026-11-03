@@ -912,7 +912,7 @@ public sealed class CameraService : IDisposable
                "or set Focus Area to a Spot type.";
     }
 
-    private const string SpotNeeded = "To click to focus on this camera, set Focus area to a Flexible Spot.";
+    private const string SpotNeeded = "To click to focus on this camera, set Focus area to Spot S, Spot M or Spot L.";
 
     /// <summary>
     /// Runs on the camera thread. For cameras without remote touch: moves a spot focus area to the tap, and in
