@@ -675,7 +675,9 @@ public partial class MainWindow : Window
         void Card(int slot, Prop? status, Prop? time, Prop? photos)
         {
             if (status == null) return;
-            if (status.Value == 1) parts.Add($"Card {slot}: empty");
+            // The A7S III reports an empty slot as "recognising or locked" (3) rather than "no card" (1), with nothing left on it.
+            bool empty = status.Value == 1 || status.Value == 3 && (time?.Value ?? 0) == 0 && (photos?.Value ?? 0) == 0;
+            if (empty) parts.Add($"Card {slot}: empty");
             else if (status.Value != 0) parts.Add($"Card {slot}: not ready");
             else if (photo && photos != null) { parts.Add($"Card {slot}: {photos.Value:N0} photos"); minutes.Add(photos.Value / 10); }
             else if (time != null) { parts.Add($"Card {slot}: " + Format.Duration(time.Value)); minutes.Add(time.Value / 60); }
