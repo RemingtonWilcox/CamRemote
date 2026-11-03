@@ -94,7 +94,7 @@ CamRemote is tested on the **A7S III**. Sony says its remote software can contro
 
 Update your camera to its latest firmware first. Some features, such as click to focus, may behave differently on your camera.
 
-**A9 II:** Sony doesn't list it for Wi-Fi, but a user has it connected. On the camera, turn **Ctrl w/ Smartphone** off, join your Wi-Fi under **Wi-Fi Settings › Access Point Set.**, then under **PC Remote Function** turn **PC Remote** on, set **PC Remote Cnct Method** to **Wi-Fi Access Point**, and choose **Pairing** while CamRemote is searching. Turn **Touch Operation** on too, or clicking the picture won't focus.
+**A9 II:** Sony doesn't list it for Wi-Fi, but a user has it connected. On the camera, turn **Ctrl w/ Smartphone** off, join your Wi-Fi under **Wi-Fi Settings › Access Point Set.**, then under **PC Remote Function** turn **PC Remote** on, set **PC Remote Cnct Method** to **Wi-Fi Access Point**, and choose **Pairing** while CamRemote is searching.
 
 **Won't work over Wi-Fi:** A7R IV, A7R IVA, A7C, RX0 II, BRC-AM7 and FR7. Cameras not listed at all, such as the A7 III or a6400, aren't supported by Sony's software.
 
@@ -281,7 +281,9 @@ The camera's Wi-Fi signal is weak. Move your router or a mesh point closer to th
 
 Check that **Tap does** isn't set to **Off**, and that **Touch operation** is on in **Setup**.
 
-If **Tap does** is greyed out, or there's no **Touch operation** in **Setup**, turn **Touch Operation** on in the camera's own menu. Some cameras, like the A9 II, don't let the app change it.
+If there's no **Touch operation** in **Setup**, the camera doesn't let the app change it, so make sure **Touch Operation** is on in the camera's own menu.
+
+On the A9 II, clicking to focus doesn't work yet, even with Touch Operation on.
 
 </details>
 
