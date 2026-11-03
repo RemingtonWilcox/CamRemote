@@ -1165,9 +1165,34 @@ final class Camera: ObservableObject {
     }
 
     private static func loadPresets() -> [Int: Preset] {
-        guard let data = UserDefaults.standard.data(forKey: "modePresets") else { return [:] }
+        // Written once, so every device starts with the same C1 to C4 as the computer. Saving over one still works.
+        let defaults = UserDefaults.standard
+        if defaults.integer(forKey: "presetsVersion") < 1 {
+            defaults.set(1, forKey: "presetsVersion")
+            if let data = try? JSONEncoder().encode(standardPresets) { defaults.set(data, forKey: "modePresets") }
+            return standardPresets
+        }
+        guard let data = defaults.data(forKey: "modePresets") else { return [:] }
         return (try? JSONDecoder().decode([Int: Preset].self, from: data)) ?? [:]
     }
+
+    /// Movie M is 0x78053 and S&Q M 0x9805C here, with the camera's group number on top. Drive also carries one.
+    private static let standardPresets: [Int: Preset] = {
+        let movie: Int64 = 0x78053, slowQuick: Int64 = 0x9805C, hs4K: Int64 = 0xB, hd: Int64 = 0x9, auto: Int64 = 0xFFFFFF
+        func video(_ values: [UInt16: Int64]) -> Preset { Preset(summary: "", values: values) }
+        return [
+            1: video([Code.mode: movie, Code.movieFormat: hs4K, Code.frameRate: 7, Code.recordSetting: 0x37,
+                      Code.shutter: 0x10032, Code.aperture: 280, Code.iso: 640]), // 24p 1/50 f/2.8
+            2: video([Code.mode: movie, Code.movieFormat: hs4K, Code.frameRate: 3, Code.shutter: 0x1007D, Code.aperture: 280, Code.iso: 640]), // 60p 1/125
+            3: video([Code.mode: movie, Code.movieFormat: hs4K, Code.frameRate: 1, Code.shutter: 0x103E8, Code.aperture: 560, Code.iso: 12800]), // 120p 1/1000
+            4: video([Code.mode: slowQuick, Code.movieFormat: hd, Code.sqPlayRate: 7, Code.sqRecordSetting: 0x3D, Code.sqFrameRate: 240,
+                      Code.shutter: 0x103E8, Code.aperture: 450, Code.iso: 12800]), // S&Q 240fps
+            11: video([Code.shutter: 0x101F4, Code.aperture: 560, Code.iso: auto, Code.drive: 0x18015]), // 1/500, burst Mid
+            12: video([Code.shutter: 0x10C80, Code.aperture: 560, Code.iso: auto, Code.drive: 0x18010]), // 1/3200, burst Hi+
+            13: video([Code.shutter: 0x100FA, Code.aperture: 280, Code.iso: auto, Code.drive: 0x18012]), // 1/250, burst Lo
+            14: video([Code.shutter: 0x100C8, Code.aperture: 800, Code.iso: 100, Code.drive: 1]), // 1/200 f/8, single
+        ]
+    }()
 
     private var onPhotoMode: Bool { isPhotoMode(settings[Code.mode]?.value ?? 0) }
 
