@@ -1326,6 +1326,9 @@ public sealed class CameraService : IDisposable
         // finish closing, and that can't be ended until a restart. So let the SDK finish and let go first.
         var since = DateTime.Now;
         bool done = _worker.Join(TimeSpan.FromSeconds(20));
-        Log.Write(done ? $"Sony's SDK let go after {(DateTime.Now - since).TotalSeconds:0.0} s." : "Sony's SDK still hadn't let go after 20 s.");
+        Log.Write(done ? $"Sony's SDK let go after {(DateTime.Now - since).TotalSeconds:0.0} s." : "Sony's SDK still hadn't let go after 20 s, so ending at once.");
+        // A normal exit would now run the SDK's own cleanup, which waits for threads Windows has already stopped,
+        // and the copy would never finish closing. Ending at once skips that cleanup.
+        if (!done) System.Diagnostics.Process.GetCurrentProcess().Kill();
     }
 }
