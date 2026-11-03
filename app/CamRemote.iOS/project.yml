@@ -1,0 +1,36 @@
+name: CamRemote
+options:
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  CamRemote:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: CamRemote
+        NSLocalNetworkUsageDescription: CamRemote connects to your camera over your hotspot or Wi-Fi.
+        UILaunchScreen: {}
+        UIRequiresFullScreen: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.camremote.phone
+        DEVELOPMENT_TEAM: ${DEVELOPMENT_TEAM}
+        CODE_SIGN_STYLE: Automatic
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        GCC_OPTIMIZATION_LEVEL: "2"
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_OBJC_BRIDGING_HEADER: Sources/Bridging.h
+        HEADER_SEARCH_PATHS: $(PROJECT_DIR)/deps/ios/include
+        LIBRARY_SEARCH_PATHS: $(PROJECT_DIR)/deps/ios/lib
+        OTHER_LDFLAGS: -lssh2 -lmbedtls -lmbedx509 -lmbedcrypto -leverest -lp256m

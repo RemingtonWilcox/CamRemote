@@ -1,0 +1,3 @@
+deps/
+*.xcodeproj
+Sources/Info.plist
