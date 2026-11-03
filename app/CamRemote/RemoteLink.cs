@@ -111,11 +111,11 @@ public sealed class RemoteLink : IDisposable
         {
             using var r = await link._http.PostAsync("/api/login", Body(new { code = code.Trim().ToUpperInvariant() }));
             if (r.StatusCode == HttpStatusCode.Unauthorized) { link.Dispose(); return (null, "That access code isn't right."); }
-            if (!r.IsSuccessStatusCode) { link.Dispose(); return (null, $"The other CamRemote said no ({(int)r.StatusCode})."); }
+            if (!r.IsSuccessStatusCode) { link.Dispose(); return (null, $"The other Egret said no ({(int)r.StatusCode})."); }
             string? token = r.Headers.TryGetValues("Set-Cookie", out var cookies)
                 ? cookies.Select(c => c.Split(';')[0]).Where(c => c.StartsWith(Cookie + "=")).Select(c => c[(Cookie.Length + 1)..]).FirstOrDefault()
                 : null;
-            if (string.IsNullOrEmpty(token)) { link.Dispose(); return (null, "The other CamRemote didn't sign this computer in."); }
+            if (string.IsNullOrEmpty(token)) { link.Dispose(); return (null, "The other Egret didn't sign this computer in."); }
             link._token = token;
             return await link.FindCameraAsync();
         }
@@ -147,7 +147,7 @@ public sealed class RemoteLink : IDisposable
         r.EnsureSuccessStatusCode();
         using var doc = JsonDocument.Parse(await r.Content.ReadAsStringAsync());
         var first = doc.RootElement.EnumerateArray().FirstOrDefault();
-        if (first.ValueKind != JsonValueKind.Object) { Dispose(); return (null, "The other CamRemote has no camera to share."); }
+        if (first.ValueKind != JsonValueKind.Object) { Dispose(); return (null, "The other Egret has no camera to share."); }
         CameraId = first.GetProperty("id").GetString() ?? "";
         CameraName = first.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
         return (this, null);
@@ -156,7 +156,7 @@ public sealed class RemoteLink : IDisposable
     private static string Unreachable(Exception ex) => ex switch
     {
         TaskCanceledException or HttpRequestException =>
-            "Can't reach the other CamRemote. Check it's open, its phone or computer control is on, and both are on Tailscale or the same Wi-Fi. " +
+            "Can't reach the other Egret. Check it's open, its phone or computer control is on, and both are on Tailscale or the same Wi-Fi. " +
             "If Tailscale says Connected but nothing gets through, switch Tailscale off and on there.",
         _ => ex.Message,
     };
@@ -227,7 +227,7 @@ public sealed class RemoteLink : IDisposable
                 using var doc = JsonDocument.Parse(await r.Content.ReadAsStringAsync());
                 return doc.RootElement.TryGetProperty("message", out var m) ? m.GetString() : "The camera didn't take that.";
             }
-            return r.StatusCode == HttpStatusCode.Unauthorized ? "Signed out: type the access code again." : $"The other CamRemote refused that ({(int)r.StatusCode}).";
+            return r.StatusCode == HttpStatusCode.Unauthorized ? "Signed out: type the access code again." : $"The other Egret refused that ({(int)r.StatusCode}).";
         }
         catch (Exception ex) { return Unreachable(ex); }
     }

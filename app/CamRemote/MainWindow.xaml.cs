@@ -58,7 +58,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        AboutText.Text = $"CamRemote {UpdateCheck.Current} · Made by Remington Wilcox";
+        AboutText.Text = $"Egret {UpdateCheck.Current} · Made by Remington Wilcox";
         PlaceWindow();
         var ui = new WpfUi(Dispatcher);
         _ui = ui;
@@ -307,7 +307,7 @@ public partial class MainWindow : Window
     private async Task ShowUpdateAsync()
     {
         if (await UpdateCheck.NewerVersionAsync() is not { } version) return;
-        UpdateButton.Content = $"CamRemote {version} is out. Click to download";
+        UpdateButton.Content = $"Egret {version} is out. Click to download";
         UpdateButton.Visibility = Visibility.Visible;
     }
 
@@ -961,7 +961,7 @@ public partial class MainWindow : Window
     private void ShowCameraModel()
     {
         bool connected = _cam.State == LinkState.Connected;
-        Title = connected ? $"CamRemote — {CameraModels.Label(_settings.CameraModel)}" : "CamRemote";
+        Title = connected ? $"Egret — {CameraModels.Label(_settings.CameraModel)}" : "Egret";
         var model = connected ? CameraModels.Find(_settings.CameraModel) : null;
         BaseIsoButtons.Visibility = model is { HasBaseIso: true } ? Visibility.Visible : Visibility.Collapsed;
         if (model is not { HasBaseIso: true }) return;

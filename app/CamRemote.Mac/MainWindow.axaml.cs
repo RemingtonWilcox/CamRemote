@@ -67,7 +67,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        AboutText.Text = $"CamRemote {UpdateCheck.Current} · Made by Remington Wilcox";
+        AboutText.Text = $"Egret {UpdateCheck.Current} · Made by Remington Wilcox";
         PlaceWindow();
         var ui = new AvaloniaUi();
         _ui = ui;
@@ -353,7 +353,7 @@ public partial class MainWindow : Window
     private async Task ShowUpdateAsync()
     {
         if (await UpdateCheck.NewerVersionAsync() is not { } version) return;
-        UpdateButton.Content = $"CamRemote {version} is out. Click to download";
+        UpdateButton.Content = $"Egret {version} is out. Click to download";
         UpdateButton.IsVisible = true;
     }
 
@@ -383,7 +383,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private Task<bool> AskFingerprint() => ConnectWindow.AskAsync(this, "CamRemote", CameraConnect.FingerprintWarning, "Connect anyway", "Don't connect");
+    private Task<bool> AskFingerprint() => ConnectWindow.AskAsync(this, "Egret", CameraConnect.FingerprintWarning, "Connect anyway", "Don't connect");
 
     private void OnClosing(object? sender, WindowClosingEventArgs e)
     {
@@ -1004,7 +1004,7 @@ public partial class MainWindow : Window
     private void ShowCameraModel()
     {
         bool connected = _cam.State == LinkState.Connected;
-        Title = connected ? $"CamRemote — {CameraModels.Label(_settings.CameraModel)}" : "CamRemote";
+        Title = connected ? $"Egret — {CameraModels.Label(_settings.CameraModel)}" : "Egret";
         var model = connected ? CameraModels.Find(_settings.CameraModel) : null;
         BaseIsoButtons.IsVisible = model is { HasBaseIso: true };
         if (model is not { HasBaseIso: true }) return;

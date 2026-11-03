@@ -12,6 +12,9 @@
     <SelfContained>false</SelfContained>
     <AssemblyName>CamRemote</AssemblyName>
     <RootNamespace>CamRemote</RootNamespace>
+    <!-- The app is called Egret; the exe, namespaces and settings folder keep the old name. -->
+    <AssemblyTitle>Egret</AssemblyTitle>
+    <Product>Egret</Product>
     <ApplicationIcon>CamRemote.ico</ApplicationIcon>
     <!-- WPF's Fluent dark theme (ThemeMode) is still marked experimental. -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>

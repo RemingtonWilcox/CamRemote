@@ -1,9 +1,11 @@
 [Setup]
-AppName=CamRemote
+; AppId stays CamRemote, the old name, so Setup updates an existing install instead of adding a second one.
+AppId=CamRemote
+AppName=Egret
 AppVersion=1.0.12
-AppPublisher=CamRemote
+AppPublisher=Remington Wilcox
 DefaultDirName={autopf}\CamRemote
-DefaultGroupName=CamRemote
+DefaultGroupName=Egret
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 DisableReadyPage=yes
@@ -22,12 +24,17 @@ WizardStyle=modern
 [Files]
 Source: "..\..\build\win-publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 
+[InstallDelete]
+; The shortcuts from before the app was called Egret.
+Type: files; Name: "{autoprograms}\CamRemote.lnk"
+Type: files; Name: "{autodesktop}\CamRemote.lnk"
+
 [Icons]
-Name: "{autoprograms}\CamRemote"; Filename: "{app}\CamRemote.exe"
-Name: "{autodesktop}\CamRemote"; Filename: "{app}\CamRemote.exe"
+Name: "{autoprograms}\Egret"; Filename: "{app}\CamRemote.exe"
+Name: "{autodesktop}\Egret"; Filename: "{app}\CamRemote.exe"
 
 [Run]
-Filename: "{app}\CamRemote.exe"; Description: "Open CamRemote"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\CamRemote.exe"; Description: "Open Egret"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 Type: files; Name: "{app}\*.old"

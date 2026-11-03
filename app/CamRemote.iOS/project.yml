@@ -25,8 +25,8 @@ targets:
     info:
       path: Sources/Info.plist
       properties:
-        CFBundleDisplayName: CamRemote
-        NSLocalNetworkUsageDescription: CamRemote connects to your camera over your hotspot or Wi-Fi.
+        CFBundleDisplayName: Egret
+        NSLocalNetworkUsageDescription: Egret connects to your camera over your hotspot or Wi-Fi.
         # Another CamRemote on the hotspot or home Wi-Fi answers over plain http, like it does for a computer.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true

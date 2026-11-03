@@ -478,7 +478,7 @@ final class Bridge: ObservableObject {
         case ("GET", "/icon.png"):
             reply(Response(type: "image/png", body: icon))
         case ("GET", "/manifest.webmanifest"):
-            reply(.json(["name": "CamRemote", "short_name": "CamRemote", "start_url": "/", "display": "standalone",
+            reply(.json(["name": "Egret", "short_name": "Egret", "start_url": "/", "display": "standalone",
                          "background_color": "#101214", "theme_color": "#101214",
                          "icons": [["src": "/icon.png", "sizes": "180x180", "type": "image/png"]]]))
         case ("POST", "/api/login"):
@@ -666,8 +666,8 @@ final class Bridge: ObservableObject {
     /// The page CamRemote on a computer serves, with its words about the computer changed to this phone.
     private static func loadPage() -> Data {
         guard let url = Bundle.main.url(forResource: "phone", withExtension: "html"),
-              var html = try? String(contentsOf: url, encoding: .utf8) else { return Data("CamRemote".utf8) }
-        for (old, new) in [("Enter the phone access code shown in the app on your PC.", "Enter the access code shown in CamRemote on your iPhone, under Setup."),
+              var html = try? String(contentsOf: url, encoding: .utf8) else { return Data("Egret".utf8) }
+        for (old, new) in [("Enter the phone access code shown in the app on your PC.", "Enter the access code shown in Egret on your iPhone, under Setup."),
                            ("Can't reach the PC", "Can't reach the iPhone"), ("The PC refused that.", "The iPhone refused that."),
                            // Kept for the page's script, but this phone has no audio settings or magnifier to offer.
                            ("<h2>AUDIO</h2><div id=\"audio\"></div>", "<div id=\"audio\" class=\"hide\"></div>"),

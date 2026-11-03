@@ -8,9 +8,9 @@ namespace CamRemote;
 public static class UpdateCheck
 {
     public const string Current = "1.0.12"; // also in tools/windows/CamRemote.iss and tools/mac/Info.plist
-    private const string Latest = "https://api.github.com/repos/RemingtonWilcox/CamRemote/releases/latest";
-    private const string Page = "https://github.com/RemingtonWilcox/CamRemote/releases/latest";
-    private const string Help = "https://github.com/RemingtonWilcox/CamRemote#something-not-working";
+    private const string Latest = "https://api.github.com/repos/RemingtonWilcox/Egret/releases/latest";
+    private const string Page = "https://github.com/RemingtonWilcox/Egret/releases/latest";
+    private const string Help = "https://github.com/RemingtonWilcox/Egret#something-not-working";
     private const string Instagram = "https://www.instagram.com/remingtonwilcox/";
 
     /// <summary>The newer version's number, or null if this one is current or GitHub can't be reached.</summary>

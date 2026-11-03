@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="CamRemote.JoinWindow"
-        Title="CamRemote" Width="1400" Height="860" MinWidth="900" MinHeight="560"
+        Title="Egret" Width="1400" Height="860" MinWidth="900" MinHeight="560"
         WindowStartupLocation="CenterScreen" Background="#16181B">
     <Grid ColumnDefinitions="*,340" RowDefinitions="Auto,*">
 
@@ -117,7 +117,7 @@
                         <TextBlock x:Name="MoreHead" Text="MORE" Classes="Section" />
                         <StackPanel x:Name="MoreRows" />
                         <TextBlock Classes="Small" TextWrapping="Wrap" Margin="0,18,0,0"
-                                   Text="The camera is held by the other CamRemote, which passes the picture and your changes on. Automatic recording, and where photos are saved, are set there." />
+                                   Text="The camera is held by the other Egret, which passes the picture and your changes on. Automatic recording, and where photos are saved, are set there." />
                     </StackPanel>
                 </ScrollViewer>
             </DockPanel>

@@ -81,7 +81,7 @@ public sealed class PhoneServer : IAsyncDisposable
         app.MapGet("/icon.png", () => Results.Bytes(Embedded("phone-icon.png"), "image/png"));
         app.MapGet("/manifest.webmanifest", () => Results.Json(new
         {
-            name = "CamRemote", short_name = "CamRemote", start_url = "/", display = "standalone",
+            name = "Egret", short_name = "Egret", start_url = "/", display = "standalone",
             background_color = "#101214", theme_color = "#101214",
             icons = new[] { new { src = "/icon.png", sizes = "180x180", type = "image/png" } },
         }));

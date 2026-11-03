@@ -23,7 +23,7 @@
         <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,6,0,0"
                    Text="On the camera: MENU › Network › Network Option › Access Authen. Settings. The password is saved in Windows Credential Manager." />
 
-        <CheckBox x:Name="AutoBox" Content="Connect automatically when CamRemote starts" Margin="0,14,0,0" />
+        <CheckBox x:Name="AutoBox" Content="Connect automatically when Egret starts" Margin="0,14,0,0" />
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
             <Button Content="Cancel" IsCancel="True" Margin="0,0,8,0" MinWidth="90" />
@@ -35,13 +35,13 @@
             <StackPanel>
                 <TextBlock Text="Is your iPhone, iPad or another computer already using the camera?" FontWeight="SemiBold" />
                 <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,4,0,0"
-                           Text="Use it through that CamRemote instead. Turn on Allow control from a computer there (on a PC or Mac: Allow phone control in Setup), then type the address and access code it shows." />
+                           Text="Use it through that Egret instead. Turn on Allow control from a computer there (on a PC or Mac: Allow phone control in Setup), then type the address and access code it shows." />
                 <TextBlock Text="Its address" Margin="0,10,0,4" />
                 <TextBox x:Name="JoinAddressBox" />
                 <TextBlock Text="Access code (only the first time)" Margin="0,10,0,4" />
                 <TextBox x:Name="JoinCodeBox" CharacterCasing="Upper" />
                 <TextBlock x:Name="JoinStatus" TextWrapping="Wrap" Foreground="{StaticResource Warn}" FontSize="12" Margin="0,6,0,0" />
-                <Button x:Name="JoinButton" Content="Use it through that CamRemote" Click="OnJoin" HorizontalAlignment="Right" Margin="0,10,0,0" Padding="12,3" />
+                <Button x:Name="JoinButton" Content="Use it through that Egret" Click="OnJoin" HorizontalAlignment="Right" Margin="0,10,0,0" Padding="12,3" />
             </StackPanel>
         </Border>
     </StackPanel>

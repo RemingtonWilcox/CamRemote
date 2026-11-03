@@ -20,7 +20,7 @@ public static class LogSender
     {
         string log = ReadLog();
         if (log.Length == 0) return (null, "There's no log yet.");
-        string app = $"CamRemote {UpdateCheck.Current}, {RuntimeInformation.OSDescription.Trim()} {RuntimeInformation.OSArchitecture}";
+        string app = $"Egret {UpdateCheck.Current}, {RuntimeInformation.OSDescription.Trim()} {RuntimeInformation.OSArchitecture}";
         var body = JsonSerializer.Serialize(new { app, note = note.Trim(), log });
         try
         {

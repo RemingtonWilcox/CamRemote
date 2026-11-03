@@ -11,7 +11,7 @@ struct BridgeSection: View {
             Toggle("Allow control from a computer or iPad", isOn: Binding(get: { bridge.isOn }, set: { bridge.turn(on: $0) }))
                 .tint(.good)
             Text("An iPad on this phone's hotspot, or a computer on your Tailscale network, can watch and run the camera through this phone. "
-                 + "It only works while CamRemote stays open on this screen, so the screen stays on. Keep the phone plugged in.")
+                 + "It only works while Egret stays open on this screen, so the screen stays on. Keep the phone plugged in.")
                 .font(.footnote)
                 .foregroundColor(.dim)
             if bridge.isOn { details }

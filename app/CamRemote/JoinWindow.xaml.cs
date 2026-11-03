@@ -38,7 +38,7 @@ public partial class JoinWindow : Window
         _settings = settings;
         _assist = new PictureAssist(new WpfUi(Dispatcher));
         _assist.Done += ShowAssist;
-        HostText.Text = "Through the CamRemote at " + new Uri(link.Address).Host;
+        HostText.Text = "Through the Egret at " + new Uri(link.Address).Host;
         CamSummary.Text = link.CameraName;
         HistToggle.IsChecked = settings.ShowHistogram;
         ZebraToggle.IsChecked = settings.ShowZebras;
@@ -201,7 +201,7 @@ public partial class JoinWindow : Window
                 if (++_misses >= 3)
                 {
                     LinkDot.Fill = (Brush)FindResource("Rec");
-                    LinkText.Text = "Can't reach the other CamRemote";
+                    LinkText.Text = "Can't reach the other Egret";
                     RecButton.IsEnabled = ShutterButton.IsEnabled = false;
                 }
                 return;
@@ -222,7 +222,7 @@ public partial class JoinWindow : Window
         if (turned) ApplyRotation();
         bool on = s.Connected;
         LinkDot.Fill = on ? (Brush)FindResource("Ok") : s.Link == "connecting" ? (Brush)FindResource("Warn") : new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66));
-        LinkText.Text = on ? "Connected" : s.Link == "connecting" ? "The other CamRemote is connecting…" : "The other CamRemote has no camera";
+        LinkText.Text = on ? "Connected" : s.Link == "connecting" ? "The other Egret is connecting…" : "The other Egret has no camera";
         BatteryText.Text = s.Battery.Length > 0 ? "Battery " + s.Battery : "";
         CardText.Text = s.Card;
         AlertText.Text = s.Alert;
@@ -242,7 +242,7 @@ public partial class JoinWindow : Window
         RecDot.Fill = s.Recording ? Brushes.White : (Brush)FindResource("Rec");
         if (s.Recording) RecButton.Background = (Brush)FindResource("Rec");
         else RecButton.ClearValue(BackgroundProperty);
-        if (!on) NoSignal.Text = "The other CamRemote isn't connected to the camera";
+        if (!on) NoSignal.Text = "The other Egret isn't connected to the camera";
         MeterText.Text = on && s.Meter is double m ? $"Meter {(m > 0 ? "+" : "")}{m:0.0} EV" : "";
         MeterText.Visibility = MeterText.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         ApplyGuides();

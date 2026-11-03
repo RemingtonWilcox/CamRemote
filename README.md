@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="app/CamRemote/phone-icon.png" width="96" alt="CamRemote icon" />
+<img src="app/CamRemote/phone-icon.png" width="96" alt="Egret icon" />
 
-# CamRemote
+# Egret
 
 **Run your Sony camera from anywhere.**<br>
 Live picture, focus, exposure, video, photos, slow motion and time-lapse,<br>
@@ -10,16 +10,16 @@ all in one clean window on your computer, with no cables.
 
 <br>
 
-<a href="https://github.com/RemingtonWilcox/CamRemote/releases/latest/download/CamRemote-Windows-Setup.exe"><img src="https://img.shields.io/badge/Download_for_Windows-0078D4?style=for-the-badge" alt="Download for Windows" height="44" /></a>
+<a href="https://github.com/RemingtonWilcox/Egret/releases/latest/download/CamRemote-Windows-Setup.exe"><img src="https://img.shields.io/badge/Download_for_Windows-0078D4?style=for-the-badge" alt="Download for Windows" height="44" /></a>
 &nbsp;
-<a href="https://github.com/RemingtonWilcox/CamRemote/releases/latest/download/CamRemote-Mac-AppleSilicon.dmg"><img src="https://img.shields.io/badge/Download_for_Mac-555555?style=for-the-badge" alt="Download for Mac" height="44" /></a>
+<a href="https://github.com/RemingtonWilcox/Egret/releases/latest/download/CamRemote-Mac-AppleSilicon.dmg"><img src="https://img.shields.io/badge/Download_for_Mac-555555?style=for-the-badge" alt="Download for Mac" height="44" /></a>
 
-<sub>Free and open source. No account, no subscription, no tracking. <a href="https://github.com/RemingtonWilcox/CamRemote/releases/latest/download/CamRemote-Mac-Intel.dmg">Older Intel Mac? Use this one.</a></sub><br>
+<sub>Free and open source. No account, no subscription, no tracking. <a href="https://github.com/RemingtonWilcox/Egret/releases/latest/download/CamRemote-Mac-Intel.dmg">Older Intel Mac? Use this one.</a></sub><br>
 <sub>Tested on the Sony A7S III. <a href="#which-cameras-work">Which cameras work?</a></sub>
 
 <br><br>
 
-<img src="docs/window.jpg" alt="CamRemote's window: a cattle egret beside a red ginger flower in the live picture, the histogram and meter in the corner, and the Video tab on the right with the Record button, four saved setups and exposure" width="860" />
+<img src="docs/window.jpg" alt="Egret's window: a cattle egret beside a red ginger flower in the live picture, the histogram and meter in the corner, and the Video tab on the right with the Record button, four saved setups and exposure" width="860" />
 
 </div>
 
@@ -58,7 +58,7 @@ Video, photos, bursts, brackets, S&Q slow motion, time-lapse and long exposures.
 <table>
 <tr>
 <td width="50%" valign="top">
-<img src="docs/peaking.jpg" alt="Close-up of the egret's head and neck in CamRemote, outlined in blue where the picture is sharp" />
+<img src="docs/peaking.jpg" alt="Close-up of the egret's head and neck in Egret, outlined in blue where the picture is sharp" />
 </td>
 <td width="50%" valign="top">
 
@@ -79,7 +79,7 @@ The histogram and meter float over the corner of the picture: drag them anywhere
 The live picture runs at around 20 frames a second over Wi-Fi on the A7S III. If the Wi-Fi drops, the camera keeps recording and the app reconnects by itself.
 
 <p align="center">
-<img src="docs/tabs.png" alt="CamRemote's three tabs side by side: Video with the Record button and four saved setups, Photo with Take photo and the Drive choices, and Setup with saving, photo and focus settings" width="760" />
+<img src="docs/tabs.png" alt="Egret's three tabs side by side: Video with the Record button and four saved setups, Photo with Take photo and the Drive choices, and Setup with saving, photo and focus settings" width="760" />
 </p>
 
 <br>
@@ -101,7 +101,7 @@ Tick **Allow phone control** in **Setup** and open the address it shows on your 
 
 ### From a computer, through your iPhone
 
-No Wi-Fi where the camera is? Put it on your iPhone's hotspot, open the CamRemote iPhone app, and run it from a computer somewhere else over Tailscale. This comes with the [iPhone app](#coming-soon-camremote-for-iphone), which isn't out yet.
+No Wi-Fi where the camera is? Put it on your iPhone's hotspot, open the Egret iPhone app, and run it from a computer somewhere else over Tailscale. This comes with the [iPhone app](#coming-soon-egret-for-iphone), which isn't out yet.
 
 </td>
 </tr>
@@ -146,12 +146,12 @@ Tick **Automatic recording** and walk away. The app watches the picture, starts 
 Here it has spotted the egret, started recording, put a green box around it and a red outline around the picture. The check runs on your computer, and no pictures leave it.
 
 <p align="center">
-<img src="docs/automatic-recording.jpg" alt="Automatic recording in CamRemote: a green box labelled animal around the egret, a red recording outline, REC 00:00:09 at the top left, and Animal, 15 s and Focus on it picked on the right" width="860" />
+<img src="docs/automatic-recording.jpg" alt="Automatic recording in Egret: a green box labelled animal around the egret, a red recording outline, REC 00:00:09 at the top left, and Animal, 15 s and Focus on it picked on the right" width="860" />
 </p>
 
 <br>
 
-## Coming soon: CamRemote for iPhone
+## Coming soon: Egret for iPhone
 
 Run the camera with no computer at all, just your phone and its hotspot. The iPhone app has the live picture, tap to focus, exposure, video, S&Q, photos, burst, time-lapse, C1 to C3 saved setups and the animal trigger, and it can hand the camera to a computer anywhere over Tailscale.
 
@@ -202,7 +202,7 @@ Allow about 10 minutes. You only do this once.
 
 ## Which cameras work?
 
-CamRemote is tested on the **A7S III**. Sony says its remote software can control the cameras below over Wi-Fi, so they should work too, but nobody has tried them yet.
+Egret is tested on the **A7S III**. Sony says its remote software can control the cameras below over Wi-Fi, so they should work too, but nobody has tried them yet.
 
 | | |
 |---|---|
@@ -215,7 +215,7 @@ CamRemote is tested on the **A7S III**. Sony says its remote software can contro
 
 Update your camera to its latest firmware first. Some features, such as click to focus, may behave differently on your camera.
 
-**A9 II:** Sony doesn't list it for Wi-Fi, but a user has it connected, with click to focus working. On the camera, turn **Ctrl w/ Smartphone** off, join your Wi-Fi under **Wi-Fi Settings › Access Point Set.**, then under **PC Remote Function** turn **PC Remote** on, set **PC Remote Cnct Method** to **Wi-Fi Access Point**, and choose **Pairing** while CamRemote is searching. To click to focus, set **Focus area** to **Spot S**, **Spot M** or **Spot L** (the camera calls them Flexible Spot). Time-lapse and card formatting don't work on it.
+**A9 II:** Sony doesn't list it for Wi-Fi, but a user has it connected, with click to focus working. On the camera, turn **Ctrl w/ Smartphone** off, join your Wi-Fi under **Wi-Fi Settings › Access Point Set.**, then under **PC Remote Function** turn **PC Remote** on, set **PC Remote Cnct Method** to **Wi-Fi Access Point**, and choose **Pairing** while Egret is searching. To click to focus, set **Focus area** to **Spot S**, **Spot M** or **Spot L** (the camera calls them Flexible Spot). Time-lapse and card formatting don't work on it.
 
 **Won't work over Wi-Fi:** A7R IV, A7R IVA, A7C, RX0 II, BRC-AM7 and FR7. Cameras not listed at all, such as the A7 III or a6400, aren't supported by Sony's software.
 
@@ -230,7 +230,7 @@ Update your camera to its latest firmware first. Some features, such as click to
 
 1. Open **CamRemote-Windows-Setup.exe** from your downloads.
 2. If a blue **Windows protected your PC** box appears, click **More info**, then **Run anyway**. It shows up because the app is new and free, not because anything is wrong.
-3. CamRemote installs itself and puts an icon on your desktop.
+3. Egret installs itself and puts an icon on your desktop.
 
 </details>
 
@@ -240,8 +240,8 @@ Update your camera to its latest firmware first. Some features, such as click to
 <br>
 
 1. Open **CamRemote-Mac** from your downloads.
-2. Drag **CamRemote** onto the **Applications** folder.
-3. Open CamRemote from Applications. If your Mac asks whether you're sure, click **Open**.
+2. Drag **Egret** onto the **Applications** folder.
+3. Open Egret from Applications. If your Mac asks whether you're sure, click **Open**.
 
 Not sure which Mac you have? Click the Apple menu at the top left, then **About This Mac**. If it says **Chip: Apple**, use the main download. If it says **Processor: Intel**, use the Intel one.
 
@@ -268,14 +268,14 @@ On the camera, press **MENU**, then:
 | **Keep it awake.** Otherwise the camera sleeps after a minute and the app can't find it. | Setup › Power Setting Option › Power Save Start Time › **30 Min.** |
 
 > [!NOTE]
-> Menu names can differ on older firmware. If yours don't match, update the camera first, using the firmware from your country's Sony support site. CamRemote was tested on the A7S III with firmware 5.01.
+> Menu names can differ on older firmware. If yours don't match, update the camera first, using the firmware from your country's Sony support site. Egret was tested on the A7S III with firmware 5.01.
 
 <br>
 
 ## 3. Connect
 
 1. Make sure your computer and camera are on the **same Wi-Fi**.
-2. Open CamRemote and click **Connect camera…**
+2. Open Egret and click **Connect camera…**
 3. Click your camera in the list.
 4. Type the **user** and **password** from your photo.
 5. Click **Connect**.
@@ -285,19 +285,19 @@ If your computer asks about network access, say yes:
 - **Windows:** tick **Private networks** and click **Allow**.
 - **Mac:** click **Allow** when it asks about your **local network**. Without this, the app can't find the camera.
 
-**That's it.** Your picture appears, and from now on CamRemote reconnects by itself whenever you open it.
+**That's it.** Your picture appears, and from now on Egret reconnects by itself whenever you open it.
 
 <br>
 
 ## On your iPhone
 
-There's also an iPhone app that runs the camera with no computer at all, just your phone's hotspot. It has the live picture, tap to focus, exposure, video, S&Q, photos, burst, time-lapse and C1 to C3 saved setups. Photos and video stay on the camera's card. Close CamRemote on your computer first: the camera only takes one remote at a time.
+There's also an iPhone app that runs the camera with no computer at all, just your phone's hotspot. It has the live picture, tap to focus, exposure, video, S&Q, photos, burst, time-lapse and C1 to C3 saved setups. Photos and video stay on the camera's card. Close Egret on your computer first: the camera only takes one remote at a time.
 
-It can also record when an animal shows up, with the same rules as on a computer: turn on **Automatic recording** on the Video page and leave **Record when it sees** on **Animal**. **It only works while CamRemote is open on the phone's screen.** iPhones stop apps that aren't on screen, so if you lock the phone or switch apps, it stops watching (and stops a take it started). While the option is on, the app keeps the screen awake, so keep the phone plugged in: a screen that's on for hours, the hotspot and the detector all use battery. The first time you turn it on, the detector takes up to a minute to get ready.
+It can also record when an animal shows up, with the same rules as on a computer: turn on **Automatic recording** on the Video page and leave **Record when it sees** on **Animal**. **It only works while Egret is open on the phone's screen.** iPhones stop apps that aren't on screen, so if you lock the phone or switch apps, it stops watching (and stops a take it started). While the option is on, the app keeps the screen awake, so keep the phone plugged in: a screen that's on for hours, the hotspot and the detector all use battery. The first time you turn it on, the detector takes up to a minute to get ready.
 
 **Control it from a computer through the phone.** Leave the camera outside on your phone's hotspot and run it from a computer somewhere else. Both need [Tailscale](https://tailscale.com) signed in to the same account. In the iPhone app, open **Setup** and turn on **Allow control from a computer**. Then, on the computer, open the Tailscale address it shows and type the access code. You get the same page as phone control on a computer: live picture, record, tap to focus, the focus ring and camera settings.
 
-- **It only works while CamRemote stays open on the iPhone's screen.** iOS pauses apps in the background, so locking the phone or switching apps cuts the computer off until you come back. While the switch is on, the screen stays on, so keep the phone plugged in.
+- **It only works while Egret stays open on the iPhone's screen.** iOS pauses apps in the background, so locking the phone or switching apps cuts the computer off until you come back. While the switch is on, the screen stays on, so keep the phone plugged in.
 - **It uses mobile data.** The computer gets a smaller picture than the phone shows: 640 pixels wide, and 1, 3 or 8 pictures a second, which you pick in Setup. That's about 100, 280 or 750 MB an hour while a computer is watching, and nothing while none is. Setup shows how much it has really sent.
 - **The access code** stays hidden until you tap **Show code**. **New code** signs out every computer that used the old one. Only Tailscale and local network addresses are answered.
 
@@ -310,8 +310,8 @@ It can also record when an animal shows up, with the same rules as on a computer
 Using ChatGPT, Claude or another assistant? Paste this in, and it'll guide you one step at a time, from the camera menus to your first connection:
 
 ```text
-Help me set up CamRemote for my Sony camera, one step at a time.
-Read the guide at https://github.com/RemingtonWilcox/CamRemote/blob/main/AGENTS.md
+Help me set up Egret for my Sony camera, one step at a time.
+Read the guide at https://github.com/RemingtonWilcox/Egret/blob/main/AGENTS.md
 Ask which camera I have and whether I'm on Windows or Mac, then walk me through it in plain language.
 Don't ask me for my camera password.
 ```
@@ -327,9 +327,9 @@ Don't ask me for my camera password.
 
 <br>
 
-Check that the camera is on, on the same Wi-Fi as your computer (not a guest network), and has **Remote Shooting** on. If it still doesn't appear, find its address under Network › Wi-Fi › **Display Wi-Fi Info.**, type that **IP address** into the box in CamRemote and pick your camera underneath.
+Check that the camera is on, on the same Wi-Fi as your computer (not a guest network), and has **Remote Shooting** on. If it still doesn't appear, find its address under Network › Wi-Fi › **Display Wi-Fi Info.**, type that **IP address** into the box in Egret and pick your camera underneath.
 
-On a Mac, also check System Settings › Privacy & Security › **Local Network**, and turn CamRemote on.
+On a Mac, also check System Settings › Privacy & Security › **Local Network**, and turn Egret on.
 
 </details>
 
@@ -349,7 +349,7 @@ Use the exact **user** and **password** from **Access Authen. Info**. Capitals m
 
 Close Sony's phone app. The camera only takes one remote at a time.
 
-The same goes for CamRemote itself: the computer and the iPhone app can't both be connected. Each keeps trying while it's open, so if the phone lets go (the screen locks, or you switch apps), the computer takes the camera back. Close CamRemote on the computer before you use the phone.
+The same goes for Egret itself: the computer and the iPhone app can't both be connected. Each keeps trying while it's open, so if the phone lets go (the screen locks, or you switch apps), the computer takes the camera back. Close Egret on the computer before you use the phone.
 
 </details>
 
@@ -380,12 +380,12 @@ On the A9 II, set **Focus area** to **Spot S**, **Spot M** or **Spot L** (the ca
 
 <br>
 
-While connected, CamRemote is in charge of the settings. The dials go back to normal when you disconnect.
+While connected, Egret is in charge of the settings. The dials go back to normal when you disconnect.
 
 </details>
 
 <details>
-<summary><b>An update won't install because CamRemote is in use</b></summary>
+<summary><b>An update won't install because Egret is in use</b></summary>
 
 <br>
 
@@ -408,7 +408,7 @@ That's normal after resetting the camera or changing its Access Authen. settings
 
 - **Only tested on the A7S III.** The other cameras on the list should work, but nobody has tried them yet.
 - **Warranty:** Sony's terms say a camera controlled through an app like this is no longer covered by its manufacturer warranty.
-- **CamRemote isn't made by, endorsed by or supported by Sony.**
+- **Egret isn't made by, endorsed by or supported by Sony.**
 
 <br>
 
@@ -433,7 +433,7 @@ That's normal after resetting the camera or changing its Access Authen. settings
 
 **More Sony cameras.** The A7R IV, A7R IVA, A7C, RX0 II, BRC-AM7 and FR7 are in Sony's software but can't be reached over Wi-Fi. (The A9 II can, [as above](#which-cameras-work).) A wired connection could bring some of them in. It hasn't been built yet.
 
-**Other brands.** CamRemote only speaks to Sony cameras today. Other makers publish their own developer kits, so the same idea could work there, but each brand would need its own connection built and tested from scratch:
+**Other brands.** Egret only speaks to Sony cameras today. Other makers publish their own developer kits, so the same idea could work there, but each brand would need its own connection built and tested from scratch:
 
 | | |
 |---|---|
@@ -441,7 +441,7 @@ That's normal after resetting the camera or changing its Access Authen. settings
 | **Fujifilm** | [X and GFX camera control SDK](https://www.fujifilm-x.com/en-sg/?p=118519), over USB or Wi-Fi |
 | **Nikon** | A developer SDK, by sign-up, with support varying by model |
 
-If you'd use one of these, [open an issue](https://github.com/RemingtonWilcox/CamRemote/issues) and say which camera you have.
+If you'd use one of these, [open an issue](https://github.com/RemingtonWilcox/Egret/issues) and say which camera you have.
 
 <br>
 
@@ -548,6 +548,6 @@ Notes from Sony's SDK reference (v2.02.00) for the A7S III:
 
 <br>
 
-CamRemote's code is MIT licensed (see `LICENSE`). The downloads for Windows and Mac include Sony's Camera Remote SDK libraries under [Sony's licence](https://support.d-imaging.sony.co.jp/app/sdk/licenseagreement/en-US.html), plus open-source parts listed in `NOTICES.md`. The SDK isn't in this repository, and the iPhone app doesn't use it.
+Egret's code is MIT licensed (see `LICENSE`). The downloads for Windows and Mac include Sony's Camera Remote SDK libraries under [Sony's licence](https://support.d-imaging.sony.co.jp/app/sdk/licenseagreement/en-US.html), plus open-source parts listed in `NOTICES.md`. The SDK isn't in this repository, and the iPhone app doesn't use it.
 
 </details>

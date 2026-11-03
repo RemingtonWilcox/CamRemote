@@ -51,7 +51,7 @@ struct SendLogSection: View {
     private func send() {
         sending = true
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
-        let app = "CamRemote for iPhone \(version), iOS \(UIDevice.current.systemVersion)"
+        let app = "Egret for iPhone \(version), iOS \(UIDevice.current.systemVersion)"
         Task { @MainActor in
             let (reference, problem) = await LogSender.send(note: note, app: app)
             if let reference {
