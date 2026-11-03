@@ -33,6 +33,8 @@ public partial class JoinWindow : Window
     private int _misses; // state requests in a row that got no answer
     private DateTime _recBusyUntil;
     private bool _polling;
+    private bool _shutterHeld;
+    private Task<string?> _shutterPress = Task.FromResult<string?>(null); // a release waits for its press to reach the host
 
     public JoinWindow() => InitializeComponent(); // for the XAML loader
 
@@ -55,6 +57,11 @@ public partial class JoinWindow : Window
             b.Click += (_, _) => _ = Do(_link.FocusStepAsync(step), quiet: true);
             RingButtons.Children.Add(b);
         }
+        MakePresetButtons();
+        // A button hides the press from ordinary handlers, so catch it on the way in. Holding it is what makes a burst.
+        ShutterButton.AddHandler(PointerPressedEvent, (_, _) => OnShutterDown(), RoutingStrategies.Tunnel);
+        ShutterButton.AddHandler(PointerReleasedEvent, (_, _) => OnShutterUp(), RoutingStrategies.Tunnel);
+        ShutterButton.AddHandler(PointerCaptureLostEvent, (_, _) => OnShutterUp(), RoutingStrategies.Bubble);
         _poll.Tick += async (_, _) => await RefreshAsync();
         _hideMark.Tick += (_, _) => { FocusMark.IsVisible = false; _hideMark.Stop(); };
         _hideToast.Tick += (_, _) => { Toast.IsVisible = false; _hideToast.Stop(); };
@@ -68,7 +75,10 @@ public partial class JoinWindow : Window
         };
         KeyDown += (_, e) =>
         {
-            if (e.Key == Key.F9) { OnRecClick(this, e); e.Handled = true; }
+            if (e.Key != Key.F9) return;
+            if (_state?.Photo == true) _ = TakePhotoAsync();
+            else OnRecClick(this, e);
+            e.Handled = true;
         };
     }
 
@@ -200,7 +210,7 @@ public partial class JoinWindow : Window
                 {
                     LinkDot.Fill = Brush("Rec");
                     LinkText.Text = "Can't reach the other CamRemote";
-                    RecButton.IsEnabled = false;
+                    RecButton.IsEnabled = ShutterButton.IsEnabled = false;
                 }
                 return;
             }
@@ -225,7 +235,16 @@ public partial class JoinWindow : Window
         CardText.Text = s.Card;
         AlertText.Text = s.Alert;
         AlertBox.IsVisible = s.Alert.Length > 0;
-        RecButton.IsEnabled = on;
+        RecButton.IsEnabled = ShutterButton.IsEnabled = on;
+        // The tabs and buttons follow the camera, as on the other CamRemote.
+        VideoTab.IsChecked = !s.Photo;
+        PhotoTab.IsChecked = s.Photo;
+        RecButton.IsVisible = !s.Photo;
+        ShutterButton.IsVisible = s.Photo;
+        SlowQuickSwitch.IsVisible = on && !s.Photo && s.OffersSlowQuick;
+        NormalSpeed.IsChecked = !s.SlowQuick;
+        SlowQuick.IsChecked = s.SlowQuick;
+        ShowPresets(s);
         RecBadge.IsVisible = s.Recording;
         RecLabel.Text = s.Recording ? "Stop" : "Record";
         RecDot.Fill = s.Recording ? Brushes.White : Brush("Rec");
@@ -296,6 +315,106 @@ public partial class JoinWindow : Window
     }
 
     private void OnStopTrackingClick(object? sender, RoutedEventArgs e) => _ = Do(_link.SetAsync("stoptracking", "0"));
+
+    /// <summary>The tabs always show what the camera is doing, so a click asks the host and waits for it to change.</summary>
+    private void OnModeClick(object? sender, RoutedEventArgs e)
+    {
+        bool photo = sender == PhotoTab;
+        VideoTab.IsChecked = _state?.Photo != true;
+        PhotoTab.IsChecked = _state?.Photo == true;
+        if (photo != (_state?.Photo == true)) _ = Do(_link.ModeAsync(photo));
+    }
+
+    private void OnSlowQuickClick(object? sender, RoutedEventArgs e)
+    {
+        NormalSpeed.IsChecked = _state?.SlowQuick != true;
+        SlowQuick.IsChecked = _state?.SlowQuick == true;
+        _ = Do(_link.SlowQuickAsync(sender == SlowQuick));
+    }
+
+    // ---- Photo ----
+
+    // Holding it down is what makes a burst, so the press and the release go to the host separately.
+    private void OnShutterDown()
+    {
+        if (_state?.Connected != true || _shutterHeld) return;
+        _shutterHeld = true;
+        _shutterPress = _link.ShutterAsync(true);
+        _ = Do(_shutterPress);
+    }
+
+    private async void OnShutterUp()
+    {
+        if (!_shutterHeld) return;
+        _shutterHeld = false;
+        await _shutterPress;
+        await Do(_link.ShutterAsync(false), quiet: true);
+    }
+
+    private async Task TakePhotoAsync()
+    {
+        if (_state?.Connected != true || _shutterHeld) return;
+        if (await _link.ShutterAsync(true) is { } problem)
+        {
+            ShowToast(problem);
+            return;
+        }
+        await _link.ShutterAsync(false);
+    }
+
+    // ---- Presets ----
+
+    private const int PresetSlots = 4;
+
+    /// <summary>C1 to C4, kept on the other CamRemote. A click on an empty one saves the camera's settings there; on a full one, puts them back.</summary>
+    private void MakePresetButtons()
+    {
+        for (int slot = 1; slot <= PresetSlots; slot++)
+        {
+            int s = slot;
+            // A row each, as on the other CamRemote: its first line, with the second on the right, then the third below.
+            var name = new TextBlock { Text = $"C{s}", FontSize = 12, Foreground = Brush("Dim"), Width = 28, Margin = new Thickness(0, 2, 0, 0) };
+            var title = new TextBlock { FontSize = 14, FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
+            var right = new TextBlock { FontSize = 12, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
+            var detail = new TextBlock { FontSize = 12, Foreground = Brush("Dim"), TextTrimming = TextTrimming.CharacterEllipsis };
+            DockPanel.SetDock(right, Dock.Right);
+            DockPanel.SetDock(name, Dock.Left);
+            var row = new DockPanel { Children = { name, new StackPanel { Children = { new DockPanel { Children = { right, title } }, detail } } } };
+            var b = new Button { Classes = { "Tile" }, Margin = new Thickness(0, 2, 0, 2), Padding = new Thickness(10, 6, 10, 6), HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Stretch, BorderThickness = new Thickness(2), Tag = new[] { title, right, detail }, Content = row, IsEnabled = false };
+            b.Click += (_, _) => _ = Do(_link.PresetAsync(s, save: PresetIn(s) == null));
+            var save = new MenuItem { Header = $"Save current settings as C{s}" };
+            save.Click += (_, _) => _ = Do(_link.PresetAsync(s, save: true));
+            b.ContextMenu = new ContextMenu { Items = { save } };
+            PresetButtons.Children.Add(b);
+        }
+    }
+
+    private RemotePreset? PresetIn(int slot) => (_state?.Presets ?? []).FirstOrDefault(p => p.Slot == slot);
+
+    private void ShowPresets(RemoteState s)
+    {
+        string page = s.Photo ? "photo" : "video";
+        for (int i = 0; i < PresetButtons.Children.Count; i++)
+        {
+            var b = (Button)PresetButtons.Children[i];
+            var preset = PresetIn(i + 1);
+            var lines = (TextBlock[])b.Tag!;
+            List<string> said = preset == null ? ["Empty", "", "Click to save here"] : preset.Lines ?? [];
+            string Line(int n) => n < said.Count ? said[n] : "";
+            lines[0].Text = Line(0).Length > 0 ? Line(0) : "Saved";
+            lines[1].Text = Line(1);
+            lines[2].Text = Line(2);
+            lines[1].IsVisible = Line(1).Length > 0;
+            lines[2].IsVisible = Line(2).Length > 0;
+            // Green, with a green outline, when the camera is set that way now.
+            bool now = preset != null && s.ActiveSlot == i + 1;
+            lines[0].Foreground = preset == null ? Brush("Dim") : now ? Brush("Ok") : Brushes.White;
+            b.BorderBrush = now ? Brush("Ok") : Brushes.Transparent;
+            b.IsEnabled = s.Connected;
+            ToolTip.SetTip(b, preset == null ? $"Click to save the camera's {page} settings here."
+                : $"Click to put these {page} settings back on the camera. Right-click to save over them.");
+        }
+    }
 
     /// <summary>Waits for an action, says what went wrong if anything, then shows the camera as it is now.</summary>
     private async Task Do(Task<string?> action, bool quiet = false)

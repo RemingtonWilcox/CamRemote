@@ -25,6 +25,10 @@ public interface IRemoteCamera
     string? Record(bool on);
     string? Focus(double x, double y);
     string? FocusStep(int step);
+    string? Preset(int slot, bool save);
+    string? Mode(bool photo);
+    string? SlowQuick(bool on);
+    string? Shutter(bool down);
 }
 
 /// <summary>
@@ -103,6 +107,10 @@ public sealed class PhoneServer : IAsyncDisposable
         app.MapPost("/api/{cam}/record", (string cam, RecordBody b) => Do(cam, c => c.Record(b.On)));
         app.MapPost("/api/{cam}/focus", (string cam, FocusBody b) => Do(cam, c => c.Focus(b.X, b.Y)));
         app.MapPost("/api/{cam}/focusstep", (string cam, StepBody b) => Do(cam, c => c.FocusStep(b.Step)));
+        app.MapPost("/api/{cam}/preset", (string cam, PresetBody b) => Do(cam, c => c.Preset(b.Slot, b.Save)));
+        app.MapPost("/api/{cam}/mode", (string cam, ModeBody b) => Do(cam, c => c.Mode(b.Photo)));
+        app.MapPost("/api/{cam}/slowquick", (string cam, RecordBody b) => Do(cam, c => c.SlowQuick(b.On)));
+        app.MapPost("/api/{cam}/shutter", (string cam, ShutterBody b) => Do(cam, c => c.Shutter(b.Down)));
 
         await app.StartAsync();
         _app = app;
@@ -187,4 +195,7 @@ public sealed class PhoneServer : IAsyncDisposable
     private sealed record RecordBody(bool On);
     private sealed record FocusBody(double X, double Y);
     private sealed record StepBody(int Step);
+    private sealed record PresetBody(int Slot, bool Save);
+    private sealed record ModeBody(bool Photo);
+    private sealed record ShutterBody(bool Down);
 }

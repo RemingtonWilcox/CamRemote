@@ -25,6 +25,13 @@ public sealed class RemoteRow
     public List<RemoteChoice> Choices { get; set; } = [];
 }
 
+/// <summary>One of the host's saved C1 to C4, in the lines its own button shows.</summary>
+public sealed class RemotePreset
+{
+    public int Slot { get; set; }
+    public List<string> Lines { get; set; } = [];
+}
+
 public sealed class RemoteState
 {
     public string Link { get; set; } = "disconnected";
@@ -43,6 +50,11 @@ public sealed class RemoteState
     public int PeakSensitivity { get; set; } = 1;
     public uint PeakColor { get; set; } = 0xFF3030;
     public List<RemoteRow> Rows { get; set; } = [];
+    public bool Photo { get; set; }
+    public bool SlowQuick { get; set; }
+    public bool OffersSlowQuick { get; set; }
+    public List<RemotePreset> Presets { get; set; } = []; // only the saved ones, for the side the host is on
+    public int? ActiveSlot { get; set; }
 
     public bool Connected => Link == "connected";
 }
@@ -198,6 +210,10 @@ public sealed class RemoteLink : IDisposable
     public Task<string?> RecordAsync(bool on) => Act("record", new { on });
     public Task<string?> FocusAsync(double x, double y) => Act("focus", new { x, y });
     public Task<string?> FocusStepAsync(int step) => Act("focusstep", new { step });
+    public Task<string?> PresetAsync(int slot, bool save) => Act("preset", new { slot, save });
+    public Task<string?> ModeAsync(bool photo) => Act("mode", new { photo });
+    public Task<string?> ShutterAsync(bool down) => Act("shutter", new { down });
+    public Task<string?> SlowQuickAsync(bool on) => Act("slowquick", new { on });
 
     /// <summary>Null when it worked, otherwise what to tell the person.</summary>
     private async Task<string?> Act(string what, object body)

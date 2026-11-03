@@ -1205,7 +1205,7 @@ public partial class MainWindow : Window
             var clear = new MenuItem { Header = $"Clear C{s}" };
             clear.Click += (_, _) =>
             {
-                _settings.Presets.Remove(PresetKey(s));
+                _settings.Presets.Remove(_cam.PresetKey(s));
                 _settings.Save();
                 ShowPresets();
             };
@@ -1214,20 +1214,15 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Video and Photo each have their own C1 to C4.</summary>
-    private string PresetKey(int slot) => (_cam.IsPhotoMode ? "photo" : "video") + slot;
-
-    private Preset? PresetIn(int slot) => _settings.Presets.GetValueOrDefault(PresetKey(slot));
+    private Preset? PresetIn(int slot) => _cam.PresetIn(_settings, slot);
 
     private void SavePreset(int slot)
     {
-        if (_cam.TakePreset() is not { } preset)
+        if (_cam.SavePreset(_settings, slot) is not { } preset)
         {
             ShowMessage("Connect the camera first, then save its settings.");
             return;
         }
-        _settings.Presets[PresetKey(slot)] = preset;
-        _settings.Save();
         ShowMessage($"Saved C{slot}: {preset.Summary}. Click C{slot} to come back to these settings.");
         ShowPresets();
     }

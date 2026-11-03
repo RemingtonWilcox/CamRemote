@@ -603,6 +603,20 @@ public sealed class CameraService : IDisposable
         return preset;
     }
 
+    /// <summary>Video and Photo each have their own C1 to C4, kept in the app's settings.</summary>
+    public string PresetKey(int slot) => (IsPhotoMode ? "photo" : "video") + slot;
+
+    public Preset? PresetIn(Settings settings, int slot) => settings.Presets.GetValueOrDefault(PresetKey(slot));
+
+    /// <summary>Keeps the camera's settings now in a slot for the page it's on. Null when the camera isn't connected.</summary>
+    public Preset? SavePreset(Settings settings, int slot)
+    {
+        if (TakePreset() is not { } preset) return null;
+        settings.Presets[PresetKey(slot)] = preset;
+        settings.Save();
+        return preset;
+    }
+
     /// <summary>
     /// A preset in short lines, from its saved values, for a row of its own. For video: frame rate, then
     /// format, then exposure. For photos: exposure, then drive.
