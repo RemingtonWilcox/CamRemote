@@ -35,6 +35,14 @@
                 <TextBlock x:Name="OverText" FontSize="11" TextAlignment="Right" />
                 <TextBlock x:Name="UnderText" FontSize="11" TextAlignment="Right" Foreground="{StaticResource Dim}" />
             </StackPanel>
+            <!-- The camera's meter, beside the histogram so the two read together -->
+            <StackPanel x:Name="MeterBox" DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center" IsVisible="False"
+                        ToolTip.Tip="What the camera's meter makes of the picture, in stops. The mark sits on 0 when the camera thinks the exposure is right.">
+                <TextBlock x:Name="ExposureText" Width="118" FontSize="12" FontWeight="SemiBold" TextAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <Canvas x:Name="ExposureScale" Width="170" Height="32" SizeChanged="OnExposureScaleSized">
+                    <Rectangle x:Name="ExposureNeedle" Width="3" Height="18" Fill="White" />
+                </Canvas>
+            </StackPanel>
         </DockPanel>
 
         <!-- Live picture. Click to focus, right-click to cancel. -->
@@ -140,19 +148,6 @@
                             <StackPanel x:Name="PresetButtons" Margin="0,8,0,0" />
 
                             <TextBlock Text="EXPOSURE" Classes="Section" />
-                            <!-- The camera's meter, beside the settings that move it -->
-                            <Border x:Name="MeterBox" Margin="0,0,0,6" Padding="10,6,10,2" Background="#1B1E22" BorderBrush="#30353B" BorderThickness="1"
-                                    CornerRadius="8" IsVisible="False" ToolTip.Tip="What the camera's meter makes of the picture, in stops. The mark sits on 0 when the camera thinks the exposure is right.">
-                                <StackPanel>
-                                    <DockPanel>
-                                        <TextBlock x:Name="ExposureText" DockPanel.Dock="Right" FontSize="12" FontWeight="SemiBold" />
-                                        <TextBlock Text="Meter" FontSize="12" Foreground="Gray" />
-                                    </DockPanel>
-                                    <Canvas x:Name="ExposureScale" Height="32" Margin="0,4,0,0" SizeChanged="OnExposureScaleSized">
-                                        <Rectangle x:Name="ExposureNeedle" Width="3" Height="18" Fill="White" />
-                                    </Canvas>
-                                </StackPanel>
-                            </Border>
                             <StackPanel x:Name="ExposurePanel" />
                             <UniformGrid x:Name="BaseIsoButtons" IsVisible="False" Rows="1" Margin="0,0,0,4">
                                 <Button x:Name="IsoLowButton" Margin="0,0,3,0" Padding="4,6" Click="OnBaseIsoClick" HorizontalAlignment="Stretch"
