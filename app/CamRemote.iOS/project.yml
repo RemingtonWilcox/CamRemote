@@ -8,6 +8,11 @@ targets:
     platform: iOS
     sources:
       - Sources
+      # The page CamRemote on a computer serves to phones. Served again from here to a computer.
+      - path: ../CamRemote/phone.html
+        buildPhase: resources
+      - path: ../CamRemote/phone-icon.png
+        buildPhase: resources
     info:
       path: Sources/Info.plist
       properties:

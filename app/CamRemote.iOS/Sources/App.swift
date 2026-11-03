@@ -73,6 +73,7 @@ struct CamRemoteApp: App {
                 // This also runs each time the connect screen comes back, and Disconnect has to stay disconnected.
                 guard !launched else { return }
                 launched = true
+                Bridge.shared.attach(camera)
                 connectIfReady()
             }
             .onChange(of: phase) { now in
@@ -88,7 +89,7 @@ struct CamRemoteApp: App {
                 }
             }
             .onChange(of: camera.link) { link in
-                UIApplication.shared.isIdleTimerDisabled = link == .on
+                Bridge.shared.keepAwake() // on while connected, and while a computer may be watching
                 resumeIfNeeded(phase) // a quick trip out of the app can come back before the old connection has closed
             }
             // Only while the app is open, so turning the camera on is all it takes.
@@ -129,6 +130,7 @@ struct ConnectView: View {
         ScrollView {
             VStack(spacing: 12) {
                 Text("CamRemote").font(.largeTitle.weight(.semibold)).padding(.top, 72)
+                BridgeBadge()
                 if askForLogin { loginForm } else { waiting }
             }
             .frame(maxWidth: .infinity)

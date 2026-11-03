@@ -80,6 +80,7 @@ struct ShootingView: View {
                 Circle().fill(Color.good).frame(width: 8, height: 8)
                 batteryAndCard
                 Spacer()
+                BridgeBadge()
                 Button { setupOpen = true } label: {
                     Label("Setup", systemImage: "gearshape").font(.footnote.weight(.semibold))
                 }
@@ -874,6 +875,7 @@ struct SetupSheet: View {
                     chip(Code.whiteBalance)
                     SilentChip(camera: camera)
                 }
+                BridgeSection()
                 section("CONNECTION")
                 Text("Photos and video stay on the camera's card.")
                     .font(.footnote)
