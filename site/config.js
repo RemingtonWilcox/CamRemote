@@ -9,19 +9,19 @@
   "coming soon" placeholder instead of a broken link.
 */
 window.SITE = {
-  name: 'CamRemote',
+  name: 'Egret',
   tagline: 'Run your Sony camera from anywhere.',
   version: '1.0.11',
 
-  github: 'https://github.com/RemingtonWilcox/CamRemote',
-  releases: 'https://github.com/RemingtonWilcox/CamRemote/releases/latest',
-  issues: 'https://github.com/RemingtonWilcox/CamRemote/issues',
-  agentsGuide: 'https://github.com/RemingtonWilcox/CamRemote/blob/main/AGENTS.md',
+  github: 'https://github.com/RemingtonWilcox/Egret',
+  releases: 'https://github.com/RemingtonWilcox/Egret/releases/latest',
+  issues: 'https://github.com/RemingtonWilcox/Egret/issues',
+  agentsGuide: 'https://github.com/RemingtonWilcox/Egret/blob/main/AGENTS.md',
 
   downloads: {
-    windows: 'https://github.com/RemingtonWilcox/CamRemote/releases/latest/download/CamRemote-Windows-Setup.exe',
-    macApple: 'https://github.com/RemingtonWilcox/CamRemote/releases/latest/download/CamRemote-Mac-AppleSilicon.dmg',
-    macIntel: 'https://github.com/RemingtonWilcox/CamRemote/releases/latest/download/CamRemote-Mac-Intel.dmg',
+    windows: 'https://github.com/RemingtonWilcox/Egret/releases/latest/download/CamRemote-Windows-Setup.exe',
+    macApple: 'https://github.com/RemingtonWilcox/Egret/releases/latest/download/CamRemote-Mac-AppleSilicon.dmg',
+    macIntel: 'https://github.com/RemingtonWilcox/Egret/releases/latest/download/CamRemote-Mac-Intel.dmg',
     // PLACEHOLDER: the public TestFlight invite link (https://testflight.apple.com/join/...).
     testflight: '',
   },
@@ -35,7 +35,7 @@ window.SITE = {
   // PLACEHOLDER: full profile links. Leave '' for any you don't use.
   socials: {
     youtube: '',
-    instagram: '',
+    instagram: 'https://www.instagram.com/remingtonwilcox/',
     tiktok: '',
     x: '',
     discord: '',
