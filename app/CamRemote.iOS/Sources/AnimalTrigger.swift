@@ -98,7 +98,10 @@ final class AnimalTrigger: ObservableObject {
                 }
             }
         }
-        timer = Timer.scheduledTimer(withTimeInterval: between, repeats: true) { [weak self] _ in self?.check() }
+        // In the common mode, so it keeps checking while someone scrolls the controls.
+        let timer = Timer(timeInterval: between, repeats: true) { [weak self] _ in self?.check() }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
     }
 
     func stop() {
@@ -115,11 +118,12 @@ final class AnimalTrigger: ObservableObject {
     }
 
     /// Leaving the screen stops the app, and a take it started would otherwise run until the card is full.
-    /// The camera hangs up right after this, and stopping the take goes out first.
+    /// The camera hangs up right after this, and stopping the take goes out first. It goes out even if the press
+    /// that started the take is still on its way, when the camera doesn't show it recording yet.
     func pause() {
         guard on else { return }
-        if took != nil, camera.recording {
-            camera.toggleRecord()
+        if took != nil {
+            camera.stopRecording()
             camera.log("Animal trigger stopped its take because CamRemote left the screen.")
         }
         took = nil
