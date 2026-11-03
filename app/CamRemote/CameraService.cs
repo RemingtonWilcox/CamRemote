@@ -712,12 +712,14 @@ public sealed class CameraService : IDisposable
             }
             if (choicesChanged)
             {
-                // Check once more, and put back anything the camera moved since: what a second click used to do.
+                // Check once more, and put back anything the camera moved since, or refused while it was still
+                // switching: what a second click used to do.
                 Thread.Sleep(500);
                 props = ReadAll() ?? props;
-                var moved = wanted.Where(w => !ChangesChoices.Contains(w.Code) && !refused.Contains(w.Code)
-                                              && props.TryGetValue((uint)w.Code, out var p) && p.Value != w.Value).ToList();
-                if (moved.Count > 0) Log.Write("Preset: the camera moved " + string.Join(", ", moved.Select(m => m.Code)) + ", setting again");
+                var moved = wanted.Where(w => !ChangesChoices.Contains(w.Code)
+                                              && props.TryGetValue((uint)w.Code, out var p) && p.Writable && p.Value != w.Value).ToList();
+                if (moved.Count > 0) Log.Write("Preset: " + string.Join(", ", moved.Select(m => m.Code)) + " not as saved yet, setting again");
+                refused.RemoveAll(c => moved.Any(m => m.Code == c));
                 foreach (var (code, value) in moved) Send(code, value);
             }
             Log.Write($"Preset {name}: sent {string.Join(", ", set)}");

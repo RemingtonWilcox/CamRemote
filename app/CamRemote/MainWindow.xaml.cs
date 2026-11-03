@@ -94,8 +94,8 @@ public partial class MainWindow : Window
         Add(ExposurePanel, "Iris", PropCode.FNumber, Format.FNumber, big, v => v);
         Add(FocusPanel, "Focus mode", PropCode.FocusMode, Format.Named("FocusMode"), PropControl.Kind.Buttons);
         Add(FocusPanel, "Tap does", PropCode.FunctionOfTouchOperation, Format.Named("TouchFunction"), PropControl.Kind.Buttons);
-        // The everyday areas as buttons: Wide, Zone, Center, Spot M and Expand Spot. The rest are under More.
-        Add(FocusPanel, "Focus area", PropCode.FocusArea, Format.FocusArea, PropControl.Kind.Shortcuts).Shortcuts = [1, 2, 3, 5, 7];
+        // The everyday areas as buttons: Wide, Zone, Center and the three spot sizes. The rest are under More.
+        Add(FocusPanel, "Focus area", PropCode.FocusArea, Format.FocusArea, PropControl.Kind.Shortcuts).Shortcuts = [1, 2, 3, 4, 5, 6];
         Add(FocusPanel, "Detect", PropCode.RecognitionTarget, Format.Detect, PropControl.Kind.Buttons);
         _frameRate = Add(RecordingPanel, "Frame rate", PropCode.Movie_Recording_FrameRateSetting, Format.MovieFrameRate, pick, onPhone: false);
         var shootsAt = Add(RecordingPanel, "S&Q shoots at", PropCode.SQFrameRate, Format.SlowQuickRate, pick, v => v, onPhone: false);

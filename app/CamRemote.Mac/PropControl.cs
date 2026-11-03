@@ -72,6 +72,7 @@ public sealed class PropControl : IPropRow
                 Show(); // the click toggled it; what the camera has decides
                 _popup!.IsOpen = true;
             };
+            Root.Children.Add(_more);
         }
         else
         {
@@ -187,6 +188,7 @@ public sealed class PropControl : IPropRow
     {
         if (_buttons != null) _buttons.IsEnabled = on;
         if (_value != null) _value.IsEnabled = on;
+        if (_more != null) _more.IsEnabled = on;
         if (_prev != null) _prev.IsEnabled = on;
         if (_next != null) _next.IsEnabled = on;
     }
@@ -195,8 +197,12 @@ public sealed class PropControl : IPropRow
     {
         if (_buttons != null)
         {
-            Fill(_buttons, _more == null ? _choices : _choices.Where(Shortcuts.Contains).ToArray());
-            if (_more != null && _choices.Any(v => !Shortcuts.Contains(v))) _buttons.Children.Add(_more); // only when there's more to see
+            Fill(_buttons, _more == null ? _choices : Shortcuts.Where(_choices.Contains).ToArray());
+            if (_more != null)
+            {
+                bool extra = _choices.Any(v => !Shortcuts.Contains(v)); // only when there's more to see
+                _more.IsVisible = extra;
+            }
             int n = _buttons.Children.Count;
             _buttons.Rows = 0;
             _buttons.Columns = _more != null ? Math.Clamp(n, 1, 3) : n <= 5 ? Math.Max(n, 1) : 4; // a long list wraps
