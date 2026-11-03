@@ -35,7 +35,7 @@ It can even start filming by itself when an animal shows up.
 
 ### It films wildlife for you
 
-Tick one box and walk away. The app watches the picture, starts recording when an animal shows up, focuses on it, and stops 15 seconds after it leaves.
+Tick **Automatic recording** and walk away. The app watches the picture, starts recording when an animal shows up, focuses on it, and stops 15 seconds after it leaves.
 
 This jay landed on the feeder. The app spotted it, rolled, and put a green box around it.
 
@@ -118,7 +118,7 @@ Update your camera to its latest firmware first. Some features, such as click to
 | **Expose** | ISO, shutter and iris, with a histogram, zebras and the camera's meter |
 | **Record** | One big button, with a red outline around the picture while rolling |
 | **Shoot photos** | Single shots, bursts and time-lapses, saved to your card, your computer or both |
-| **Film wildlife** | **Record when an animal shows up** does the rest |
+| **Film wildlife** | **Automatic recording** does the rest |
 | **Set up the camera** | Video format, frame rate, S&Q slow motion, RAW or JPEG, white balance, audio and more, without touching a menu |
 | **Save your setups** | **C1** to **C4**, four for video and four for photos, each back with one click |
 | **Format a card** | Click **▾** next to the card readout. It asks first |
@@ -219,7 +219,7 @@ If your computer asks about network access, say yes:
 
 There's also an iPhone app that runs the camera with no computer at all, just your phone's hotspot. It has the live picture, tap to focus, exposure, video, S&Q, photos, burst, time-lapse and C1 to C3 saved setups. Photos and video stay on the camera's card. Close CamRemote on your computer first: the camera only takes one remote at a time.
 
-It can also record when an animal shows up, with the same rules as on a computer: turn on **Record when an animal shows up** on the Video page. **It only works while CamRemote is open on the phone's screen.** iPhones stop apps that aren't on screen, so if you lock the phone or switch apps, it stops watching (and stops a take it started). While the option is on, the app keeps the screen awake, so keep the phone plugged in: a screen that's on for hours, the hotspot and the detector all use battery. The first time you turn it on, the detector takes up to a minute to get ready.
+It can also record when an animal shows up, with the same rules as on a computer: turn on **Automatic recording** on the Video page and leave **Record when it sees** on **Animal**. **It only works while CamRemote is open on the phone's screen.** iPhones stop apps that aren't on screen, so if you lock the phone or switch apps, it stops watching (and stops a take it started). While the option is on, the app keeps the screen awake, so keep the phone plugged in: a screen that's on for hours, the hotspot and the detector all use battery. The first time you turn it on, the detector takes up to a minute to get ready.
 
 **Control it from a computer through the phone.** Leave the camera outside on your phone's hotspot and run it from a computer somewhere else. Both need [Tailscale](https://tailscale.com) signed in to the same account. In the iPhone app, open **Setup** and turn on **Allow control from a computer**. Then, on the computer, open the Tailscale address it shows and type the access code. You get the same page as phone control on a computer: live picture, record, tap to focus, the focus ring and camera settings.
 
@@ -384,7 +384,7 @@ If you'd use one of these, [open an issue](https://github.com/RemingtonWilcox/Ca
 - **S&Q (slow and quick motion):** under **Recording** on the Video tab, switch between **Normal** and **S&Q**. In S&Q, **S&Q shoots at** is how many frames a second the camera captures, and **S&Q plays at** is the speed it's played back at, so 240fps played at 24p is ten times slower. The fastest rates need an HD file format. Save one to a preset, like 1080p at 240fps on C1, to get to it in one click.
 - **Time-lapse:** open **Time-lapse** under **Drive** and turn it on. The big button then says **Start time-lapse**, and **Stop time-lapse** once it's running.
 - **Photos on your computer:** choose **Computer**, **Card** or **Both** under **Saving** in **Setup**. They go to `Pictures/CamRemote` until you click **Change folder**. A full-size RAW can take 4 to 12 seconds to arrive, so for bursts and time-lapses use **Both** with **Small JPEG**: the card keeps the full files.
-- **Record when an animal shows up:** runs on your computer, and no pictures leave it. It knows birds and a few other animals (cats, dogs, horses, sheep, cows, elephants, bears, zebras and giraffes), and something it doesn't know, like a squirrel, may not set it off. A green box follows the animal while the option is on. Set **Rotate** to match how the camera is mounted first: it sees far better the right way up. Takes stop at 5 minutes and start again if the animal is still there. If it keeps being set off by something that isn't an animal, like splashing water, it learns to ignore that spot for 10 minutes. It only stops takes it started itself.
+- **Automatic recording:** turn it on under **Record** and leave **Record when it sees** on **Animal**. It runs on your computer, and no pictures leave it. It knows birds and a few other animals (cats, dogs, horses, sheep, cows, elephants, bears, zebras and giraffes), and something it doesn't know, like a squirrel, may not set it off. A green box follows the animal while the option is on. Set **Rotate** to match how the camera is mounted first: it sees far better the right way up. Takes stop at 5 minutes and start again if the animal is still there. If it keeps being set off by something that isn't an animal, like splashing water, it learns to ignore that spot for 10 minutes. It only stops takes it started itself.
 - **Updates:** when the app opens, it asks GitHub once for the latest version number. If there's a newer one, a green button appears at the bottom of the window. It opens the download page and installs nothing by itself.
 - **Shooting guides:** worked out from the preview, not the recorded file, so a Monitor LUT changes them. At Wi-Fi preview size, peaking shows the plane of focus. Use the magnifier for critical focus.
 - **Recording timer:** keeps counting through a dropped link or an app restart. A take already rolling when the app first sees it shows a **+**.

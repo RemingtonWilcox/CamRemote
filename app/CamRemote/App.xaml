@@ -55,7 +55,8 @@
         <SolidColorBrush x:Key="Line" Color="#30353B" />
         <ControlTemplate x:Key="TileFace" TargetType="ButtonBase">
             <Grid>
-                <Border x:Name="Face" Background="{TemplateBinding Background}" CornerRadius="8" />
+                <Border x:Name="Face" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" />
                 <!-- Lightens whatever colour the button is, so a red Stop button stays red under the mouse -->
                 <Border x:Name="Glow" Background="White" CornerRadius="8" Opacity="0" />
                 <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
@@ -76,6 +77,7 @@
         <Style x:Key="PanelButton" TargetType="ButtonBase">
             <Setter Property="Foreground" Value="White" />
             <Setter Property="Background" Value="{StaticResource Panel}" />
+            <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="8,6" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />

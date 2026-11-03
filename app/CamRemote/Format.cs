@@ -36,6 +36,14 @@ public static class Format
     }
 
     /// <summary>Focus magnifier: the ratio x10 sits in the upper 4 bytes, the position in the lower 4.</summary>
+    /// <summary>The camera's meter in words: about right, or how many stops dark or bright.</summary>
+    public static string Meter(double stops)
+    {
+        double off = Math.Abs(stops);
+        string way = stops > 0 ? "bright" : "dark";
+        return off <= 0.35 ? "About right" : off > 3 ? $"Over 3 stops {way}" : $"{off:0.0} {(off < 1.05 ? "stop" : "stops")} {way}";
+    }
+
     public static string Magnifier(long v)
     {
         long ratio = (v >> 32) & 0xFFFFFFFF;
@@ -123,6 +131,9 @@ public static class Format
     }
 
     /// <summary>Sony writes 23.98p as "23 98p".</summary>
+    /// <summary>Short enough for a button: "Flexible Spot M" becomes "Spot M".</summary>
+    public static string FocusArea(long v) => Named("FocusArea")(v).Replace("Flexible Spot", "Spot");
+
     public static string MovieFrameRate(long v) => Named("MovieFrameRate")(v).Replace(' ', '.');
 
     /// <summary>How many frames a second S&Q shoots, which Sony gives as a plain number.</summary>

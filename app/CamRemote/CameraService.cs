@@ -604,16 +604,16 @@ public sealed class CameraService : IDisposable
     }
 
     /// <summary>
-    /// A preset in short lines, from its saved values, each narrow enough for a tile. For video: frame rate,
-    /// then format, then exposure. For photos: exposure, then drive.
+    /// A preset in short lines, from its saved values, for a row of its own. For video: frame rate, then
+    /// format, then exposure. For photos: exposure, then drive.
     /// </summary>
     public static (string Top, string Middle, string Bottom) Describe(Preset preset, bool photo)
     {
         string Text(PropCode code, Func<long, string> fmt) =>
             preset.Values.TryGetValue(code.ToString(), out long v) && fmt(v) is var s && s != "--" && !s.StartsWith("0x") ? s : "";
         string Join(params string[] parts) => string.Join(" ", parts.Where(s => s.Length > 0));
-        string exposure = Join(Text(PropCode.ShutterSpeed, Format.Shutter), Text(PropCode.FNumber, Format.FNumber),
-                               Text(PropCode.IsoSensitivity, Format.Iso).Replace("ISO ", ""));
+        string exposure = string.Join(" · ", new[] { Text(PropCode.ShutterSpeed, Format.Shutter), Text(PropCode.FNumber, Format.FNumber),
+                                                     Text(PropCode.IsoSensitivity, Format.Iso) }.Where(s => s.Length > 0));
         if (photo) return (exposure, Text(PropCode.DriveMode, Format.Drive), "");
         bool slowQuick = preset.Values.TryGetValue(PropCode.ExposureProgramMode.ToString(), out long mode) && IsSlowQuickMode(mode);
         string rate = slowQuick ? Join("S&Q", Text(PropCode.SQFrameRate, Format.SlowQuickRate))
@@ -678,13 +678,14 @@ public sealed class CameraService : IDisposable
             }
             var refused = new List<PropCode>();
             var set = new List<PropCode>();
-            foreach (var (code, value) in wanted)
+            bool choicesChanged = false;
+            void Send(PropCode code, long value)
             {
-                if (!props.TryGetValue((uint)code, out var p) || p.Value == value) continue;
+                if (!props.TryGetValue((uint)code, out var p) || p.Value == value) return;
                 if (!p.Writable || !p.Choices().Contains(value))
                 {
                     refused.Add(code);
-                    continue;
+                    return;
                 }
                 if (code == PropCode.ExposureProgramMode) _modeSetAt = DateTime.Now;
                 int err = Native.cb_set_prop((uint)code, (ulong)value, p.Type);
@@ -693,13 +694,31 @@ public sealed class CameraService : IDisposable
                 {
                     Log.Write($"Preset: {code} to 0x{value:X} refused, {Native.ErrorName(err)}");
                     refused.Add(code);
-                    continue;
+                    return;
                 }
                 if (ChangesChoices.Contains(code))
                 {
+                    choicesChanged = true;
                     Thread.Sleep(code == PropCode.ExposureProgramMode ? 700 : 300);
                     props = ReadAll() ?? props;
                 }
+            }
+            foreach (var (code, value) in wanted)
+            {
+                // Going between normal and S&Q, or to a new S&Q frame rate, the camera moves the shutter by itself,
+                // sometimes well after the change. Wait for it to finish, or it moves the preset's shutter again.
+                if (code == PropCode.ShutterSpeed && choicesChanged) props = ShutterSettled(props);
+                Send(code, value);
+            }
+            if (choicesChanged)
+            {
+                // Check once more, and put back anything the camera moved since: what a second click used to do.
+                Thread.Sleep(500);
+                props = ReadAll() ?? props;
+                var moved = wanted.Where(w => !ChangesChoices.Contains(w.Code) && !refused.Contains(w.Code)
+                                              && props.TryGetValue((uint)w.Code, out var p) && p.Value != w.Value).ToList();
+                if (moved.Count > 0) Log.Write("Preset: the camera moved " + string.Join(", ", moved.Select(m => m.Code)) + ", setting again");
+                foreach (var (code, value) in moved) Send(code, value);
             }
             Log.Write($"Preset {name}: sent {string.Join(", ", set)}");
             if (refused.Count > 0) Log.Write("Preset: the camera didn't take " + string.Join(", ", refused));
@@ -709,6 +728,22 @@ public sealed class CameraService : IDisposable
         });
         RequestRefresh();
         return null;
+    }
+
+    /// <summary>Reads the camera until its shutter speed has stayed put for a moment, for up to 3 seconds.</summary>
+    private static Dictionary<uint, Prop> ShutterSettled(Dictionary<uint, Prop> props)
+    {
+        long? last = props.GetValueOrDefault((uint)PropCode.ShutterSpeed)?.Value;
+        int same = 0;
+        for (int i = 0; i < 12 && same < 3; i++)
+        {
+            Thread.Sleep(250);
+            props = ReadAll() ?? props;
+            long? now = props.GetValueOrDefault((uint)PropCode.ShutterSpeed)?.Value;
+            same = now == last ? same + 1 : 0;
+            last = now;
+        }
+        return props;
     }
 
     /// <summary>Holds the shutter down, half-pressing first to focus unless the lens is in manual. In a burst drive mode it keeps shooting until <see cref="ShutterUp"/>.</summary>

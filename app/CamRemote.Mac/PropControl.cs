@@ -17,6 +17,7 @@ public sealed class PropControl : IPropRow
         Buttons, // a row of buttons, for short lists (on/off, AF/MF)
         Picker,  // a button showing the value; click it for a grid of every choice
         Stepper, // ◀ value ▶, plus the same grid
+        Shortcuts, // the everyday choices as buttons, and More for the grid of every choice
     }
 
     private static readonly IBrush PopupBg = new SolidColorBrush(Color.FromRgb(0x10, 0x12, 0x14));
@@ -34,6 +35,8 @@ public sealed class PropControl : IPropRow
     private readonly Button? _value, _prev, _next;
     private readonly Popup? _popup;
     private readonly UniformGrid? _grid;
+    private readonly ToggleButton? _more; // with Shortcuts: opens the grid, and names the choice when it isn't a shortcut
+    private readonly TextBlock? _moreText;
     private long[] _choices = [];
     private long _current;
     private long? _wanted; // what the user last asked for, until the camera reports it
@@ -42,6 +45,7 @@ public sealed class PropControl : IPropRow
     public PropCode Code { get; }
     public string Section { get; init; } = ""; // where the phone page shows it
     public long[]? Presets { get; init; } // a short list to offer instead of every step of a long range
+    public long[] Shortcuts { get; set; } = []; // with Kind.Shortcuts, the choices shown as buttons
     public bool OnPhone { get; init; } = true; // false for a second copy of a setting shown elsewhere in the window
     public StackPanel Root { get; } = new() { Margin = new Thickness(0, 4, 0, 6) };
 
@@ -55,27 +59,36 @@ public sealed class PropControl : IPropRow
         _order = order;
         _label = new TextBlock { Text = label, FontSize = 12, Margin = new Thickness(0, 0, 0, 3), Foreground = Brushes.Gray };
 
-        if (kind == Kind.Buttons)
+        if (kind is Kind.Buttons or Kind.Shortcuts)
         {
             Root.Children.Add(_label);
             _buttons = new UniformGrid { Rows = 1 };
             Root.Children.Add(_buttons);
-            return;
+            if (kind == Kind.Buttons) return;
+            _moreText = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis };
+            _more = new ToggleButton { Margin = new Thickness(2), Padding = new Thickness(8, 5, 8, 5), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Center, Content = _moreText };
+            _more.Click += (_, _) =>
+            {
+                Show(); // the click toggled it; what the camera has decides
+                _popup!.IsOpen = true;
+            };
         }
-
-        // Its name sits inside, above the value, like a tile in the iPhone app.
-        _label.FontSize = 11;
-        _label.Margin = new Thickness(0);
-        _label.HorizontalAlignment = HorizontalAlignment.Center;
-        _valueText = new TextBlock { FontSize = kind == Kind.Stepper ? 18 : 14, FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Center,
-                                     TextTrimming = TextTrimming.CharacterEllipsis };
-        _value = new Button { HorizontalAlignment = HorizontalAlignment.Stretch, MinHeight = kind == Kind.Stepper ? 54 : 46, Padding = new Thickness(6, 4, 6, 4),
-                              Content = new StackPanel { Children = { _label, _valueText } } };
-        _value.Click += (_, _) => { if (_popup != null) _popup.IsOpen = true; };
+        else
+        {
+            // Its name sits inside, above the value, like a tile in the iPhone app.
+            _label.FontSize = 11;
+            _label.Margin = new Thickness(0);
+            _label.HorizontalAlignment = HorizontalAlignment.Center;
+            _valueText = new TextBlock { FontSize = kind == Kind.Stepper ? 18 : 14, FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Center,
+                                         TextTrimming = TextTrimming.CharacterEllipsis };
+            _value = new Button { HorizontalAlignment = HorizontalAlignment.Stretch, MinHeight = kind == Kind.Stepper ? 54 : 46, Padding = new Thickness(6, 4, 6, 4),
+                                  Content = new StackPanel { Children = { _label, _valueText } } };
+            _value.Click += (_, _) => { if (_popup != null) _popup.IsOpen = true; };
+        }
         _grid = new UniformGrid { Columns = 4, Margin = new Thickness(6) };
         _popup = new Popup
         {
-            PlacementTarget = _value,
+            PlacementTarget = (Control?)_more ?? _value,
             Placement = PlacementMode.Bottom,
             IsLightDismissEnabled = true,
             Child = new Border
@@ -87,9 +100,9 @@ public sealed class PropControl : IPropRow
 
         if (kind == Kind.Picker)
         {
-            Root.Children.Add(_value);
+            Root.Children.Add(_value!);
         }
-        else
+        else if (kind == Kind.Stepper)
         {
             _prev = new Button { Content = "◀", Width = 44, FontSize = 16, Padding = new Thickness(0, 4) };
             _next = new Button { Content = "▶", Width = 44, FontSize = 16, Padding = new Thickness(0, 4) };
@@ -98,7 +111,7 @@ public sealed class PropControl : IPropRow
             var row = new DockPanel();
             DockPanel.SetDock(_prev, Dock.Left);
             DockPanel.SetDock(_next, Dock.Right);
-            _value.Margin = new Thickness(4, 0, 4, 0);
+            _value!.Margin = new Thickness(4, 0, 4, 0);
             row.Children.Add(_prev);
             row.Children.Add(_next);
             row.Children.Add(_value);
@@ -180,16 +193,30 @@ public sealed class PropControl : IPropRow
 
     private void Rebuild()
     {
-        var target = (Panel?)_buttons ?? _grid!;
+        if (_buttons != null)
+        {
+            Fill(_buttons, _more == null ? _choices : _choices.Where(Shortcuts.Contains).ToArray());
+            if (_more != null && _choices.Any(v => !Shortcuts.Contains(v))) _buttons.Children.Add(_more); // only when there's more to see
+            int n = _buttons.Children.Count;
+            _buttons.Rows = 0;
+            _buttons.Columns = _more != null ? Math.Clamp(n, 1, 3) : n <= 5 ? Math.Max(n, 1) : 4; // a long list wraps
+        }
+        if (_grid != null)
+        {
+            Fill(_grid, _choices);
+            _grid.Columns = _choices.Length <= 8 ? 2 : _choices.Length <= 24 ? 3 : 4;
+        }
+    }
+
+    private void Fill(UniformGrid target, long[] values)
+    {
         target.Children.Clear();
-        if (_grid != null) _grid.Columns = _choices.Length <= 8 ? 2 : _choices.Length <= 24 ? 3 : 4;
-        if (_buttons != null) { _buttons.Rows = 0; _buttons.Columns = _choices.Length <= 5 ? Math.Max(_choices.Length, 1) : 4; } // a long list wraps
-        foreach (var v in _choices)
+        foreach (var v in values)
         {
             var b = new ToggleButton
             {
                 Content = _fmt(v), Tag = v, Margin = new Thickness(2), Padding = new Thickness(8, 5, 8, 5),
-                MinWidth = _grid != null ? 84 : 0, HorizontalAlignment = HorizontalAlignment.Stretch,
+                MinWidth = target == _grid ? 84 : 0, HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Center,
             };
             b.Click += (_, _) =>
@@ -204,8 +231,14 @@ public sealed class PropControl : IPropRow
     private void Show()
     {
         if (_valueText != null) _valueText.Text = _fmt(_current);
-        var target = (Panel?)_buttons ?? _grid;
-        if (target == null) return;
-        foreach (var b in target.Children.OfType<ToggleButton>()) b.IsChecked = (long)b.Tag! == _current;
+        foreach (var panel in new[] { _buttons, _grid })
+            if (panel != null)
+                foreach (var b in panel.Children.OfType<ToggleButton>().Where(b => b.Tag is long))
+                    b.IsChecked = (long)b.Tag! == _current;
+        if (_more == null) return;
+        // Lit, with the choice's name, when the camera is on one the buttons don't show.
+        bool elsewhere = !Shortcuts.Contains(_current);
+        _more.IsChecked = elsewhere;
+        _moreText!.Text = elsewhere ? _fmt(_current) + " ▾" : "More ▾";
     }
 }

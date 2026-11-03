@@ -18,7 +18,7 @@
             <TextBlock x:Name="BatteryText" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="16,0,0,0" />
         </DockPanel>
 
-        <!-- Shooting guides: quick toggles, then the meter and histogram. Click the histogram for detail. -->
+        <!-- Shooting guides: quick toggles, then the histogram. Click the histogram for detail. -->
         <DockPanel Grid.Row="1" Grid.Column="0" Margin="12,0,12,8" Height="38" LastChildFill="False">
             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
                 <ToggleButton x:Name="HistogramChip" Content="Histogram" Classes="Chip" Click="OnAssistToggle" ToolTip.Tip="Show the histogram (H)" />
@@ -34,13 +34,6 @@
             <StackPanel x:Name="ClipBox" DockPanel.Dock="Right" Margin="0,0,8,0" VerticalAlignment="Center">
                 <TextBlock x:Name="OverText" FontSize="11" TextAlignment="Right" />
                 <TextBlock x:Name="UnderText" FontSize="11" TextAlignment="Right" Foreground="{StaticResource Dim}" />
-            </StackPanel>
-            <StackPanel x:Name="MeterBox" DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center"
-                        ToolTip.Tip="The camera's exposure meter, in stops.">
-                <TextBlock x:Name="ExposureText" Width="34" FontSize="12" TextAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0" />
-                <Canvas x:Name="ExposureScale" Width="150" Height="24">
-                    <Rectangle x:Name="ExposureNeedle" Width="3" Height="24" Fill="White" />
-                </Canvas>
             </StackPanel>
         </DockPanel>
 
@@ -123,8 +116,12 @@
                                         <TextBlock x:Name="RecLabel" Text="Record" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
-                                <CheckBox x:Name="BirdWatch" Margin="0,10,0,0" Content="Record when an animal shows up" Click="OnBirdWatchClick"
-                                          ToolTip.Tip="Checks the picture once a second, on this computer only." />
+                                <CheckBox x:Name="BirdWatch" Margin="0,10,0,0" Content="Automatic recording" Click="OnBirdWatchClick"
+                                          ToolTip.Tip="Starts recording by itself when the camera sees what you pick below. Checks the picture once a second, on this computer only." />
+                                <StackPanel x:Name="RecordSubjectPanel" Margin="0,6,0,0" IsVisible="False">
+                                    <TextBlock Text="Record when it sees" FontSize="12" Foreground="Gray" Margin="0,0,0,3" />
+                                    <UniformGrid x:Name="RecordSubjectButtons" Columns="2" Margin="-2,0,-2,0" />
+                                </StackPanel>
                                 <TextBlock x:Name="BirdStatus" FontSize="12" Foreground="Gray" Margin="0,3,0,0" TextWrapping="Wrap" IsVisible="False" />
                             </StackPanel>
                             <Button x:Name="ShutterButton" Height="56" Margin="0,10,0,0" IsEnabled="False" HorizontalAlignment="Stretch" IsVisible="False"
@@ -139,10 +136,23 @@
                                     <TextBlock x:Name="TimeLapsePlan" Classes="Small" Margin="0,0,0,4" />
                                 </StackPanel>
                             </Expander>
-                            <!-- C1 to C4: the camera's settings, saved in this app separately for video and photo -->
-                            <UniformGrid x:Name="PresetButtons" Columns="2" Margin="-3,8,-3,0" />
+                            <!-- C1 to C4: the camera's settings, saved in this app separately for video and photo. One per row. -->
+                            <StackPanel x:Name="PresetButtons" Margin="0,8,0,0" />
 
                             <TextBlock Text="EXPOSURE" Classes="Section" />
+                            <!-- The camera's meter, beside the settings that move it -->
+                            <Border x:Name="MeterBox" Margin="0,0,0,6" Padding="10,6,10,2" Background="#1B1E22" BorderBrush="#30353B" BorderThickness="1"
+                                    CornerRadius="8" IsVisible="False" ToolTip.Tip="What the camera's meter makes of the picture, in stops. The mark sits on 0 when the camera thinks the exposure is right.">
+                                <StackPanel>
+                                    <DockPanel>
+                                        <TextBlock x:Name="ExposureText" DockPanel.Dock="Right" FontSize="12" FontWeight="SemiBold" />
+                                        <TextBlock Text="Meter" FontSize="12" Foreground="Gray" />
+                                    </DockPanel>
+                                    <Canvas x:Name="ExposureScale" Height="32" Margin="0,4,0,0" SizeChanged="OnExposureScaleSized">
+                                        <Rectangle x:Name="ExposureNeedle" Width="3" Height="18" Fill="White" />
+                                    </Canvas>
+                                </StackPanel>
+                            </Border>
                             <StackPanel x:Name="ExposurePanel" />
                             <UniformGrid x:Name="BaseIsoButtons" IsVisible="False" Rows="1" Margin="0,0,0,4">
                                 <Button x:Name="IsoLowButton" Margin="0,0,3,0" Padding="4,6" Click="OnBaseIsoClick" HorizontalAlignment="Stretch"

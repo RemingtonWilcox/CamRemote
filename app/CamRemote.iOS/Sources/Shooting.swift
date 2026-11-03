@@ -595,15 +595,31 @@ struct LiveView: View {
     }
 }
 
-/// The animal trigger's switch. iOS stops the app off screen, so it says plainly that the phone has to stay open.
+/// Automatic recording's switch, and what it looks for. iOS stops the app off screen, so it says plainly that the phone has to stay open.
 struct AnimalSwitch: View {
     @ObservedObject var animals: AnimalTrigger
 
+    /// What automatic recording can look for. Only animals for now: a new subject needs its own detector, and a tap to pick it.
+    private static let subjects = ["Animal"]
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Toggle("Record when an animal shows up", isOn: Binding(get: { animals.on }, set: { $0 ? animals.start() : animals.stop() }))
+            Toggle("Automatic recording", isOn: Binding(get: { animals.on }, set: { $0 ? animals.start() : animals.stop() }))
                 .font(.footnote.weight(.semibold))
                 .tint(.good)
+            if animals.on {
+                Text("Record when it sees").font(.caption2).foregroundColor(.dim)
+                ChipGrid {
+                    ForEach(Self.subjects, id: \.self) { subject in
+                        Text(subject)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundColor(.good)
+                            .frame(maxWidth: .infinity, minHeight: 32)
+                            .background(Color.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.good, lineWidth: 2))
+                    }
+                }
+            }
             if animals.on, !animals.status.isEmpty {
                 Text(animals.status).font(.caption).foregroundColor(.white)
             }

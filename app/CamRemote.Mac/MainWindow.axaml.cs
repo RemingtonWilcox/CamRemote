@@ -102,7 +102,8 @@ public partial class MainWindow : Window
         Add(ExposurePanel, "Iris", PropCode.FNumber, Format.FNumber, big, v => v);
         Add(FocusPanel, "Focus mode", PropCode.FocusMode, Format.Named("FocusMode"), PropControl.Kind.Buttons);
         Add(FocusPanel, "Tap does", PropCode.FunctionOfTouchOperation, Format.Named("TouchFunction"), PropControl.Kind.Buttons);
-        Add(FocusPanel, "Focus area", PropCode.FocusArea, Format.Named("FocusArea"), pick);
+        // The everyday areas as buttons: Wide, Zone, Center, Spot M and Expand Spot. The rest are under More.
+        Add(FocusPanel, "Focus area", PropCode.FocusArea, Format.FocusArea, PropControl.Kind.Shortcuts).Shortcuts = [1, 2, 3, 5, 7];
         Add(FocusPanel, "Detect", PropCode.RecognitionTarget, Format.Detect, PropControl.Kind.Buttons);
         _frameRate = Add(RecordingPanel, "Frame rate", PropCode.Movie_Recording_FrameRateSetting, Format.MovieFrameRate, pick, onPhone: false);
         var shootsAt = Add(RecordingPanel, "S&Q shoots at", PropCode.SQFrameRate, Format.SlowQuickRate, pick, v => v, onPhone: false);
@@ -141,6 +142,7 @@ public partial class MainWindow : Window
         Add(TimeLapsePanel, "Photos", PropCode.IntervalRec_NumberOfShots, v => v.ToString("N0"), pick, v => v, ShotChoices);
         Add(TimeLapsePanel, "Start after", PropCode.IntervalRec_ShootingStartTime, v => Format.Interval(v * 10), pick, v => v, StartChoices);
         MakePresetButtons();
+        MakeRecordSubjectButtons();
         OnPropsChanged();
         ApplyRotation();
         SetUpAssist();
@@ -577,12 +579,36 @@ public partial class MainWindow : Window
         else _cam.EndFormat();
     }
 
+    // ---- Automatic recording ----
+
+    // What automatic recording can look for. Only animals for now: a new subject needs its own detector in BirdTrigger.
+    private static readonly (string Name, string Tip)[] RecordSubjects =
+    [
+        ("Animal", "Birds and a few other animals: cats, dogs, horses, sheep, cows, elephants, bears, zebras and giraffes."),
+    ];
+
+    private void MakeRecordSubjectButtons()
+    {
+        foreach (var (subject, tip) in RecordSubjects)
+        {
+            var b = new ToggleButton
+            {
+                Content = subject, Margin = new Thickness(2), Padding = new Thickness(8, 5, 8, 5), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Center,
+                IsChecked = subject == RecordSubjects[0].Name,
+            };
+            ToolTip.SetTip(b, tip);
+            b.Click += (_, _) => { foreach (ToggleButton other in RecordSubjectButtons.Children) other.IsChecked = other == b; };
+            RecordSubjectButtons.Children.Add(b);
+        }
+    }
+
     private void OnBirdWatchClick(object? sender, RoutedEventArgs e)
     {
         bool on = BirdWatch.IsChecked == true;
         if (on) _bird.Start();
         else _bird.Stop();
         BirdStatus.IsVisible = on;
+        RecordSubjectPanel.IsVisible = on;
         UpdateLiveView();
     }
 
@@ -852,12 +878,15 @@ public partial class MainWindow : Window
         for (int slot = 1; slot <= PresetSlots; slot++)
         {
             int s = slot;
-            // Frame rate, format and exposure for video, a line each, so presets can be told apart at a glance.
-            var top = new TextBlock { FontSize = 12, FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Center };
-            var middle = new TextBlock { FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Center };
-            var bottom = new TextBlock { FontSize = 11, Foreground = Dim, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Center };
-            var name = new TextBlock { Text = $"C{s}", FontSize = 11, Foreground = Dim, HorizontalAlignment = HorizontalAlignment.Center };
-            var b = new Button { Classes = { "Tile" }, Tag = new[] { top, middle, bottom }, Content = new StackPanel { Children = { name, top, middle, bottom } } };
+            // A row each: frame rate, with the format on the right, then the exposure below, so presets can be told apart at a glance.
+            var name = new TextBlock { Text = $"C{s}", FontSize = 12, Foreground = Dim, Width = 28, Margin = new Thickness(0, 2, 0, 0) };
+            var title = new TextBlock { FontSize = 14, FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
+            var right = new TextBlock { FontSize = 12, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            var detail = new TextBlock { FontSize = 12, Foreground = Dim, TextTrimming = TextTrimming.CharacterEllipsis };
+            DockPanel.SetDock(right, Dock.Right);
+            DockPanel.SetDock(name, Dock.Left);
+            var row = new DockPanel { Children = { name, new StackPanel { Children = { new DockPanel { Children = { right, title } }, detail } } } };
+            var b = new Button { Classes = { "Tile" }, Margin = new Thickness(0, 2, 0, 2), Padding = new Thickness(10, 6, 10, 6), HorizontalContentAlignment = HorizontalAlignment.Stretch, BorderThickness = new Thickness(2), Tag = new[] { title, right, detail }, Content = row };
             b.Click += (_, _) =>
             {
                 if (PresetIn(s) is { } preset) { if (_cam.ApplyPreset(preset, $"C{s}") is { } problem) ShowMessage(problem); }
@@ -904,14 +933,16 @@ public partial class MainWindow : Window
             var b = (Button)PresetButtons.Children[i];
             var preset = PresetIn(i + 1);
             var lines = (TextBlock[])b.Tag!;
-            var (top, middle, bottom) = preset == null ? ("Empty", "", "") : CameraService.Describe(preset, _cam.IsPhotoMode);
+            var (top, middle, bottom) = preset == null ? ("Empty", "", "Click to save here") : CameraService.Describe(preset, _cam.IsPhotoMode);
             lines[0].Text = top.Length > 0 ? top : "Saved";
             lines[1].Text = middle;
             lines[2].Text = bottom;
             lines[1].IsVisible = middle.Length > 0;
             lines[2].IsVisible = bottom.Length > 0;
-            // Green when the camera is set that way now, as on the phone.
-            lines[0].Foreground = preset == null ? Dim : _cam.Matches(preset) ? Ok : Brushes.White;
+            // Green, with a green outline, when the camera is set that way now, as on the phone.
+            bool now = preset != null && _cam.Matches(preset);
+            lines[0].Foreground = preset == null ? Dim : now ? Ok : Brushes.White;
+            b.BorderBrush = now ? Ok : Brushes.Transparent;
             b.IsEnabled = connected;
             ((MenuItem)b.ContextMenu!.Items[1]!).IsEnabled = preset != null;
             ToolTip.SetTip(b, preset == null ? $"Click to save the camera's {page} settings here."
@@ -1079,15 +1110,6 @@ public partial class MainWindow : Window
 
     private void SetUpAssist()
     {
-        for (int stop = -3; stop <= 3; stop++)
-        {
-            double h = stop == 0 ? 24 : 10;
-            var tick = new Rectangle { Width = 1, Height = h, Fill = Dim };
-            Canvas.SetLeft(tick, 75 + stop * 24);
-            Canvas.SetTop(tick, (24 - h) / 2);
-            ExposureScale.Children.Insert(0, tick);
-        }
-
         _loadingAssist = true;
         HistogramChip.IsChecked = _settings.ShowHistogram;
         ZebraChip.IsChecked = _settings.ShowZebras;
@@ -1187,9 +1209,32 @@ public partial class MainWindow : Window
         var stops = _cam.State == LinkState.Connected ? _cam.MeterStops : null;
         MeterBox.IsVisible = stops != null;
         if (stops is not double s) return;
-        Canvas.SetLeft(ExposureNeedle, 74 + Math.Clamp(s, -3.1, 3.1) * 24);
-        ExposureText.Text = Math.Abs(s) > 3 ? (s > 0 ? "+3 ▶" : "◀ -3") : $"{s:+0.0;-0.0;0.0}";
+        Canvas.SetLeft(ExposureNeedle, MeterX(s) - 1);
+        ExposureText.Text = Format.Meter(s);
         ExposureNeedle.Fill = Math.Abs(s) <= 0.35 ? Ok : Math.Abs(s) >= 2 ? Warn : Brushes.White;
+        ExposureText.Foreground = ExposureNeedle.Fill;
+    }
+
+    // -3 to +3 stops across the meter, with room at the ends for the numbers.
+    private double MeterX(double stops) => 10 + (Math.Clamp(stops, -3.1, 3.1) + 3) * (ExposureScale.Bounds.Width - 20) / 6;
+
+    private void OnExposureScaleSized(object? sender, SizeChangedEventArgs e)
+    {
+        ExposureScale.Children.Clear();
+        for (int stop = -3; stop <= 3; stop++)
+        {
+            double h = stop == 0 ? 18 : 8;
+            var tick = new Rectangle { Width = 1, Height = h, Fill = Dim };
+            Canvas.SetLeft(tick, MeterX(stop));
+            Canvas.SetTop(tick, (18 - h) / 2);
+            var number = new TextBlock { Text = stop == 0 ? "0" : $"{stop:+0;-0}", Width = 24, TextAlignment = TextAlignment.Center, FontSize = 10, Foreground = Dim };
+            Canvas.SetLeft(number, MeterX(stop) - 12);
+            Canvas.SetTop(number, 18);
+            ExposureScale.Children.Add(tick);
+            ExposureScale.Children.Add(number);
+        }
+        ExposureScale.Children.Add(ExposureNeedle);
+        ShowMeter();
     }
 
     // ---- Keep the Mac awake ----
