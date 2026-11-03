@@ -87,6 +87,26 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
         Self.orientations
     }
+
+    #if DEBUG
+    /// Test builds only: `devicectl device notification post --name io.github.camremote.screenshot` saves the screen
+    /// to Documents/screenshot.png, to copy off with `devicectl device copy from`. There's no other way to see an iPad's screen from a Mac.
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), nil, { _, _, _, _, _ in
+            DispatchQueue.main.async { AppDelegate.saveScreen() }
+        }, "io.github.camremote.screenshot" as CFString, nil, .deliverImmediately)
+        return true
+    }
+
+    private static func saveScreen() {
+        guard let window = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.keyWindow else { return }
+        let picture = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        let file = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("screenshot.png")
+        try? picture.pngData()?.write(to: file)
+    }
+    #endif
 }
 
 @main

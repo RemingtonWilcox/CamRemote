@@ -81,9 +81,8 @@ struct ShootingView: View {
         VStack(spacing: 8) {
             topBar
             framedPicture
-            controls
-                .frame(maxWidth: 640) // an upright iPad has room to spare
-                .padding(.horizontal, 12)
+            controls(columns: AppDelegate.pad ? 4 : 3) // an upright iPad has room for more across
+                .padding(.horizontal, AppDelegate.pad ? 20 : 12)
         }
         .background(Color.page.ignoresSafeArea())
     }
@@ -99,7 +98,7 @@ struct ShootingView: View {
                         framedPicture
                         Spacer(minLength: 0)
                     }
-                    controls
+                    controls(columns: 3)
                         .frame(width: 400)
                         .padding(.top, 8)
                         .padding(.trailing, 12)
@@ -148,18 +147,19 @@ struct ShootingView: View {
             }
     }
 
-    private var controls: some View {
+    private func controls(columns: Int) -> some View {
         VStack(spacing: 8) {
             tileRow(background: .panel)
             dial
             HStack {
                 modeSwitch.frame(maxWidth: .infinity)
                 captureButton(size: 72)
-                captureNote.frame(maxWidth: .infinity)
+                // The hidden line gives an empty note a size, or the button would slide off centre.
+                ZStack { Text(" ").hidden(); captureNote }.frame(maxWidth: .infinity)
             }
             ScrollView {
                 if !camera.photoMode, AnimalTrigger.available { AnimalSwitch(animals: animals) }
-                ChipGrid {
+                ChipGrid(columns: columns) {
                     ForEach(1...3, id: \.self) { slot in
                         PresetChip(camera: camera, slot: slot)
                     }
@@ -659,7 +659,7 @@ struct AnimalSwitch: View {
             if animals.on, !animals.status.isEmpty {
                 Text(animals.status).font(.caption).foregroundColor(.white)
             }
-            Text("Checks the picture twice a second, on this phone only. It only works while CamRemote is open on screen, so keep the phone unlocked and plugged in.")
+            Text("Checks the picture twice a second, on this \(AppDelegate.pad ? "iPad" : "phone") only. It only works while CamRemote is open on screen, so keep it unlocked and plugged in.")
                 .font(.caption)
                 .foregroundColor(.dim)
                 .fixedSize(horizontal: false, vertical: true)
@@ -850,10 +850,11 @@ struct Dial: View {
 }
 
 struct ChipGrid<Content: View>: View {
+    var columns = 3
     @ViewBuilder let content: Content
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) { content }
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: columns), spacing: 6) { content }
     }
 }
 
