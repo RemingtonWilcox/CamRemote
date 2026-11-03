@@ -86,7 +86,7 @@ static int give_up(int code)
     return code;
 }
 
-int cam_ssh_open(const char *host, const char *user, const char *password, const char *expected, char *found, int found_cap)
+int cam_ssh_hello(const char *host, char *found, int found_cap)
 {
     g_socket = connect_to(host, 22, 5000);
     if (g_socket < 0) return CAM_UNREACHABLE;
@@ -96,12 +96,15 @@ int cam_ssh_open(const char *host, const char *user, const char *password, const
     libssh2_session_set_timeout(g_session, 15000);
     if (libssh2_session_handshake(g_session, g_socket) != 0) return give_up(CAM_FAILED);
 
-    // Check it's the same camera before its login sees the password.
+    // The camera's own key says which camera this is, before any password is sent.
     const unsigned char *key = (const unsigned char *)libssh2_hostkey_hash(g_session, LIBSSH2_HOSTKEY_HASH_SHA256);
     if (!key || found_cap < 65) return give_up(CAM_FAILED);
     for (int i = 0; i < 32; i++) snprintf(found + i * 2, 3, "%02x", key[i]);
-    if (expected[0] && strcmp(expected, found) != 0) return give_up(CAM_KEY_CHANGED);
+    return 0;
+}
 
+int cam_ssh_login(const char *user, const char *password)
+{
     g_password = password;
     int login = libssh2_userauth_keyboard_interactive(g_session, user, answer_prompts);
     g_password = NULL;

@@ -30,7 +30,7 @@ struct ShootingView: View {
 
     var body: some View {
         Group {
-            if fullScreen { fullScreenView } else { uprightView }
+            if fullScreen { fullScreenView } else if AppDelegate.pad { padView } else { uprightView }
         }
         // A call or the button changing mid-press never reports the finger lifting, and the camera would keep firing.
         .onChange(of: phase) { if $0 != .active { letGoOfShutter() } }
@@ -56,9 +56,11 @@ struct ShootingView: View {
     }
 
     /// Only the buttons do this, so moving the phone around never changes the view. A vertical picture stays upright.
+    /// An iPad turns whichever way it's held.
     private func turn(toFullScreen on: Bool) {
         fullScreen = on
         dialOpen = false
+        guard !AppDelegate.pad else { return }
         let orientations: UIInterfaceOrientationMask = on && !vertical ? .landscape : .portrait
         AppDelegate.orientations = orientations
         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
@@ -77,83 +79,117 @@ struct ShootingView: View {
 
     private var uprightView: some View {
         VStack(spacing: 8) {
-            HStack(spacing: 10) {
-                Circle().fill(Color.good).frame(width: 8, height: 8)
-                batteryAndCard
-                Spacer()
-                BridgeBadge()
-                Button { setupOpen = true } label: {
-                    Label("Setup", systemImage: "gearshape").font(.footnote.weight(.semibold))
-                }
-                .foregroundColor(.white)
-            }
-            .font(.footnote)
-            .foregroundColor(.dim)
-            .padding(.horizontal, 12)
-
-            liveView
-                .aspectRatio(vertical ? 1 : 3 / 2, contentMode: .fit)
-                .overlay(alignment: .top) {
-                    VStack(alignment: .trailing, spacing: 4) {
-                        SettingsBar(camera: camera).frame(maxWidth: .infinity, alignment: .leading)
-                        if showHistogram { HistogramView(camera: camera) }
-                    }
-                    .padding(6)
-                    .allowsHitTesting(false)
-                }
-                .overlay(alignment: .bottom) {
-                    HStack(spacing: 4) {
-                        guideButtons
-                        Spacer()
-                        roundIcon("arrow.up.left.and.arrow.down.right") { turn(toFullScreen: true) }
-                    }
-                    .padding(8)
-                }
-
-            VStack(spacing: 8) {
-                tileRow(background: .panel)
-                dial
-                HStack {
-                    modeSwitch.frame(maxWidth: .infinity)
-                    captureButton(size: 72)
-                    captureNote.frame(maxWidth: .infinity)
-                }
-                ScrollView {
-                    if !camera.photoMode, AnimalTrigger.available { AnimalSwitch(animals: animals) }
-                    ChipGrid {
-                        ForEach(1...3, id: \.self) { slot in
-                            PresetChip(camera: camera, slot: slot)
-                        }
-                        chip(Code.mode)
-                        if camera.photoMode {
-                            chip(Code.drive)
-                            Button { timeLapseOpen = true } label: {
-                                ChipFace(label: "Time-lapse", value: camera.timeLapseRunning ? "Running" : "Plan", on: camera.timeLapseRunning)
-                            }
-                            .buttonStyle(Press())
-                            chip(Code.whiteBalance)
-                            colorTempChip
-                            chip(Code.metering)
-                        } else {
-                            SlowQuickChip(camera: camera)
-                            // Only one of each pair is there, depending on S&Q.
-                            chip(Code.frameRate)
-                            chip(Code.sqFrameRate)
-                            chip(Code.sqPlayRate)
-                            chip(Code.movieFormat)
-                            chip(Code.recordSetting)
-                            chip(Code.sqRecordSetting)
-                            chip(Code.whiteBalance)
-                            colorTempChip
-                        }
-                        chip(Code.focusArea)
-                        SilentChip(camera: camera)
-                    }
-                }
-            }
-            .padding(.horizontal, 12)
+            topBar
+            framedPicture
+            controls
+                .frame(maxWidth: 640) // an upright iPad has room to spare
+                .padding(.horizontal, 12)
         }
         .background(Color.page.ignoresSafeArea())
+    }
+
+    /// On an iPad held sideways the picture takes the left and the controls sit beside it, like on a computer.
+    private var padView: some View {
+        GeometryReader { box in
+            if box.size.width > box.size.height {
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(spacing: 8) {
+                        topBar
+                        Spacer(minLength: 0)
+                        framedPicture
+                        Spacer(minLength: 0)
+                    }
+                    controls
+                        .frame(width: 400)
+                        .padding(.top, 8)
+                        .padding(.trailing, 12)
+                }
+            } else {
+                uprightView
+            }
+        }
+        .background(Color.page.ignoresSafeArea())
+    }
+
+    private var topBar: some View {
+        HStack(spacing: 10) {
+            Circle().fill(Color.good).frame(width: 8, height: 8)
+            batteryAndCard
+            Spacer()
+            BridgeBadge()
+            Button { setupOpen = true } label: {
+                Label("Setup", systemImage: "gearshape").font(.footnote.weight(.semibold))
+            }
+            .foregroundColor(.white)
+        }
+        .font(.footnote)
+        .foregroundColor(.dim)
+        .padding(.horizontal, 12)
+    }
+
+    private var framedPicture: some View {
+        liveView
+            .aspectRatio(vertical ? 1 : 3 / 2, contentMode: .fit)
+            .overlay(alignment: .top) {
+                VStack(alignment: .trailing, spacing: 4) {
+                    SettingsBar(camera: camera).frame(maxWidth: .infinity, alignment: .leading)
+                    if showHistogram { HistogramView(camera: camera) }
+                }
+                .padding(6)
+                .allowsHitTesting(false)
+            }
+            .overlay(alignment: .bottom) {
+                HStack(spacing: 4) {
+                    guideButtons
+                    Spacer()
+                    roundIcon("arrow.up.left.and.arrow.down.right") { turn(toFullScreen: true) }
+                }
+                .padding(8)
+            }
+    }
+
+    private var controls: some View {
+        VStack(spacing: 8) {
+            tileRow(background: .panel)
+            dial
+            HStack {
+                modeSwitch.frame(maxWidth: .infinity)
+                captureButton(size: 72)
+                captureNote.frame(maxWidth: .infinity)
+            }
+            ScrollView {
+                if !camera.photoMode, AnimalTrigger.available { AnimalSwitch(animals: animals) }
+                ChipGrid {
+                    ForEach(1...3, id: \.self) { slot in
+                        PresetChip(camera: camera, slot: slot)
+                    }
+                    chip(Code.mode)
+                    if camera.photoMode {
+                        chip(Code.drive)
+                        Button { timeLapseOpen = true } label: {
+                            ChipFace(label: "Time-lapse", value: camera.timeLapseRunning ? "Running" : "Plan", on: camera.timeLapseRunning)
+                        }
+                        .buttonStyle(Press())
+                        chip(Code.whiteBalance)
+                        colorTempChip
+                        chip(Code.metering)
+                    } else {
+                        SlowQuickChip(camera: camera)
+                        // Only one of each pair is there, depending on S&Q.
+                        chip(Code.frameRate)
+                        chip(Code.sqFrameRate)
+                        chip(Code.sqPlayRate)
+                        chip(Code.movieFormat)
+                        chip(Code.recordSetting)
+                        chip(Code.sqRecordSetting)
+                        chip(Code.whiteBalance)
+                        colorTempChip
+                    }
+                    chip(Code.focusArea)
+                    SilentChip(camera: camera)
+                }
+            }
+        }
     }
 
     @ViewBuilder private var colorTempChip: some View {
@@ -914,6 +950,7 @@ struct SetupSheet: View {
     @ObservedObject var camera: Camera
     @State private var chooser: Row?
     @State private var showCredits = false
+    @State private var forgetting: SavedCamera?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -958,6 +995,20 @@ struct SetupSheet: View {
                     SilentChip(camera: camera)
                 }
                 BridgeSection()
+                section("SAVED CAMERAS")
+                Text("Each camera you connect to keeps its login, so it connects by itself next time. iCloud Keychain shares them with your other iPhone or iPad.")
+                    .font(.footnote)
+                    .foregroundColor(.dim)
+                ForEach(camera.savedCameras) { saved in
+                    HStack {
+                        Text(saved.name)
+                        if saved.key == camera.cameraKey { Text("Connected").font(.footnote).foregroundColor(.good) }
+                        Spacer()
+                        Button("Forget") { forgetting = saved }.foregroundColor(.warn)
+                    }
+                    .padding(12)
+                    .background(Color.panel, in: RoundedRectangle(cornerRadius: 10))
+                }
                 section("CONNECTION")
                 Text("Photos and video stay on the camera's card.")
                     .font(.footnote)
@@ -985,6 +1036,12 @@ struct SetupSheet: View {
                 .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showCredits) { CreditsSheet() }
+        .confirmationDialog("Forget \(forgetting?.name ?? "this camera")?", isPresented: Binding(get: { forgetting != nil }, set: { if !$0 { forgetting = nil } }),
+                            titleVisibility: .visible, presenting: forgetting) { saved in
+            Button("Forget", role: .destructive) { camera.forget(saved) }
+        } message: { _ in
+            Text("Its login is removed from this device and your others. You'll type it again to connect.")
+        }
     }
 
     private func section(_ title: String) -> some View {

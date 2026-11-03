@@ -8,12 +8,12 @@ int cam_reachable(const char *host, int timeout_ms);
 int cam_find(const char *prefix, char *out, int cap);
 
 #define CAM_UNREACHABLE (-1)
-#define CAM_KEY_CHANGED (-2)
 #define CAM_BAD_LOGIN (-3)
 #define CAM_FAILED (-4)
 
-// `expected` is the key seen last time, or empty the first time. `found` gets the key seen now.
-int cam_ssh_open(const char *host, const char *user, const char *password, const char *expected, char *found, int found_cap);
+// Opening is two steps: `found` gets the camera's key, which says which saved login to send, then the login.
+int cam_ssh_hello(const char *host, char *found, int found_cap);
+int cam_ssh_login(const char *user, const char *password);
 int cam_ssh_read(int channel, void *buffer, int size, int timeout_ms);
 int cam_ssh_read_some(int channel, void *buffer, int size);
 int cam_ssh_write(int channel, const void *buffer, int size);

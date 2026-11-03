@@ -12,32 +12,77 @@ extension Color {
     static let chosen = Color(red: 0x3A / 255, green: 0x40 / 255, blue: 0x48 / 255)
 }
 
-enum Keychain {
-    private static let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                                               kSecAttrService as String: "CamRemote camera"]
+struct Login: Codable {
+    var user: String
+    var password: String
+}
 
-    static var password: String {
-        get {
-            var result: AnyObject?
-            var search = query
-            search[kSecReturnData as String] = true
-            guard SecItemCopyMatching(search as CFDictionary, &result) == errSecSuccess, let data = result as? Data else { return "" }
-            return String(decoding: data, as: UTF8.self)
+struct SavedCamera: Codable, Identifiable {
+    var key: String // the camera's own SSH key, which it shows before any password is sent
+    var name: String
+    var login: Login
+    var id: String { key }
+}
+
+/// Each camera's login, found by the camera's key, so the right one is used without asking.
+/// They live in the Keychain and iCloud Keychain carries them to your other iPhone or iPad.
+enum Logins {
+    private static let service = "CamRemote cameras"
+    private static var base: [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
+         kSecAttrSynchronizable as String: kSecAttrSynchronizableAny]
+    }
+
+    static func all() -> [SavedCamera] {
+        var search = base
+        search[kSecReturnData as String] = true
+        search[kSecMatchLimit as String] = kSecMatchLimitAll
+        var result: AnyObject?
+        guard SecItemCopyMatching(search as CFDictionary, &result) == errSecSuccess, let items = result as? [Data] else { return [] }
+        return items.compactMap { try? JSONDecoder().decode(SavedCamera.self, from: $0) }.sorted { $0.name < $1.name }
+    }
+
+    static func login(for key: String) -> Login? {
+        all().first { $0.key == key }?.login
+    }
+
+    static func save(_ camera: SavedCamera) {
+        forget(camera.key)
+        var item = base
+        item[kSecAttrAccount as String] = camera.key
+        item[kSecAttrSynchronizable as String] = true
+        item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
+        item[kSecValueData as String] = try? JSONEncoder().encode(camera)
+        SecItemAdd(item as CFDictionary, nil)
+    }
+
+    static func forget(_ key: String) {
+        var item = base
+        item[kSecAttrAccount as String] = key
+        SecItemDelete(item as CFDictionary)
+    }
+
+    /// Up to 0.1 the app kept one login, and only on this device.
+    static func moveOldLogin() {
+        let old: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "CamRemote camera"]
+        var search = old
+        search[kSecReturnData as String] = true
+        var result: AnyObject?
+        let defaults = UserDefaults.standard
+        if SecItemCopyMatching(search as CFDictionary, &result) == errSecSuccess, let data = result as? Data,
+           let key = defaults.string(forKey: "cameraKey"), !key.isEmpty, let user = defaults.string(forKey: "user"), !user.isEmpty {
+            save(SavedCamera(key: key, name: "Camera", login: Login(user: user, password: String(decoding: data, as: UTF8.self))))
         }
-        set {
-            SecItemDelete(query as CFDictionary)
-            guard !newValue.isEmpty else { return }
-            var item = query
-            item[kSecValueData as String] = Data(newValue.utf8)
-            item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-            SecItemAdd(item as CFDictionary, nil)
-        }
+        SecItemDelete(old as CFDictionary)
+        defaults.removeObject(forKey: "cameraKey")
+        defaults.removeObject(forKey: "user")
     }
 }
 
-/// The app stays upright until the full screen view asks to turn.
+/// On a phone the app stays upright until the full screen view asks to turn. An iPad turns freely.
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    static var orientations = UIInterfaceOrientationMask.portrait
+    static let pad = UIDevice.current.userInterfaceIdiom == .pad
+    static var orientations: UIInterfaceOrientationMask = pad ? .all : .portrait
 
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
         Self.orientations
@@ -49,15 +94,15 @@ struct CamRemoteApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StateObject private var camera: Camera
     @StateObject private var animals: AnimalTrigger
-    @AppStorage("user") private var user = ""
     @AppStorage("address") private var address = ""
-    @AppStorage("cameraKey") private var cameraKey = ""
-    @State private var password = Keychain.password
+    @State private var user = "" // only while typing a camera's login; it's saved with that camera
+    @State private var password = ""
     @State private var resume = false
     @State private var launched = false
     @Environment(\.scenePhase) private var phase
 
     init() {
+        Logins.moveOldLogin()
         let camera = Camera()
         _camera = StateObject(wrappedValue: camera)
         _animals = StateObject(wrappedValue: AnimalTrigger(camera: camera))
@@ -69,10 +114,7 @@ struct CamRemoteApp: App {
                 if camera.link == .on {
                     ShootingView(camera: camera, animals: animals)
                 } else {
-                    ConnectView(camera: camera, user: $user, address: $address, password: $password, connect: connect) {
-                        cameraKey = ""
-                        camera.problem = ""
-                    }
+                    ConnectView(camera: camera, user: $user, address: $address, password: $password, connect: connectIfReady)
                 }
             }
             .preferredColorScheme(.dark)
@@ -101,6 +143,7 @@ struct CamRemoteApp: App {
                 }
             }
             .onChange(of: camera.link) { link in
+                if link == .on { password = "" } // it's saved with the camera now
                 Bridge.shared.keepAwake() // on while connected, while a computer may be watching or while watching for animals
                 resumeIfNeeded(phase) // a quick trip out of the app can come back before the old connection has closed
             }
@@ -119,13 +162,11 @@ struct CamRemoteApp: App {
         connectIfReady()
     }
 
+    /// A saved camera connects with its own login. One typed in is kept for retries until it has worked.
     private func connectIfReady() {
-        if !user.isEmpty, !password.isEmpty { connect() }
-    }
-
-    private func connect() {
-        Keychain.password = password
-        camera.connect(address: address.trimmingCharacters(in: .whitespaces), user: user, password: password, knownKey: cameraKey)
+        let typed = user.isEmpty || password.isEmpty ? nil : Login(user: user, password: password)
+        guard typed != nil || !camera.savedCameras.isEmpty else { return }
+        camera.connect(address: address.trimmingCharacters(in: .whitespaces), typed: typed)
     }
 }
 
@@ -135,9 +176,8 @@ struct ConnectView: View {
     @Binding var address: String
     @Binding var password: String
     let connect: () -> Void
-    let forget: () -> Void
 
-    private var askForLogin: Bool { camera.editingLogin || camera.loginRefused || user.isEmpty || password.isEmpty }
+    private var askForLogin: Bool { camera.editingLogin || camera.loginRefused || camera.newCamera || camera.savedCameras.isEmpty }
 
     var body: some View {
         ScrollView {
@@ -146,25 +186,24 @@ struct ConnectView: View {
                 BridgeBadge()
                 if askForLogin { loginForm } else { waiting }
             }
+            .frame(maxWidth: 480) // an iPad's width would stretch the fields
             .frame(maxWidth: .infinity)
             .padding()
         }
         .background(Color.page.ignoresSafeArea())
     }
 
-    /// With a login saved there's nothing to fill in, so this only says what's going on.
+    /// With a camera saved there's nothing to fill in, so this only says what's going on.
     private var waiting: some View {
         VStack(spacing: 14) {
             if camera.link == .connecting || camera.keepTrying { ProgressView().padding(.top, 24) }
             Text(camera.problem.isEmpty ? (camera.link == .connecting ? "Looking for your camera" : "Not connected") : camera.problem)
                 .foregroundColor(.dim)
                 .multilineTextAlignment(.center)
-            if camera.problem.contains("Forget") {
-                Button("Forget this camera", action: forget).buttonStyle(Big(color: .panel))
-            } else if camera.link == .off, !camera.keepTrying {
+            if camera.link == .off, !camera.keepTrying {
                 Button("Connect", action: connect).buttonStyle(Big(color: .panel))
             }
-            Button("Change login") { camera.editingLogin = true } // so a half-typed password is never tried or saved
+            Button("Type a login") { camera.editingLogin = true } // so a half-typed password is never tried or saved
                 .font(.footnote)
                 .foregroundColor(.dim)
                 .padding(.top, 24)
@@ -174,7 +213,8 @@ struct ConnectView: View {
 
     private var loginForm: some View {
         VStack(spacing: 12) {
-            Text("Type these once. They're on the camera's Access Authen. Info screen.")
+            Text(camera.newCamera ? "This camera is new to CamRemote. Type its login once and it's saved. It's on the camera's Access Authen. Info screen."
+                                  : "Type these once for each camera. They're on its Access Authen. Info screen.")
                 .foregroundColor(.dim)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 12)
@@ -187,12 +227,19 @@ struct ConnectView: View {
             Button(camera.link == .connecting ? "Connecting…" : "Connect") {
                 camera.editingLogin = false
                 camera.loginRefused = false
+                camera.newCamera = false
                 connect()
             }
             .buttonStyle(Big(color: .panel))
             .disabled(camera.link == .connecting || user.isEmpty || password.isEmpty)
-            if camera.loginRefused {
-                Text(camera.problem).foregroundColor(.warn).multilineTextAlignment(.center)
+            if !camera.problem.isEmpty, !camera.newCamera {
+                Text(camera.problem).foregroundColor(camera.loginRefused ? .warn : .dim).multilineTextAlignment(.center)
+            }
+            if !camera.savedCameras.isEmpty, camera.editingLogin {
+                Button("Back") {
+                    password = "" // or it would be tried on the next camera that turns up
+                    camera.editingLogin = false
+                }.font(.footnote).foregroundColor(.dim)
             }
         }
     }

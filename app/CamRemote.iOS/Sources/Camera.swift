@@ -243,6 +243,9 @@ final class Camera: ObservableObject {
     @Published var keepTrying = false
     @Published var editingLogin = false
     @Published var loginRefused = false
+    @Published var newCamera = false // found one with no saved login
+    @Published var savedCameras = Logins.all()
+    @Published var cameraKey = "" // the connected camera's
     @Published var lowBattery = false
     @Published var lowCard = false
     @Published var guideImage: UIImage?
@@ -265,6 +268,7 @@ final class Camera: ObservableObject {
     private var settings: [UInt16: Setting] = [:]
     private var events: [UInt8] = []
     private var savedDestination: Int64?
+    private var cameraName = "Camera"
     private var shutterPressed = Date()
     private var shutterHeld = false // main thread only
     private var shutterReleased = Date.distantPast // main thread only
@@ -293,13 +297,14 @@ final class Camera: ObservableObject {
         DispatchQueue.main.async { self.message = text }
     }
 
-    func connect(address: String, user: String, password: String, knownKey: String) {
+    /// `typed` is a login just typed in. Without one, the camera that turns up uses its saved login.
+    func connect(address: String, typed: Login?) {
         guard link == .off else { return }
         link = .connecting
         stopping = false
         pending = []
         let thread = Thread {
-            self.run(address: address, user: user, password: password, knownKey: knownKey)
+            self.run(address: address, typed: typed)
         }
         thread.stackSize = 1 << 20
         thread.start()
@@ -685,11 +690,18 @@ final class Camera: ObservableObject {
         lock.unlock()
     }
 
-    private func finish(_ problem: String, retry: Bool = false, badLogin: Bool = false) {
+    func forget(_ saved: SavedCamera) {
+        Logins.forget(saved.key)
+        savedCameras = Logins.all()
+    }
+
+    private func finish(_ problem: String, retry: Bool = false, badLogin: Bool = false, newCamera: Bool = false) {
         DispatchQueue.main.async {
             self.problem = problem
             self.keepTrying = retry
             self.loginRefused = badLogin
+            self.newCamera = newCamera
+            self.cameraKey = ""
             self.link = .off
             self.recordBusy = false
             self.shutterHeld = false
@@ -711,21 +723,33 @@ final class Camera: ObservableObject {
         return nil
     }
 
-    private func run(address: String, user: String, password: String, knownKey: String) {
+    private func run(address: String, typed: Login?) {
         guard let host = findAddress(address) else {
             log("Camera not found")
-            finish("Turn on your hotspot, then turn on the camera. This connects by itself.", retry: true)
+            // An iPad without a SIM can't make a hotspot, so it joins the iPhone's along with the camera.
+            finish(AppDelegate.pad ? "Join your iPhone's hotspot, then turn on the camera. This connects by itself."
+                                   : "Turn on your hotspot, then turn on the camera. This connects by itself.", retry: true)
             return
         }
         log("Connecting to \(host)")
         var found = [CChar](repeating: 0, count: 65)
-        let opened = cam_ssh_open(host, user, password, knownKey, &found, 65)
+        guard cam_ssh_hello(host, &found, 65) == 0 else {
+            log("No answer to the login")
+            finish("The camera wouldn't connect. Check that Remote Shooting is on.", retry: true)
+            return
+        }
+        let key = String(cString: found)
+        // A saved password only ever goes to the camera it was saved with. One typed just now wins, for a changed password.
+        guard let login = typed ?? Logins.login(for: key) else {
+            log("A camera with no saved login")
+            cam_ssh_close()
+            finish("This camera is new to CamRemote.", newCamera: true)
+            return
+        }
+        let opened = cam_ssh_login(login.user, login.password)
         log("Connection result \(opened)")
         switch opened {
         case 0: break
-        case CAM_KEY_CHANGED:
-            finish("This isn't the camera you connected to before. If you reset its settings, tap Forget this camera.")
-            return
         case CAM_BAD_LOGIN:
             finish("That user or password didn't work. Use the ones on the camera's Access Authen. Info screen.", badLogin: true)
             return
@@ -733,11 +757,13 @@ final class Camera: ObservableObject {
             finish("The camera wouldn't connect. Check that Remote Shooting is on.", retry: true)
             return
         }
-        UserDefaults.standard.set(String(cString: found), forKey: "cameraKey")
         var problem = ""
         do {
             try start()
+            Logins.save(SavedCamera(key: key, name: cameraName, login: login))
             DispatchQueue.main.async {
+                self.savedCameras = Logins.all()
+                self.cameraKey = key
                 self.link = .on
                 self.problem = ""
             }
@@ -754,6 +780,24 @@ final class Camera: ObservableObject {
         finish(problem, retry: !problem.isEmpty)
     }
 
+    /// The camera's answer to the start: a number, its ID, then its model's name, such as ILCE-7SM3.
+    private static func modelName(_ body: [UInt8]) -> String {
+        var units: [UInt16] = []
+        var pos = 20
+        while pos + 1 < body.count {
+            let unit = UInt16(body[pos]) | UInt16(body[pos + 1]) << 8
+            if unit == 0 { break }
+            units.append(unit)
+            pos += 2
+        }
+        let model = String(decoding: units, as: UTF16.self)
+        return models[model] ?? (model.isEmpty ? "Camera" : model)
+    }
+
+    private static let models = ["ILCE-7SM3": "A7S III", "ILCE-9M2": "A9 II", "ILCE-7M4": "A7 IV", "ILCE-7RM5": "A7R V",
+                                 "ILCE-7RM4": "A7R IV", "ILCE-1": "A1", "ILCE-9M3": "A9 III", "ILCE-7CM2": "A7C II",
+                                 "ILCE-6700": "A6700", "ILME-FX3": "FX3", "ILME-FX30": "FX30", "ZV-E1": "ZV-E1"]
+
     private func start() throws {
         tx = 0
         events = []
@@ -764,6 +808,7 @@ final class Camera: ObservableObject {
         try sendPacket(0, 1, guid + name + u32(0x00010000))
         let (kind, body) = try readPacket(0)
         guard kind == 2, body.count >= 4 else { throw PtpError(text: "camera refused the start, type \(kind)") }
+        cameraName = Self.modelName(body)
         try sendPacket(1, 3, Array(body[0..<4]))
         let (eventKind, _) = try readPacket(1)
         guard eventKind == 4 else { throw PtpError(text: "camera refused the event channel, type \(eventKind)") }
