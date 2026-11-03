@@ -121,9 +121,22 @@ public sealed class Settings
         if (token.Length > 0) vault.Add(new PasswordCredential(JoinResource, JoinAddress, token));
     }
 #else
-    public string LoadPassword() => MacNative.LoadSecret(VaultResource, CameraUser);
+    // Kept after the first read: each Keychain read can ask the person to allow it, and reconnecting reads it every 15 s.
+    private (string User, string Password)? _password;
 
-    public void SavePassword(string password) => MacNative.SaveSecret(VaultResource, CameraUser, password);
+    public string LoadPassword()
+    {
+        if (_password is { } p && p.User == CameraUser) return p.Password;
+        string password = MacNative.LoadSecret(VaultResource, CameraUser);
+        _password = (CameraUser, password);
+        return password;
+    }
+
+    public void SavePassword(string password)
+    {
+        MacNative.SaveSecret(VaultResource, CameraUser, password);
+        _password = (CameraUser, password);
+    }
 
     public string LoadJoinToken() => MacNative.LoadSecret(JoinResource, JoinAddress);
 
