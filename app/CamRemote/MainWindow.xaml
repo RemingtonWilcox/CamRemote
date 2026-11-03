@@ -150,7 +150,7 @@
                     <DockPanel>
                         <Button x:Name="ConnectButton" Content="Connect camera…" Click="OnConnectClick" Padding="10,3" DockPanel.Dock="Right" />
                         <Ellipse x:Name="LinkDot" Width="10" Height="10" Fill="#666" Margin="0,0,8,0" DockPanel.Dock="Left" />
-                        <TextBlock x:Name="LinkText" Text="Camera not connected" VerticalAlignment="Center" />
+                        <TextBlock x:Name="LinkText" Text="Not connected" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                     </DockPanel>
 
                     <UniformGrid Rows="1" Margin="0,12,0,0">

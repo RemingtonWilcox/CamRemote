@@ -270,6 +270,7 @@ final class Camera: ObservableObject {
     private var events: [UInt8] = []
     private var savedDestination: Int64?
     private var cameraName = "Camera"
+    private var lastBatteryRaw = ""
     private let busy = "camera busy with another remote"
     private var shutterPressed = Date()
     private var shutterHeld = false // main thread only
@@ -1082,6 +1083,11 @@ final class Camera: ObservableObject {
         let isPhoto = onPhotoMode
         let isManual = settings[Code.focusMode]?.value == 1
         let batteryText = Format.battery(percent: settings[Code.batteryPercent]?.value, level: settings[Code.batteryLevel]?.value)
+        let batteryRaw = "percent \(settings[Code.batteryPercent].map { String($0.value) } ?? "none"), level \(settings[Code.batteryLevel].map { String(format: "0x%llX", $0.value) } ?? "none")"
+        if batteryRaw != lastBatteryRaw {
+            lastBatteryRaw = batteryRaw
+            log("Battery \(batteryRaw)")
+        }
         let cardText = isPhoto ? (settings[Code.cardShots].map { "\($0.value) shots" } ?? "")
                                : (settings[Code.cardTime].map { Format.duration($0.value) } ?? "")
         let shots = settings[Code.cardShots].map { Int($0.value) }
@@ -1089,7 +1095,7 @@ final class Camera: ObservableObject {
         let batteryPercent = settings[Code.batteryPercent]?.value ?? 100, cardTime = settings[Code.cardTime]?.value ?? 0
         // Non-Sony batteries report no percent, only a rough level.
         let batteryIsLow = (0...15).contains(batteryPercent)
-            || (batteryPercent < 0 && [1, 2, 6].contains((settings[Code.batteryLevel]?.value ?? 0) & 0xFFFF))
+            || (batteryPercent < 0 && Format.batteryLevelIsLow(settings[Code.batteryLevel]?.value))
         let cardIsLow = isPhoto ? (shots ?? 1000) < 50 : (1..<300).contains(cardTime)
         let taken = plan.flatMap(photosTaken)
         DispatchQueue.main.async {

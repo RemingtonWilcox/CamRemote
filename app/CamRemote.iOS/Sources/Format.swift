@@ -129,21 +129,29 @@ enum Format {
         "50M 4:2:0 10-bit", "50M 4:2:0 8-bit", "45M 4:2:0 10-bit", "30M 4:2:0 10-bit", "25M 4:2:0 8-bit", "16M 4:2:0 8-bit",
     ].enumerated().map { (Int64(0x26 + $0.offset), $0.element) })
 
+    /// Over PTP the bars count two higher than the SDK's numbers: the A7S III sent 7 with a full
+    /// icon (the SDK said 84%, 4/4) and 6 an hour later. The SDK sent 1/4 at 18%, so this
+    /// camera uses four bars; the three-bar values are assumed to follow on.
     static func battery(percent: Int64?, level: Int64?) -> String {
         if let percent, (0...100).contains(percent) { return "\(percent)%" }
         guard let level else { return "--" }
         let usb = level & 0x10000 != 0 ? " + USB" : ""
         switch level & 0xFFFF {
-        case 1: return "under 10%" + usb
-        case 2: return "10–25%" + usb
-        case 3: return "25–50%" + usb
-        case 4: return "50–75%" + usb
-        case 5: return "75–100%" + usb
-        case 6: return "10–33%" + usb
-        case 7: return "33–66%" + usb
-        case 8: return "66–100%" + usb
+        case 1...3: return "almost empty" + usb
+        case 4: return "under 25%" + usb
+        case 5: return "25–50%" + usb
+        case 6: return "50–75%" + usb
+        case 7: return "75–100%" + usb
+        case 8: return "under 33%" + usb
+        case 9: return "33–66%" + usb
+        case 10: return "66–100%" + usb
         default: return usb.isEmpty ? "--" : "USB power"
         }
+    }
+
+    /// The bottom bar or below, in the numbering above.
+    static func batteryLevelIsLow(_ level: Int64?) -> Bool {
+        [1, 2, 3, 4, 8].contains((level ?? 0) & 0xFFFF)
     }
 
     static func duration(_ seconds: Int64) -> String {

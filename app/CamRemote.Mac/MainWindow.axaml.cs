@@ -992,9 +992,9 @@ public partial class MainWindow : Window
         ShowCameraModel();
         var (color, text, button) = _cam.State switch
         {
-            LinkState.Connected => (Ok, "Camera connected", "Disconnect"),
+            LinkState.Connected => (Ok, "Connected", "Disconnect"),
             LinkState.Connecting => (Warn, "Connecting…", "Cancel"),
-            _ => ((IBrush)Brushes.Gray, "Camera not connected", "Connect camera…"),
+            _ => ((IBrush)Brushes.Gray, "Not connected", "Connect camera…"),
         };
         LinkDot.Fill = color;
         LinkText.Text = text;
