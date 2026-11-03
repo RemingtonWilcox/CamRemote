@@ -958,6 +958,8 @@ public sealed class CameraService : IDisposable
     }
 
     private int _focusOnceBusy;
+    private int _cancelBusy;
+    private DateTime _released; // when tracking was last stopped by switching the tap function
 
     // ---- Focus magnifier ----
 
@@ -980,7 +982,19 @@ public sealed class CameraService : IDisposable
     }
 
     /// <summary>Magnifies the centre of the picture at a ratio x10; 0 turns it off.</summary>
-    public void Magnify(long ratio) => Run(() =>
+    public void Magnify(long ratio)
+    {
+        if (Interlocked.CompareExchange(ref _magnifyBusy, 1, 0) != 0) return; // still on the last click
+        Run(() =>
+        {
+            try { MagnifyNow(ratio); }
+            finally { _magnifyBusy = 0; }
+        });
+    }
+
+    private int _magnifyBusy;
+
+    private void MagnifyNow(long ratio)
     {
         const long Invalid = 0xFFFFFFFF;
         var setting = Get(PropCode.Focus_Magnifier_Setting);
@@ -997,9 +1011,22 @@ public sealed class CameraService : IDisposable
             Thread.Sleep(200);
             SetMagnifier((ratio << 32) | ((long)_magX << 16) | (uint)_magY);
         }
-        else SetMagnifier(Invalid);
+        else
+        {
+            SetMagnifier(Invalid);
+            // The A7S III in photo mode ignores that and stays magnified. Switching the tap function off and back lets it go.
+            Thread.Sleep(600);
+            if (ReadAll()?.GetValueOrDefault((uint)PropCode.Focus_Magnifier_Setting) is { } now && ((now.Value >> 32) & 0xFFFFFFFF) is not (0 or 0xFFFFFFFF)
+                && Get(PropCode.FunctionOfTouchOperation) is { } function)
+            {
+                Log.Write("The magnifier stayed on, so switching the tap function off and back.");
+                SetNow(PropCode.FunctionOfTouchOperation, function.Value == TouchFnOff ? TouchFnFocus : TouchFnOff);
+                Thread.Sleep(300);
+                SetNow(PropCode.FunctionOfTouchOperation, function.Value);
+            }
+        }
         _ = CheckMagnifierAsync(ratio);
-    });
+    }
 
     private async Task CheckMagnifierAsync(long ratio)
     {
@@ -1246,6 +1273,8 @@ public sealed class CameraService : IDisposable
     public string? CancelTouch()
     {
         if (!CanCancelTouch && !IsTracking) return "Nothing to cancel. The camera isn't holding a touch focus or tracking.";
+        // Quick clicks queue a cancel each, and a pile of them leaves the camera refusing taps for a moment. One at a time.
+        if (Interlocked.CompareExchange(ref _cancelBusy, 1, 0) != 0) return null;
         Run(() =>
         {
             int down = Native.cb_command(CmdCancelRemoteTouch, ParamDown);
@@ -1255,6 +1284,7 @@ public sealed class CameraService : IDisposable
             _propsDirty = true;
             if (down != 0) ReleaseTouch();
             else _ = ReleaseIfStillTrackingAsync();
+            _cancelBusy = 0;
         });
         return null;
     }
@@ -1272,10 +1302,12 @@ public sealed class CameraService : IDisposable
     private void ReleaseTouch()
     {
         if (Get(PropCode.FunctionOfTouchOperation) is not { } function) return;
+        if ((DateTime.Now - _released).TotalSeconds < 1.5) return; // already done for this tap; again would only confuse the camera
         Log.Write("Stopping tracking by switching the tap function off and back.");
         SetNow(PropCode.FunctionOfTouchOperation, TouchFnOff);
         Thread.Sleep(300);
         if (function.Value != TouchFnOff) SetNow(PropCode.FunctionOfTouchOperation, function.Value);
+        _released = DateTime.Now;
         _propsDirty = true;
     }
 

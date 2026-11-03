@@ -131,6 +131,9 @@ public static class Format
     }
 
     /// <summary>Sony writes 23.98p as "23 98p".</summary>
+    /// <summary>The Super 35 crop for video, as Sony numbers it.</summary>
+    public static string SuperThirtyFive(long v) => v switch { 1 => "Off", 2 => "On", 3 => "Auto", _ => "--" };
+
     /// <summary>Short enough for a button: "Flexible Spot M" becomes "Spot M".</summary>
     public static string FocusArea(long v) => Named("FocusArea")(v).Replace("Flexible Spot", "Spot");
 

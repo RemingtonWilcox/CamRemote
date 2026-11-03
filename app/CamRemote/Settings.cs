@@ -42,6 +42,19 @@ public sealed class Settings
     public string PhoneCode { get; set; } = ""; // typed once on a phone
     public string PhoneToken { get; set; } = ""; // what the phone keeps afterwards
     public string PhotoFolder { get; set; } = ""; // blank means Pictures/CamRemote
+    public string RecordSubject { get; set; } = "Animal"; // what automatic recording looks for
+    public int RecordStopAfter { get; set; } = 15; // seconds with nothing seen before automatic recording stops
+    public bool RecordFocus { get; set; } = true; // automatic recording focuses on what it sees
+    public double HudWidth { get; set; } = 280; // the histogram and meter over the picture
+    public double HudX { get; set; } // how far it was dragged left of the picture's bottom-right corner (0 or less)
+    public double HudY { get; set; } // and up from it
+    public double WindowLeft { get; set; }
+    public double WindowTop { get; set; }
+    public double WindowWidth { get; set; } // 0 until the window has been closed once
+    public double WindowHeight { get; set; }
+    public bool WindowMaximized { get; set; }
+    public int LongExposureSeconds { get; set; } = 30;
+    public int NdStops { get; set; }
     public Dictionary<string, Preset> Presets { get; set; } = new(); // "video1" to "video4" and "photo1" to "photo4"
 
     /// <summary>%APPDATA%\CamRemote on Windows, ~/Library/Application Support/CamRemote on a Mac.</summary>

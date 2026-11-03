@@ -5,11 +5,26 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 
 namespace CamRemote;
 
-/// <summary>RF-DETR Nano looking for an animal in one small square picture. It runs on this computer only.</summary>
+/// <summary>
+/// Something automatic recording can look for, as the range of COCO numbers the model uses for it.
+/// They're all things the model was trained on, so each is as dependable as animals are.
+/// </summary>
+public sealed record RecordSubject(string Name, string Plural, int First, int Last, string Tip)
+{
+    public static readonly RecordSubject[] All =
+    [
+        new("Animal", "animals", 16, 25, "Birds and a few other animals: cats, dogs, horses, sheep, cows, elephants, bears, zebras and giraffes."),
+        new("Bird", "birds", 16, 16, "Birds only, so a passing cat or dog doesn't start it."),
+        new("Person", "people", 1, 1, "People. Keep yourself out of the picture, or it will record you."),
+    ];
+
+    public static RecordSubject Named(string name) => All.FirstOrDefault(s => s.Name == name) ?? All[0];
+}
+
+/// <summary>RF-DETR Nano looking for an animal, or another subject, in one small square picture. It runs on this computer only.</summary>
 public sealed class BirdModel : IDisposable
 {
     public const int Size = 384;
-    private const int FirstAnimal = 16, LastAnimal = 25; // the COCO numbers the model uses, bird through giraffe
     private static readonly float[] Mean = [0.485f, 0.456f, 0.406f];
     private static readonly float[] Std = [0.229f, 0.224f, 0.225f];
 
@@ -48,7 +63,7 @@ public sealed class BirdModel : IDisposable
     /// The model is shown it the way up the viewer sees it, turned by rotation degrees clockwise, because it finds
     /// far more animals upright.
     /// </summary>
-    public (float Score, float X, float Y, float W, float H) Look(byte[] rgb, int rotation)
+    public (float Score, float X, float Y, float W, float H) Look(byte[] rgb, int rotation, RecordSubject subject)
     {
         int last = Size - 1;
         for (int y = 0; y < Size; y++)
@@ -70,10 +85,10 @@ public sealed class BirdModel : IDisposable
         float best = float.MinValue;
         int found = 0;
         for (int i = 0; i < logits.Dimensions[1]; i++)
-            for (int animal = FirstAnimal; animal <= LastAnimal; animal++)
-                if (logits[0, i, animal] > best)
+            for (int kind = subject.First; kind <= subject.Last; kind++)
+                if (logits[0, i, kind] > best)
                 {
-                    best = logits[0, i, animal];
+                    best = logits[0, i, kind];
                     found = i;
                 }
         float bx = boxes[0, found, 0], by = boxes[0, found, 1], bw = boxes[0, found, 2], bh = boxes[0, found, 3];
@@ -112,7 +127,6 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
     private static readonly TimeSpan SpotTime = TimeSpan.FromSeconds(40);
     private static readonly TimeSpan SpotLasts = TimeSpan.FromSeconds(20); // no quicker, or a resting animal looks like scenery
     private static readonly TimeSpan BoxStays = TimeSpan.FromSeconds(2);
-    private static readonly TimeSpan QuietStop = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan LongestTake = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan Rest = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan Settle = TimeSpan.FromSeconds(5); // the camera's recording state arrives late
@@ -140,6 +154,11 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
 
     public static bool Available => File.Exists(BirdModel.FilePath);
     public bool On => _run;
+    public RecordSubject Subject { get; set; } = RecordSubject.All[0];
+    public TimeSpan QuietStop { get; set; } = TimeSpan.FromSeconds(15); // nothing seen for this long stops the take
+    public bool FocusOnIt { get; set; } = true;
+
+    private string Watching => $"Watching for {Subject.Plural}.";
 
     public void Start()
     {
@@ -152,7 +171,7 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
         _focusedOn = null;
         _thread = new Thread(Loop) { IsBackground = true, Name = "BirdTrigger", Priority = ThreadPriority.BelowNormal };
         _thread.Start();
-        Status?.Invoke("Watching for animals.");
+        Status?.Invoke(Watching);
     }
 
     public void Stop()
@@ -190,7 +209,7 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
                     last = frame.No;
                     try
                     {
-                        var (score, x, y, w, h) = model.Look(shrink(frame.Jpeg, BirdModel.Size), rotation());
+                        var (score, x, y, w, h) = model.Look(shrink(frame.Jpeg, BirdModel.Size), rotation(), Subject);
                         ui.Post(() => Decide(score, x, y, w, h));
                     }
                     catch (Exception ex)
@@ -212,7 +231,7 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
         if (seen) _sightings.Enqueue(now);
         while (_sightings.TryPeek(out var old) && now - old > StartWithin) _sightings.Dequeue();
         Act(score, seen, now);
-        if (seen && score >= WorthFocus && _took != null && !cam.IsFormatting) FocusOn(x, y, now); // only once recording, so focusing never holds up the record button
+        if (seen && score >= WorthFocus && FocusOnIt && _took != null && !cam.IsFormatting) FocusOn(x, y, now); // only once recording, so focusing never holds up the record button
         if (seen)
         {
             _boxShown = now;
@@ -231,7 +250,7 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
             {
                 _took = null; // stopped by hand, or the camera never started
                 _sightings.Clear();
-                if (_rolled) Status?.Invoke("Watching for animals.");
+                if (_rolled) Status?.Invoke(Watching);
                 else
                 {
                     _restUntil = now + RefusedRest;
@@ -247,12 +266,12 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
                 _restUntil = now + Rest;
                 _focusedOn = null;
                 Log.Write($"Animal trigger stopped recording; last sighting {(now - _lastBird).TotalSeconds:0} s ago.");
-                Status?.Invoke("Stopped. Watching for animals.");
+                Status?.Invoke("Stopped. " + Watching);
             }
             else
             {
                 int left = (int)Math.Ceiling((QuietStop - (now - _lastBird)).TotalSeconds);
-                Status?.Invoke(seen ? "Animal seen. Recording." : $"Recording. Stops in {left} s if nothing shows up.");
+                Status?.Invoke(seen ? $"{Subject.Name} seen. Recording." : $"Recording. Stops in {left} s if nothing shows up.");
             }
             return;
         }
@@ -262,8 +281,8 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
             cam.ToggleRecord();
             _took = _lastBird = now;
             _rolled = false;
-            Log.Write($"Animal trigger started recording at score {score:0.00}.");
-            Status?.Invoke("Animal seen. Recording.");
+            Log.Write($"Animal trigger started recording for {Subject.Name} at score {score:0.00}.");
+            Status?.Invoke($"{Subject.Name} seen. Recording.");
         }
     }
 

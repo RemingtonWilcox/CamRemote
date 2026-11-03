@@ -40,6 +40,7 @@ public sealed class PropControl : IPropRow
     private long _current;
     private long? _wanted; // what the user last asked for, until the camera reports it
     private DateTime _wantedUntil;
+    private DateTime _closedAt; // a click on the button that opened the grid closes it first, so that click mustn't reopen it
 
     public PropCode Code { get; }
     public string Section { get; init; } = ""; // where the phone page shows it
@@ -69,7 +70,7 @@ public sealed class PropControl : IPropRow
             _more.Click += (_, _) =>
             {
                 Show(); // the click toggled it; what the camera has decides
-                _popup!.IsOpen = true;
+                Open();
             };
             Root.Children.Add(_more);
         }
@@ -83,7 +84,7 @@ public sealed class PropControl : IPropRow
                                          TextTrimming = TextTrimming.CharacterEllipsis };
             _value = new Button { HorizontalAlignment = HorizontalAlignment.Stretch, MinHeight = kind == Kind.Stepper ? 54 : 46, Padding = new Thickness(6, 4, 6, 4),
                                   Content = new StackPanel { Children = { _label, _valueText } } };
-            _value.Click += (_, _) => { if (_popup != null) _popup.IsOpen = true; };
+            _value.Click += (_, _) => Open();
         }
         _grid = new UniformGrid { Columns = 4, Margin = new Thickness(6) };
         _popup = new Popup
@@ -98,6 +99,7 @@ public sealed class PropControl : IPropRow
                 Child = new ScrollViewer { MaxHeight = 460, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = _grid },
             },
         };
+        _popup.Closed += (_, _) => { if (_popup.PlacementTarget.IsMouseOver) _closedAt = DateTime.Now; };
 
         if (kind == Kind.Picker)
         {
@@ -119,6 +121,18 @@ public sealed class PropControl : IPropRow
             Root.Children.Add(row);
         }
         Root.Children.Add(_popup);
+    }
+
+    /// <summary>Opens the grid, unless this click is the one that just closed it.</summary>
+    private void Open()
+    {
+        if (_popup == null) return;
+        if ((DateTime.Now - _closedAt).TotalSeconds < 1)
+        {
+            _closedAt = default;
+            return;
+        }
+        _popup.IsOpen = true;
     }
 
     private void Step(int dir)
@@ -158,6 +172,9 @@ public sealed class PropControl : IPropRow
     {
         bool usable = p != null && p.Writable;
         Root.Opacity = p == null ? 0.45 : 1;
+        // A connected camera that doesn't have this setting at all never will, so don't show it. Before
+        // connecting it stays, dimmed, so the panel shows what's there.
+        Root.Visibility = p == null && _cam.State == LinkState.Connected && _cam.Props.Count > 0 ? Visibility.Collapsed : Visibility.Visible;
         if (p == null)
         {
             _wanted = null;
