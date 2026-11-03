@@ -122,6 +122,12 @@ public static class Format
             : name;
     }
 
+    /// <summary>Sony writes 23.98p as "23 98p".</summary>
+    public static string MovieFrameRate(long v) => Named("MovieFrameRate")(v).Replace(' ', '.');
+
+    /// <summary>How many frames a second S&Q shoots, which Sony gives as a plain number.</summary>
+    public static string SlowQuickRate(long v) => v is > 0 and < 0xFFFF ? $"{v}fps" : "--";
+
     /// <summary>What subject recognition looks for.</summary>
     public static string Detect(long v) => Named("RecognitionTarget")(v) switch
     {

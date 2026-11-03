@@ -32,6 +32,8 @@ public partial class MainWindow : Window
     private readonly AudioMeter _meter = new();
     private readonly DispatcherTimer _meterTick;
     private readonly PropControl _recordLevel; // beside the meters with a capture card, in Setup otherwise
+    private readonly PropControl _frameRate, _recSetting; // on the Video page, swapped for the S&Q ones in S&Q
+    private readonly PropControl[] _slowQuickRows;
     private readonly double[] _hold = [-100, -100];
     private DateTime _holdSince = DateTime.Now;
     private bool _useWifi; // picture from the camera's live view instead of the capture card
@@ -102,9 +104,12 @@ public partial class MainWindow : Window
         Add(FocusPanel, "Tap does", PropCode.FunctionOfTouchOperation, Format.Named("TouchFunction"), PropControl.Kind.Buttons);
         Add(FocusPanel, "Focus area", PropCode.FocusArea, Format.Named("FocusArea"), pick);
         Add(FocusPanel, "Detect", PropCode.RecognitionTarget, Format.Detect, PropControl.Kind.Buttons);
-        Add(RecordingPanel, "Frame rate", PropCode.Movie_Recording_FrameRateSetting, Format.Named("MovieFrameRate"), pick, onPhone: false);
+        _frameRate = Add(RecordingPanel, "Frame rate", PropCode.Movie_Recording_FrameRateSetting, Format.MovieFrameRate, pick, onPhone: false);
+        var shootsAt = Add(RecordingPanel, "S&Q shoots at", PropCode.SQFrameRate, Format.SlowQuickRate, pick, v => v, onPhone: false);
+        var playsAt = Add(RecordingPanel, "S&Q plays at", PropCode.SQRecordingFrameRateSetting, Format.MovieFrameRate, pick, onPhone: false);
         Add(RecordingPanel, "File format", PropCode.Movie_File_Format, Format.Named("MovieFileFormat"), pick, onPhone: false);
-        Add(RecordingPanel, "Rec setting", PropCode.Movie_Recording_Setting, Format.Named("MovieRecordingSetting"), pick, onPhone: false);
+        _recSetting = Add(RecordingPanel, "Rec setting", PropCode.Movie_Recording_Setting, Format.Named("MovieRecordingSetting"), pick, onPhone: false);
+        _slowQuickRows = [shootsAt, playsAt, Add(RecordingPanel, "S&Q rec setting", PropCode.SQRecordingSetting, Format.Named("MovieRecordingSetting"), pick, onPhone: false)];
         Add(FocusSetup, "Face/eye priority", PropCode.SubjectRecognitionInAF, Format.Named("SubjectInAf"), PropControl.Kind.Buttons);
         Add(FocusSetup, "Which eye", PropCode.RightLeftEyeSelect, Format.Named("EyeSelect"), PropControl.Kind.Buttons);
         _recordLevel = Add(AudioSetup, "Record level", PropCode.AudioInputMasterLevel, v => v.ToString(), big, v => v);
@@ -118,7 +123,7 @@ public partial class MainWindow : Window
         Add(MovieMore, "Monitor LUT", PropCode.MonitorLUTSetting, Format.Named("MonitorLut"), PropControl.Kind.Buttons);
         Add(MovieMore, "File format", PropCode.Movie_File_Format, Format.Named("MovieFileFormat"), pick);
         Add(MovieMore, "Rec setting", PropCode.Movie_Recording_Setting, Format.Named("MovieRecordingSetting"), pick);
-        Add(MovieMore, "Frame rate", PropCode.Movie_Recording_FrameRateSetting, Format.Named("MovieFrameRate"), pick);
+        Add(MovieMore, "Frame rate", PropCode.Movie_Recording_FrameRateSetting, Format.MovieFrameRate, pick);
         Add(MovieMore, "HDMI out", PropCode.Movie_HDMIOutputResolution, Format.Named("HdmiResolution"), pick);
         Add(DrivePanel, "Drive", PropCode.DriveMode, Format.Drive, pick);
         Add(SavePanel, "Save photos to", PropCode.StillImageStoreDestination, Format.SaveTo, PropControl.Kind.Buttons);
@@ -489,6 +494,13 @@ public partial class MainWindow : Window
         if (_cam.State == LinkState.Connected && _cam.SwitchPage(wantPhoto) is { } problem) ShowMessage(problem);
     }
 
+    /// <summary>Normal movie or S&Q, keeping the same exposure letter. The buttons follow what the camera reports.</summary>
+    private void OnSlowQuickClick(object? sender, RoutedEventArgs e)
+    {
+        ShowPage(_cam.IsPhotoMode);
+        if (_cam.SetSlowQuick(sender == SlowQuick) is { } problem) ShowMessage(problem);
+    }
+
     private void OnSetupClick(object? sender, RoutedEventArgs e)
     {
         _setup = true;
@@ -528,6 +540,12 @@ public partial class MainWindow : Window
         ShootPage.IsVisible = !_setup;
         SetupPage.IsVisible = _setup;
         VideoTop.IsVisible = VideoShoot.IsVisible = VideoSetup.IsVisible = !photo;
+        bool slowQuick = _cam.IsSlowQuick;
+        _frameRate.Root.IsVisible = _recSetting.Root.IsVisible = !slowQuick;
+        foreach (var row in _slowQuickRows) row.Root.IsVisible = slowQuick;
+        SlowQuickSwitch.IsVisible = _cam.OffersSlowQuick;
+        NormalSpeed.IsChecked = !slowQuick;
+        SlowQuick.IsChecked = slowQuick;
         AudioSection.IsVisible = !photo && !_useWifi;
         ShutterButton.IsVisible = DrivePanel.IsVisible = TimeLapseSection.IsVisible = PhotoSetup.IsVisible = photo;
         foreach (var row in _rows.Where(r => r.Section == "photo"))
@@ -674,17 +692,23 @@ public partial class MainWindow : Window
         var parts = new List<string>();
         var minutes = new List<long>();
         bool photo = _cam.IsPhotoMode;
-        void Card(int slot, Prop? time, Prop? photos)
+        // Every slot the camera has is shown, so an empty one is easy to spot.
+        void Card(int slot, Prop? status, Prop? time, Prop? photos)
         {
-            if (photo && photos != null) { parts.Add($"Card {slot}: {photos.Value:N0} photos"); minutes.Add(photos.Value / 10); }
+            if (status == null) return;
+            if (status.Value == 1) parts.Add($"Card {slot}: empty");
+            else if (status.Value != 0) parts.Add($"Card {slot}: not ready");
+            else if (photo && photos != null) { parts.Add($"Card {slot}: {photos.Value:N0} photos"); minutes.Add(photos.Value / 10); }
             else if (time != null) { parts.Add($"Card {slot}: " + Format.Duration(time.Value)); minutes.Add(time.Value / 60); }
         }
-        if (_cam.Get(PropCode.MediaSLOT1_Status)?.Value == 0) Card(1, slot1, _cam.Get(PropCode.MediaSLOT1_RemainingNumber));
-        if (_cam.Get(PropCode.MediaSLOT2_Status)?.Value == 0) Card(2, slot2, _cam.Get(PropCode.MediaSLOT2_RemainingNumber));
-        CardText.Text = _cam.State == LinkState.Connected && parts.Count == 0 && _cam.Props.Count > 0 ? "No card ready" : string.Join("    ", parts);
+        Card(1, _cam.Get(PropCode.MediaSLOT1_Status), slot1, _cam.Get(PropCode.MediaSLOT1_RemainingNumber));
+        Card(2, _cam.Get(PropCode.MediaSLOT2_Status), slot2, _cam.Get(PropCode.MediaSLOT2_RemainingNumber));
+        bool cardReady = _cam.Get(PropCode.MediaSLOT1_Status)?.Value == 0 || _cam.Get(PropCode.MediaSLOT2_Status)?.Value == 0;
+        bool noCard = _cam.State == LinkState.Connected && !cardReady && _cam.Props.Count > 0;
+        CardText.Text = noCard && parts.Count == 0 ? "No card ready" : string.Join("    ", parts);
         CardMenu.IsVisible = _cam.State == LinkState.Connected && _cam.CardSlots.Any();
         bool cardLow = minutes.Count > 0 && minutes.Max() < 10;
-        CardText.Foreground = cardLow || CardText.Text == "No card ready" ? Rec : Brushes.White;
+        CardText.Foreground = cardLow || noCard ? Rec : Brushes.White;
 
         // One banner over the picture for whatever needs attention most.
         string? alert = null;
@@ -694,7 +718,7 @@ public partial class MainWindow : Window
             long pct = battery?.Value ?? -1, lvl = level?.Value ?? -1;
             if (Format.BatteryCritical(pct, lvl)) alert = "⚠  BATTERY ALMOST EMPTY — swap it now";
             else if (Format.BatteryLow(pct, lvl)) alert = "⚠  Low battery";
-            else if (CardText.Text == "No card ready") alert = "⚠  No memory card ready";
+            else if (noCard) alert = "⚠  No memory card ready";
             else if (cardLow) alert = photo ? "⚠  Card almost full — under 100 photos left" : "⚠  Card almost full — under 10 minutes left";
         }
         else if (_wasConnected && !_cam.HoldReconnect)
@@ -711,7 +735,7 @@ public partial class MainWindow : Window
         long? mode = _cam.State == LinkState.Connected ? _cam.Get(PropCode.ExposureProgramMode)?.Value : null;
         if (mode != null && _lastMode != null && mode != _lastMode)
         {
-            ShowMessage($"The camera changed to {Format.Named("ExposureProgram")(mode.Value)}. Settings here now show what it reports.");
+            if (!_cam.ModeChangedHere) ShowMessage($"The camera changed to {Format.Named("ExposureProgram")(mode.Value)}. Settings here now show what it reports.");
             _cam.LogOptions();
         }
         if (mode != null) _lastMode = mode;
@@ -730,9 +754,9 @@ public partial class MainWindow : Window
             : new[]
             {
                 Show(PropCode.ExposureProgramMode, Format.Named("ExposureProgram")),
-                Show(PropCode.Movie_Recording_FrameRateSetting, Format.Named("MovieFrameRate")),
+                _cam.IsSlowQuick ? "S&Q " + Show(PropCode.SQFrameRate, Format.SlowQuickRate) : Show(PropCode.Movie_Recording_FrameRateSetting, Format.MovieFrameRate),
                 Show(PropCode.Movie_File_Format, Format.Named("MovieFileFormat")),
-                Show(PropCode.Movie_Recording_Setting, Format.Named("MovieRecordingSetting")),
+                Show(_cam.IsSlowQuick ? PropCode.SQRecordingSetting : PropCode.Movie_Recording_Setting, Format.Named("MovieRecordingSetting")),
             }).Where(s => s.Length > 0));
 
         ShowMeter();
@@ -826,9 +850,12 @@ public partial class MainWindow : Window
         for (int slot = 1; slot <= PresetSlots; slot++)
         {
             int s = slot;
-            var summary = new TextBlock { FontSize = 13, FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Center };
+            // Frame rate, format and exposure for video, a line each, so presets can be told apart at a glance.
+            var top = new TextBlock { FontSize = 12, FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Center };
+            var middle = new TextBlock { FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Center };
+            var bottom = new TextBlock { FontSize = 11, Foreground = Dim, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Center };
             var name = new TextBlock { Text = $"C{s}", FontSize = 11, Foreground = Dim, HorizontalAlignment = HorizontalAlignment.Center };
-            var b = new Button { Classes = { "Tile" }, Tag = summary, Content = new StackPanel { Children = { name, summary } } };
+            var b = new Button { Classes = { "Tile" }, Tag = new[] { top, middle, bottom }, Content = new StackPanel { Children = { name, top, middle, bottom } } };
             b.Click += (_, _) =>
             {
                 if (PresetIn(s) is { } preset) { if (_cam.ApplyPreset(preset, $"C{s}") is { } problem) ShowMessage(problem); }
@@ -874,10 +901,15 @@ public partial class MainWindow : Window
         {
             var b = (Button)PresetButtons.Children[i];
             var preset = PresetIn(i + 1);
-            var summary = (TextBlock)b.Tag!;
-            summary.Text = preset == null ? "Empty" : preset.Summary.Length > 0 ? preset.Summary : "Saved";
+            var lines = (TextBlock[])b.Tag!;
+            var (top, middle, bottom) = preset == null ? ("Empty", "", "") : CameraService.Describe(preset, _cam.IsPhotoMode);
+            lines[0].Text = top.Length > 0 ? top : "Saved";
+            lines[1].Text = middle;
+            lines[2].Text = bottom;
+            lines[1].IsVisible = middle.Length > 0;
+            lines[2].IsVisible = bottom.Length > 0;
             // Green when the camera is set that way now, as on the phone.
-            summary.Foreground = preset == null ? Dim : _cam.Matches(preset) ? Ok : Brushes.White;
+            lines[0].Foreground = preset == null ? Dim : _cam.Matches(preset) ? Ok : Brushes.White;
             b.IsEnabled = connected;
             ((MenuItem)b.ContextMenu!.Items[1]!).IsEnabled = preset != null;
             ToolTip.SetTip(b, preset == null ? $"Click to save the camera's {page} settings here."

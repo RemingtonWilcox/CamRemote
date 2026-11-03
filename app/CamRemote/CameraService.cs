@@ -377,7 +377,10 @@ public sealed class CameraService : IDisposable
                      PropCode.MediaSLOT1_RAW_FileCompressionType, PropCode.StillImageQuality, PropCode.ImageSize, PropCode.MediaSLOT1_ImageSize, PropCode.AspectRatio,
                      PropCode.MeteringMode, PropCode.ShutterType, PropCode.S1, PropCode.StillImageStoreDestination, PropCode.Interval_Rec_Mode, PropCode.Interval_Rec_Status,
                      PropCode.IntervalRec_ShootingInterval, PropCode.IntervalRec_NumberOfShots, PropCode.IntervalRec_ShootingStartTime,
-                     PropCode.MediaSLOT1_RemainingNumber, PropCode.MediaSLOT2_RemainingNumber })
+                     PropCode.MediaSLOT1_RemainingNumber, PropCode.MediaSLOT2_RemainingNumber, PropCode.MediaSLOT1_Status, PropCode.MediaSLOT2_Status,
+                     PropCode.MediaSLOT1_RemainingTime, PropCode.MediaSLOT2_RemainingTime, PropCode.Movie_File_Format,
+                     PropCode.Movie_Recording_FrameRateSetting, PropCode.Movie_Recording_Setting, PropCode.SQRecordingFrameRateSetting,
+                     PropCode.SQRecordingSetting, PropCode.SQFrameRate })
             Log.Write(props.TryGetValue((uint)code, out var p)
                 ? $"{code}: value 0x{p.Value:X}, writable {p.Writable}, choices {string.Join(' ', p.Candidates.Select(v => v.ToString("X")))}"
                 : $"{code}: not reported");
@@ -464,6 +467,7 @@ public sealed class CameraService : IDisposable
             return;
         }
         Log.Write($"Set {code} to {value} (writable {p.Writable}).");
+        if (code == PropCode.ExposureProgramMode) _modeSetAt = DateTime.Now;
         _latestSet[code] = value;
         Run(() =>
         {
@@ -478,6 +482,11 @@ public sealed class CameraService : IDisposable
     // ---- Actions ----
 
     public bool IsRecording => Get(PropCode.RecordingState)?.Value == 1;
+
+    private DateTime _modeSetAt;
+
+    /// <summary>The app changed the exposure mode a moment ago, so a new mode is no news to the person who asked for it.</summary>
+    public bool ModeChangedHere => DateTime.Now - _modeSetAt < TimeSpan.FromSeconds(5);
 
     private volatile bool _recordWaiting;
 
@@ -556,30 +565,84 @@ public sealed class CameraService : IDisposable
 
     // ---- Presets ----
 
-    // The order they go back on: the mode first, then format and frame rate, which decide which record settings exist.
+    // The order they go back on: the mode first, then format and frame rates, which decide which record settings exist.
     private static readonly PropCode[] PresetCodes =
     [
         PropCode.ExposureProgramMode, PropCode.Movie_File_Format, PropCode.Movie_Recording_FrameRateSetting, PropCode.Movie_Recording_Setting,
+        PropCode.SQRecordingFrameRateSetting, PropCode.SQRecordingSetting, PropCode.SQFrameRate,
         PropCode.ShutterSpeed, PropCode.FNumber, PropCode.IsoSensitivity, PropCode.ExposureBiasCompensation, PropCode.WhiteBalance,
         PropCode.Colortemp, PropCode.FocusMode, PropCode.FocusArea, PropCode.RecognitionTarget, PropCode.DriveMode,
     ];
-    private static readonly PropCode[] MovieOnly = [PropCode.Movie_File_Format, PropCode.Movie_Recording_FrameRateSetting, PropCode.Movie_Recording_Setting];
+    private static readonly PropCode[] MovieOnly =
+    [
+        PropCode.Movie_File_Format, PropCode.Movie_Recording_FrameRateSetting, PropCode.Movie_Recording_Setting,
+        PropCode.SQRecordingFrameRateSetting, PropCode.SQRecordingSetting, PropCode.SQFrameRate,
+    ];
+    // Choices for these depend on what was set before them, so the camera is read again after each. A new S&Q
+    // frame rate also moves the shutter speed by itself, so the preset's shutter has to go on after that.
+    private static readonly PropCode[] ChangesChoices =
+    [
+        PropCode.ExposureProgramMode, PropCode.Movie_File_Format, PropCode.Movie_Recording_FrameRateSetting,
+        PropCode.SQRecordingFrameRateSetting, PropCode.SQRecordingSetting, PropCode.SQFrameRate,
+    ];
     private const long WhiteBalanceColorTemp = 0x100;
 
     /// <summary>The camera's settings now, to keep as a preset for the page it's on.</summary>
     public Preset? TakePreset()
     {
         if (State != LinkState.Connected || Props.Count == 0) return null;
-        bool photo = IsPhotoMode;
-        var values = PresetCodes.Where(c => photo ? !MovieOnly.Contains(c) : c != PropCode.DriveMode)
+        bool photo = IsPhotoMode, slowQuick = IsSlowQuick;
+        // S&Q has its own frame rates and record setting, so only the ones for the kind of movie being shot are kept.
+        PropCode[] skipped = slowQuick ? [PropCode.Movie_Recording_FrameRateSetting, PropCode.Movie_Recording_Setting]
+                                       : [PropCode.SQRecordingFrameRateSetting, PropCode.SQRecordingSetting, PropCode.SQFrameRate];
+        var values = PresetCodes.Where(c => !skipped.Contains(c) && (photo ? !MovieOnly.Contains(c) : c != PropCode.DriveMode))
             .Select(c => (c, Get(c))).Where(x => x.Item2 != null).ToDictionary(x => x.c.ToString(), x => x.Item2!.Value);
-        string Text(PropCode code, Func<long, string> fmt) => Get(code) is { } p ? fmt(p.Value) : "";
-        var parts = new[]
-        {
-            photo ? "" : Text(PropCode.Movie_Recording_FrameRateSetting, Format.Named("MovieFrameRate")).Replace(' ', '.'),
-            Text(PropCode.ShutterSpeed, Format.Shutter), Text(PropCode.FNumber, Format.FNumber), Text(PropCode.IsoSensitivity, Format.Iso).Replace("ISO ", ""),
-        };
-        return new Preset { Summary = string.Join(" ", parts.Where(s => s.Length > 0 && s != "--")), Values = values };
+        var preset = new Preset { Values = values };
+        var (top, middle, bottom) = Describe(preset, photo);
+        preset.Summary = string.Join(", ", new[] { top, middle, bottom }.Where(s => s.Length > 0));
+        return preset;
+    }
+
+    /// <summary>
+    /// A preset in short lines, from its saved values, each narrow enough for a tile. For video: frame rate,
+    /// then format, then exposure. For photos: exposure, then drive.
+    /// </summary>
+    public static (string Top, string Middle, string Bottom) Describe(Preset preset, bool photo)
+    {
+        string Text(PropCode code, Func<long, string> fmt) =>
+            preset.Values.TryGetValue(code.ToString(), out long v) && fmt(v) is var s && s != "--" && !s.StartsWith("0x") ? s : "";
+        string Join(params string[] parts) => string.Join(" ", parts.Where(s => s.Length > 0));
+        string exposure = Join(Text(PropCode.ShutterSpeed, Format.Shutter), Text(PropCode.FNumber, Format.FNumber),
+                               Text(PropCode.IsoSensitivity, Format.Iso).Replace("ISO ", ""));
+        if (photo) return (exposure, Text(PropCode.DriveMode, Format.Drive), "");
+        bool slowQuick = preset.Values.TryGetValue(PropCode.ExposureProgramMode.ToString(), out long mode) && IsSlowQuickMode(mode);
+        string rate = slowQuick ? Join("S&Q", Text(PropCode.SQFrameRate, Format.SlowQuickRate))
+                                : Text(PropCode.Movie_Recording_FrameRateSetting, Format.MovieFrameRate);
+        return (rate, Text(PropCode.Movie_File_Format, Format.Named("MovieFileFormat")), exposure);
+    }
+
+    // ---- Slow and quick motion ----
+
+    /// <summary>S&Q, in P, A, S, M, Auto or Flexible exposure, on the movie side or the photo dial.</summary>
+    private static bool IsSlowQuickMode(long mode) => mode is >= 0x8059 and <= 0x805E or >= 0x8084 and <= 0x8087;
+
+    public bool IsSlowQuick => Get(PropCode.ExposureProgramMode)?.Value is long mode && IsSlowQuickMode(mode);
+
+    /// <summary>The camera lets the app switch between normal movie and S&Q from here.</summary>
+    public bool OffersSlowQuick => !IsPhotoMode && Get(PropCode.ExposureProgramMode) is { Writable: true } p
+                                   && p.Candidates.Any(IsSlowQuickMode) && p.Candidates.Any(c => c is >= 0x8050 and <= 0x8053);
+
+    /// <summary>Moves between normal movie and S&Q, keeping the same P, A, S or M. Returns what went wrong, if anything.</summary>
+    public string? SetSlowQuick(bool on)
+    {
+        if (on == IsSlowQuick) return null;
+        if (IsRecording) return "Stop recording first.";
+        if (Get(PropCode.ExposureProgramMode) is not { Writable: true } mode) return "Turn the camera's mode dial to Movie or S&Q.";
+        long letter = mode.Value is >= 0x8059 and <= 0x805C ? mode.Value - 0x8059 : mode.Value is >= 0x8050 and <= 0x8053 ? mode.Value - 0x8050 : 3;
+        long want = (on ? 0x8059 : 0x8050) + letter;
+        if (!mode.Candidates.Contains(want)) return "Turn the camera's mode dial to Movie or S&Q.";
+        Set(PropCode.ExposureProgramMode, want);
+        return null;
     }
 
     /// <summary>
@@ -614,6 +677,7 @@ public sealed class CameraService : IDisposable
                 return;
             }
             var refused = new List<PropCode>();
+            var set = new List<PropCode>();
             foreach (var (code, value) in wanted)
             {
                 if (!props.TryGetValue((uint)code, out var p) || p.Value == value) continue;
@@ -622,20 +686,22 @@ public sealed class CameraService : IDisposable
                     refused.Add(code);
                     continue;
                 }
+                if (code == PropCode.ExposureProgramMode) _modeSetAt = DateTime.Now;
                 int err = Native.cb_set_prop((uint)code, (ulong)value, p.Type);
+                set.Add(code);
                 if (err != 0)
                 {
                     Log.Write($"Preset: {code} to 0x{value:X} refused, {Native.ErrorName(err)}");
                     refused.Add(code);
                     continue;
                 }
-                // The other settings' choices change with these, so look again before going on.
-                if (code is PropCode.ExposureProgramMode or PropCode.Movie_File_Format or PropCode.Movie_Recording_FrameRateSetting)
+                if (ChangesChoices.Contains(code))
                 {
                     Thread.Sleep(code == PropCode.ExposureProgramMode ? 700 : 300);
                     props = ReadAll() ?? props;
                 }
             }
+            Log.Write($"Preset {name}: sent {string.Join(", ", set)}");
             if (refused.Count > 0) Log.Write("Preset: the camera didn't take " + string.Join(", ", refused));
             Say(refused.Contains(PropCode.ExposureProgramMode) ? $"{name}: turn the camera's mode dial to match, then try again."
                 : refused.Count > 0 ? $"{name}: {preset.Summary}. The camera didn't take every setting in this mode."

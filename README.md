@@ -119,7 +119,8 @@ Update your camera to its latest firmware first. Some features, such as click to
 | **Record** | One big button, with a red outline around the picture while rolling |
 | **Shoot photos** | Single shots, bursts and time-lapses, saved to your card, your computer or both |
 | **Film wildlife** | **Record when an animal shows up** does the rest |
-| **Set up the camera** | Video format, frame rate, RAW or JPEG, white balance, audio and more, without touching a menu |
+| **Set up the camera** | Video format, frame rate, S&Q slow motion, RAW or JPEG, white balance, audio and more, without touching a menu |
+| **Save your setups** | **C1** to **C4**, four for video and four for photos, each back with one click |
 | **Format a card** | Click **▾** next to the card readout. It asks first |
 | **Use your phone** | Tick **Allow phone control** in **Setup**, then open the address it shows |
 | **Stay informed** | Battery and card warnings before you run out |
@@ -369,6 +370,8 @@ If you'd use one of these, [open an issue](https://github.com/RemingtonWilcox/Ca
 - **Format a card:** click **▾** next to the card readout. It works while the camera isn't recording, erases the whole card, and asks first. The app can't tell whether you've copied your footage off, so check that yourself.
 - **Rotate:** ⟲ / ⟳ in **Setup**, for a camera mounted in portrait.
 - **Burst:** set **Drive** to a burst speed, then hold **Take photo** down.
+- **C1 to C4:** click an empty one to save how the camera is set now: mode, exposure, focus, and for video the format and frame rate. Click it again later to put all of that back. The Video and Photo tabs each have their own four. A preset turns green while the camera matches it. Right-click to save over it or clear it (Control-click on a Mac). If the camera's mode dial is somewhere a preset can't reach, the app says so.
+- **S&Q (slow and quick motion):** under **Recording** on the Video tab, switch between **Normal** and **S&Q**. In S&Q, **S&Q shoots at** is how many frames a second the camera captures, and **S&Q plays at** is the speed it's played back at, so 240fps played at 24p is ten times slower. The fastest rates need an HD file format. Save one to a preset, like 1080p at 240fps on C1, to get to it in one click.
 - **Time-lapse:** open **Time-lapse** under **Drive** and turn it on. The big button then says **Start time-lapse**, and **Stop time-lapse** once it's running.
 - **Photos on your computer:** choose **Computer**, **Card** or **Both** under **Saving** in **Setup**. They go to `Pictures/CamRemote` until you click **Change folder**. A full-size RAW can take 4 to 12 seconds to arrive, so for bursts and time-lapses use **Both** with **Small JPEG**: the card keeps the full files.
 - **Record when an animal shows up:** runs on your computer, and no pictures leave it. It knows birds and a few other animals (cats, dogs, horses, sheep, cows, elephants, bears, zebras and giraffes), and something it doesn't know, like a squirrel, may not set it off. A green box follows the animal while the option is on. Set **Rotate** to match how the camera is mounted first: it sees far better the right way up. Takes stop at 5 minutes and start again if the animal is still there. If it keeps being set off by something that isn't an animal, like splashing water, it learns to ignore that spot for 10 minutes. It only stops takes it started itself.

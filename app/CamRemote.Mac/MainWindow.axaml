@@ -185,6 +185,13 @@
                             <!-- Also in Setup, but worth having at hand while shooting -->
                             <StackPanel x:Name="VideoShoot">
                                 <TextBlock Text="RECORDING" Classes="Section" />
+                                <UniformGrid x:Name="SlowQuickSwitch" Rows="1" Margin="-2,0,-2,4" IsVisible="False">
+                                    <ToggleButton x:Name="NormalSpeed" Content="Normal" Margin="2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                  Click="OnSlowQuickClick" ToolTip.Tip="Records at normal speed." />
+                                    <ToggleButton x:Name="SlowQuick" Content="S&amp;Q" Margin="2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                  Click="OnSlowQuickClick"
+                                                  ToolTip.Tip="Slow and quick motion: shoots at one frame rate and plays back at another, such as 240fps played at 24p." />
+                                </UniformGrid>
                                 <StackPanel x:Name="RecordingPanel" />
                             </StackPanel>
 
