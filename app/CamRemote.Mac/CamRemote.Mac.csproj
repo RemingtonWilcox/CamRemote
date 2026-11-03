@@ -22,6 +22,7 @@
     <Compile Include="..\CamRemote\LogSender.cs" Link="Shared\LogSender.cs" />
     <Compile Include="..\CamRemote\PictureZoom.cs" Link="Shared\PictureZoom.cs" />
     <Compile Include="..\CamRemote\CameraService.cs" Link="Shared\CameraService.cs" />
+    <Compile Include="..\CamRemote\DriveModes.cs" Link="Shared\DriveModes.cs" />
     <Compile Include="..\CamRemote\Format.cs" Link="Shared\Format.cs" />
     <Compile Include="..\CamRemote\IUi.cs" Link="Shared\IUi.cs" />
     <Compile Include="..\CamRemote\LiveViewFeed.cs" Link="Shared\LiveViewFeed.cs" />

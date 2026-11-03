@@ -28,12 +28,16 @@ public partial class MainWindow : Window
     private readonly PictureAssist _assist;
     private WriteableBitmap? _pictureBitmap, _assistBitmap, _smallBitmap, _largeBitmap;
     private bool _loadingAssist;
-    private DateTime _assistDetailClosed;
     private readonly AudioMeter _meter = new();
     private readonly DispatcherTimer _meterTick;
     private readonly PropControl _recordLevel; // beside the meters with a capture card, in Setup otherwise
     private readonly PropControl _frameRate, _recSetting; // on the Video page, swapped for the S&Q ones in S&Q
     private readonly PropControl[] _slowQuickRows;
+    private readonly DriveControl _drive;
+    private bool _longExposure; // the Long exposure tab is picked; time-lapse is the camera's own, so it isn't kept here
+    private readonly DispatcherTimer _longTimer;
+    private DateTime? _longEnds; // while a long exposure is open
+    private bool _longBulb; // the shutter is held open by this app, rather than timed by the camera
     private readonly double[] _hold = [-100, -100];
     private DateTime _holdSince = DateTime.Now;
     private bool _useWifi; // picture from the camera's live view instead of the capture card
@@ -62,6 +66,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        PlaceWindow();
         var ui = new AvaloniaUi();
         _ui = ui;
         _cam = new CameraService(ui);
@@ -91,9 +96,14 @@ public partial class MainWindow : Window
         _cam.FocusMoved += ShowFocusBar;
 
         // A button hides the press from ordinary handlers, so catch it on the way in. Holding it is what makes a burst.
-        ShutterButton.AddHandler(PointerPressedEvent, (_, _) => _cam.ShutterDown(), RoutingStrategies.Tunnel);
-        ShutterButton.AddHandler(PointerReleasedEvent, (_, _) => _cam.ShutterUp(), RoutingStrategies.Tunnel);
-        ShutterButton.AddHandler(PointerCaptureLostEvent, (_, _) => _cam.ShutterUp(), RoutingStrategies.Bubble);
+        // On the Long exposure tab a press starts or stops the exposure instead.
+        ShutterButton.AddHandler(PointerPressedEvent, (_, _) =>
+        {
+            if (LongExposureShowing) ToggleLongExposure();
+            else _cam.ShutterDown();
+        }, RoutingStrategies.Tunnel);
+        ShutterButton.AddHandler(PointerReleasedEvent, (_, _) => { if (!LongExposureShowing) _cam.ShutterUp(); }, RoutingStrategies.Tunnel);
+        ShutterButton.AddHandler(PointerCaptureLostEvent, (_, _) => { if (!LongExposureShowing) _cam.ShutterUp(); }, RoutingStrategies.Bubble);
 
         var big = PropControl.Kind.Stepper;
         var pick = PropControl.Kind.Picker;
@@ -126,7 +136,10 @@ public partial class MainWindow : Window
         Add(MovieMore, "Rec setting", PropCode.Movie_Recording_Setting, Format.Named("MovieRecordingSetting"), pick);
         Add(MovieMore, "Frame rate", PropCode.Movie_Recording_FrameRateSetting, Format.MovieFrameRate, pick);
         Add(MovieMore, "HDMI out", PropCode.Movie_HDMIOutputResolution, Format.Named("HdmiResolution"), pick);
-        Add(DrivePanel, "Drive", PropCode.DriveMode, Format.Drive, pick);
+        Add(MovieMore, "Super 35 crop", PropCode.APS_C_S35, Format.SuperThirtyFive, PropControl.Kind.Buttons);
+        Add(PhoneOnly, "Drive", PropCode.DriveMode, Format.Drive, pick); // the phone's list; here it's _drive
+        _drive = new DriveControl(_cam);
+        DrivePanel.Children.Add(_drive.Root);
         Add(SavePanel, "Save photos to", PropCode.StillImageStoreDestination, Format.SaveTo, PropControl.Kind.Buttons);
         Add(SavePanel, "Computer's copy", PropCode.Still_Image_Trans_Size, Format.ComputerCopy, PropControl.Kind.Buttons);
         Add(SavePanel, "Send to computer", PropCode.RAW_J_PC_Save_Image, Format.Photo("RawJpegToPc"), PropControl.Kind.Buttons);
@@ -137,12 +150,13 @@ public partial class MainWindow : Window
         Add(PhotoPanel, "Aspect ratio", PropCode.AspectRatio, Format.Photo("AspectRatio"), PropControl.Kind.Buttons);
         Add(PhotoPanel, "Metering", PropCode.MeteringMode, Format.Photo("Metering"), pick);
         Add(PhotoPanel, "Shutter type", PropCode.ShutterType, Format.Photo("ShutterType"), PropControl.Kind.Buttons);
-        Add(TimeLapsePanel, "Time-lapse", PropCode.Interval_Rec_Mode, Format.Photo("IntervalMode"), PropControl.Kind.Buttons);
+        Add(PhoneOnly, "Time-lapse", PropCode.Interval_Rec_Mode, Format.Photo("IntervalMode"), PropControl.Kind.Buttons); // here it's the Time-lapse tab
         Add(TimeLapsePanel, "One photo every", PropCode.IntervalRec_ShootingInterval, Format.Interval, pick, v => v, IntervalChoices);
         Add(TimeLapsePanel, "Photos", PropCode.IntervalRec_NumberOfShots, v => v.ToString("N0"), pick, v => v, ShotChoices);
         Add(TimeLapsePanel, "Start after", PropCode.IntervalRec_ShootingStartTime, v => Format.Interval(v * 10), pick, v => v, StartChoices);
         MakePresetButtons();
         MakeRecordSubjectButtons();
+        MakeLongExposureButtons();
         OnPropsChanged();
         ApplyRotation();
         SetUpAssist();
@@ -154,12 +168,16 @@ public partial class MainWindow : Window
         _meterTick = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
         _meterTick.Tick += (_, _) => DrawMeters();
         UpdateMeter(null);
+        _longTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        _longTimer.Tick += (_, _) => LongExposureTick();
         _hideFocusMark = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.8) };
         _hideFocusMark.Tick += (_, _) => { FocusMark.IsVisible = false; _hideFocusMark.Stop(); };
 
         Opened += OnLoaded;
         Closing += OnClosing;
         KeyDown += OnKeyDown;
+        PositionChanged += (_, _) => RememberNormalPlace();
+        Resized += (_, _) => RememberNormalPlace();
     }
 
     private static ((byte[], int, int), int, int) DecodeJpeg(byte[] buffer, int length)
@@ -206,8 +224,91 @@ public partial class MainWindow : Window
         image.InvalidateVisual();
     }
 
+    // ---- Window size ----
+
+    // Position and the screens' areas are in the desktop's units (DesktopScaling of them to a point); Width and Height are in points.
+    private bool _placedBefore; // the window came back where it was last closed
+    private PixelPoint _normalPosition; // where it was, and how big, the last time it was neither maximised nor full screen
+    private Size _normalSize;
+
+    /// <summary>Where it was last closed, if that's still on a screen. Otherwise most of the screen, trimmed to the picture's shape once laid out.</summary>
+    private void PlaceWindow()
+    {
+        if (Screens?.Primary is not { } primary) return;
+        double scale = DesktopScaling;
+        var saved = new PixelRect(new PixelPoint((int)_settings.WindowLeft, (int)_settings.WindowTop),
+            PixelSize.FromSize(new Size(Math.Max(_settings.WindowWidth, 0), Math.Max(_settings.WindowHeight, 0)), scale));
+        if (_settings.WindowWidth >= MinWidth && _settings.WindowHeight >= MinHeight && Screens.All.Any(s => s.WorkingArea.Intersects(saved)))
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            Position = saved.Position;
+            Width = _settings.WindowWidth;
+            Height = _settings.WindowHeight;
+            (_normalPosition, _normalSize) = (saved.Position, new Size(Width, Height));
+            if (_settings.WindowMaximized) WindowState = WindowState.Maximized;
+            _placedBefore = true;
+            return;
+        }
+        var area = primary.WorkingArea;
+        Width = Math.Max(MinWidth, area.Width / scale * 0.9);
+        Height = Math.Max(MinHeight, area.Height / scale * 0.9);
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+    }
+
+    /// <summary>
+    /// Trims the window so the picture fills its area with no black bars: 16:9, or 9:16 with the picture turned
+    /// on its side. Keeps the height, unless the width that needs won't fit on the screen. Then keeps it on the
+    /// screen, or centres it there.
+    /// </summary>
+    private void FitToPicture(bool centre = false)
+    {
+        if (WindowState != WindowState.Normal || PictureArea.Bounds.Width <= 0 || PictureArea.Bounds.Height <= 0) return;
+        if ((Screens?.ScreenFromWindow(this) ?? Screens?.Primary) is not { } screen) return;
+        double shape = _settings.Rotation is 90 or 270 ? 9.0 / 16 : 16.0 / 9;
+        double scale = DesktopScaling;
+        var area = screen.WorkingArea;
+        // Unlike on Windows, Width and Height leave out the title bar, so count it separately.
+        var frame = FrameSize ?? ClientSize;
+        double barW = Math.Max(0, frame.Width - ClientSize.Width), barH = Math.Max(0, frame.Height - ClientSize.Height);
+        double w = PictureArea.Bounds.Width, h = PictureArea.Bounds.Height;
+        double extraW = ClientSize.Width - w, extraH = ClientSize.Height - h;
+        double wantW = h * shape;
+        double roomW = area.Width / scale - barW;
+        if (wantW + extraW > roomW)
+        {
+            wantW = roomW - extraW;
+            h = wantW / shape;
+        }
+        Width = Math.Max(MinWidth, wantW + extraW);
+        Height = Math.Max(MinHeight, h + extraH);
+        int fw = (int)Math.Round((Width + barW) * scale), fh = (int)Math.Round((Height + barH) * scale);
+        int x = centre ? area.X + (area.Width - fw) / 2 : Position.X, y = centre ? area.Y + (area.Height - fh) / 2 : Position.Y;
+        Position = new PixelPoint(Math.Clamp(x, area.X, Math.Max(area.X, area.Right - fw)), Math.Clamp(y, area.Y, Math.Max(area.Y, area.Bottom - fh)));
+    }
+
+    /// <summary>Avalonia has no RestoreBounds, so keep the last place and size it had while neither maximised nor full screen.</summary>
+    private void RememberNormalPlace()
+    {
+        if (WindowState != WindowState.Normal || ClientSize.Width <= 0 || ClientSize.Height <= 0) return;
+        // Zooming can report the new size before the new state. A window filling the screen is that, not a size to keep.
+        if ((Screens?.ScreenFromWindow(this) ?? Screens?.Primary) is { } screen
+            && ClientSize.Width * DesktopScaling >= screen.WorkingArea.Width * 0.98 && ClientSize.Height * DesktopScaling >= screen.WorkingArea.Height * 0.9) return;
+        (_normalPosition, _normalSize) = (Position, ClientSize);
+    }
+
+    private void SaveWindowPlace()
+    {
+        RememberNormalPlace();
+        if (_normalSize.Width <= 0 || _normalSize.Height <= 0) return;
+        (_settings.WindowLeft, _settings.WindowTop, _settings.WindowWidth, _settings.WindowHeight) =
+            (_normalPosition.X, _normalPosition.Y, _normalSize.Width, _normalSize.Height);
+        _settings.WindowMaximized = WindowState is WindowState.Maximized or WindowState.FullScreen; // it comes back maximised, not full screen
+        _settings.Save();
+    }
+
     private async void OnLoaded(object? sender, EventArgs e)
     {
+        if (!_placedBefore) Dispatcher.UIThread.Post(() => FitToPicture(centre: true), DispatcherPriority.Loaded);
         if (_settings.AgreedVersion < Agreement.Version)
         {
             if (!await ConnectWindow.AskAsync(this, "Before you start", Agreement.Text, "I agree", "Quit"))
@@ -284,6 +385,7 @@ public partial class MainWindow : Window
 
     private void OnClosing(object? sender, WindowClosingEventArgs e)
     {
+        SaveWindowPlace();
         _tick.Stop();
         _bird.Stop();
         _live.Stop();
@@ -452,11 +554,16 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnRotateClick(object? sender, RoutedEventArgs e)
+    private void OnRotateClick(object? sender, RoutedEventArgs e) => Rotate(int.Parse((string)((Button)sender!).Tag!));
+
+    private void Rotate(int by)
     {
-        _settings.Rotation = ((_settings.Rotation + int.Parse((string)((Button)sender!).Tag!)) % 360 + 360) % 360;
+        bool turned = by % 180 != 0;
+        _settings.Rotation = ((_settings.Rotation + by) % 360 + 360) % 360;
         _settings.Save();
         ApplyRotation();
+        // A picture on its side is tall, so reshape the window to it.
+        if (turned) Dispatcher.UIThread.Post(() => FitToPicture(), DispatcherPriority.Loaded);
     }
 
     /// <summary>
@@ -466,7 +573,7 @@ public partial class MainWindow : Window
     private void ApplyRotation()
     {
         PictureTurn.LayoutTransform = new RotateTransform(_settings.Rotation);
-        RotationText.Text = $"Rotation {_settings.Rotation}°";
+        RotationText.Text = _settings.Rotation == 0 ? "" : $"{_settings.Rotation}°";
     }
 
     // ---- Camera ----
@@ -486,6 +593,160 @@ public partial class MainWindow : Window
     }
 
     private void OnRecClick(object? sender, RoutedEventArgs e) => _cam.ToggleRecord();
+
+    /// <summary>Photo, Time-lapse or Long exposure. Time-lapse is switched on the camera, which the tabs then follow.</summary>
+    private void OnPhotoModeClick(object? sender, RoutedEventArgs e)
+    {
+        if (_longEnds != null)
+        {
+            ShowMessage("Finish or stop the long exposure first.");
+            ShowPage(_cam.IsPhotoMode);
+            return;
+        }
+        _longExposure = sender == LongExposureMode;
+        bool timeLapse = sender == TimeLapseMode;
+        if (timeLapse != _cam.TimeLapseOn)
+        {
+            if (_cam.TimeLapseRunning) ShowMessage("Stop the time-lapse first.");
+            else _cam.Set(PropCode.Interval_Rec_Mode, timeLapse ? 2 : 1);
+        }
+        if (_longExposure) ShowLongExposurePlan();
+        ShowPage(_cam.IsPhotoMode);
+    }
+
+    // ---- Long exposure ----
+
+    private static readonly int[] LongLengths = [1, 2, 4, 8, 15, 30, 60, 120, 240, 480]; // seconds
+    private static readonly int[] NdChoices = [0, 3, 6, 10, 15]; // stops
+    private string _longNote = "";
+
+    private bool LongExposureShowing => _longExposure && _cam.IsPhotoMode && !_cam.TimeLapseOn;
+
+    private static string Length(double seconds) =>
+        seconds >= 60 ? $"{seconds / 60:0.#} min" : seconds >= 1 ? $"{seconds:0.#} s" : Format.Shutter(ShutterValue(seconds));
+
+    // Sony's shutter value for whole seconds, or for 1/n.
+    private static long ShutterValue(double seconds) => seconds >= 1 ? ((long)Math.Round(seconds) << 16) | 1 : 0x10000 | (long)Math.Round(1 / seconds);
+
+    private void MakeLongExposureButtons()
+    {
+        foreach (int s in LongLengths)
+            LongLengthButtons.Children.Add(OptionButton(Length(s), null, () => _settings.LongExposureSeconds == s, () =>
+            {
+                _settings.LongExposureSeconds = s;
+                _longNote = "";
+                ShowLongExposurePlan();
+            }, LongLengthButtons));
+        foreach (int stops in NdChoices)
+            NdButtons.Children.Add(OptionButton(stops == 0 ? "None" : stops.ToString(), null, () => _settings.NdStops == stops, () =>
+            {
+                _settings.NdStops = stops;
+                SuggestLength();
+            }, NdButtons));
+    }
+
+    /// <summary>
+    /// Works out the exposure through the filter from what the camera meters now, so meter without the filter
+    /// first. It's worked out once, when the filter is picked: with the filter on, the camera's meter can't be trusted.
+    /// </summary>
+    private void SuggestLength()
+    {
+        if (_settings.NdStops == 0)
+        {
+            _longNote = "";
+            ShowLongExposurePlan();
+            return;
+        }
+        if (_cam.Get(PropCode.ShutterSpeed) is not { } shutter || _cam.MeterStops is not double meter || shutter.Value == 0)
+        {
+            _longNote = "Connect the camera and let it meter, without the filter, to work out how long.";
+            ShowLongExposurePlan();
+            return;
+        }
+        double now = Format.ShutterSeconds(shutter.Value);
+        double right = now * Math.Pow(2, -meter); // what would make the meter read 0; it reads above 0 when too bright
+        double through = right * Math.Pow(2, _settings.NdStops);
+        int pick = LongLengths.OrderBy(s => Math.Abs(Math.Log2(s / through))).First();
+        _settings.LongExposureSeconds = pick;
+        foreach (var b in LongLengthButtons.Children.OfType<ToggleButton>()) b.IsChecked = ((Func<bool>)b.Tag!)();
+        _longNote = $"The meter wants {Length(right)} without a filter, so about {Length(through)} through {_settings.NdStops} stops. Picked {Length(pick)}.";
+        ShowLongExposurePlan();
+    }
+
+    private void ShowLongExposurePlan()
+    {
+        LongExposurePlan.Text = _longNote.Length > 0 ? _longNote : $"{Length(_settings.LongExposureSeconds)} exposure.";
+        ShowPage(_cam.IsPhotoMode);
+    }
+
+    private string LongExposureLabel() => _longEnds is DateTime end
+        ? $"Stop  ({Math.Max(0, (end - DateTime.Now).TotalSeconds):0} s left)"
+        : $"Start {Length(_settings.LongExposureSeconds)} exposure";
+
+    /// <summary>
+    /// Up to 30 s the camera times it at that shutter speed. Longer, it goes to Bulb and this app holds the
+    /// shutter open, so keep the window open until it's done.
+    /// </summary>
+    private void ToggleLongExposure()
+    {
+        if (_longEnds != null)
+        {
+            EndLongExposure(early: true);
+            return;
+        }
+        if (_cam.State != LinkState.Connected) return;
+        if (_cam.Get(PropCode.ExposureProgramMode)?.Value != 1)
+        {
+            ShowMessage("Long exposures need the camera in M. Turn its mode dial to M, or pick M under Setup › Camera.");
+            return;
+        }
+        if (_cam.Get(PropCode.ShutterSpeed) is not { Writable: true } shutter)
+        {
+            ShowMessage("The camera isn't letting the shutter speed change right now.");
+            return;
+        }
+        int seconds = _settings.LongExposureSeconds;
+        long timed = ShutterValue(seconds);
+        _longBulb = !shutter.Choices().Contains(timed);
+        if (_longBulb && !shutter.Choices().Contains(0))
+        {
+            ShowMessage("The camera isn't offering Bulb, so it can't go past 30 s. Check it's in M with Drive on Single.");
+            return;
+        }
+        _cam.Set(PropCode.ShutterSpeed, _longBulb ? 0 : timed);
+        // Give the shutter speed a moment to land, then press.
+        _longEnds = DateTime.Now + TimeSpan.FromSeconds(seconds + 0.6);
+        var press = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
+        press.Tick += (_, _) =>
+        {
+            press.Stop();
+            if (_longEnds == null) return;
+            _cam.ShutterDown();
+            if (!_longBulb) _cam.ShutterUp(); // the camera times it
+        };
+        press.Start();
+        _longTimer.Start();
+        Log.Write($"Long exposure: {seconds} s, {(_longBulb ? "bulb held by this app" : "timed by the camera")}.");
+        ShowMessage(_longBulb ? $"Exposing for {Length(seconds)}. Keep this window open: it closes the shutter at the end." : $"Exposing for {Length(seconds)}.");
+        ShowPage(_cam.IsPhotoMode);
+    }
+
+    private void LongExposureTick()
+    {
+        if (_longEnds is not DateTime end) return;
+        if (DateTime.Now >= end) EndLongExposure(early: false);
+        else ShutterLabel.Text = LongExposureLabel();
+    }
+
+    private void EndLongExposure(bool early)
+    {
+        _longTimer.Stop();
+        _longEnds = null;
+        if (_longBulb) _cam.ShutterUp();
+        else if (early) ShowMessage("The camera times exposures up to 30 s itself, so this one runs to the end.");
+        if (!early || _longBulb) ShowMessage(early ? "Stopped early. The camera is finishing the photo." : "Done. The camera is finishing the photo; with Long Exposure NR on, that takes as long again.");
+        ShowPage(_cam.IsPhotoMode);
+    }
 
     /// <summary>The page always shows what the camera is doing, so a click asks the camera and waits for it to change.</summary>
     private void OnPageClick(object? sender, RoutedEventArgs e)
@@ -561,12 +822,21 @@ public partial class MainWindow : Window
         NormalSpeed.IsChecked = !slowQuick;
         SlowQuick.IsChecked = slowQuick;
         AudioSection.IsVisible = !photo && !_useWifi;
-        ShutterButton.IsVisible = DrivePanel.IsVisible = TimeLapseSection.IsVisible = PhotoSetup.IsVisible = photo;
+        ShutterButton.IsVisible = PhotoModes.IsVisible = PhotoSetup.IsVisible = photo;
+        // Time-lapse is the camera's own setting, so its tab follows the camera. Long exposure is this app's.
+        bool timeLapse = _cam.TimeLapseOn, longExposure = !timeLapse && _longExposure;
+        StillMode.IsChecked = !timeLapse && !longExposure;
+        TimeLapseMode.IsChecked = timeLapse;
+        LongExposureMode.IsChecked = longExposure;
+        TimeLapseMode.IsEnabled = _cam.Get(PropCode.Interval_Rec_Mode) is { Writable: true } || timeLapse;
+        DrivePanel.IsVisible = photo && !timeLapse && !longExposure;
+        TimeLapseBox.IsVisible = photo && timeLapse;
+        LongExposureBox.IsVisible = photo && longExposure;
         foreach (var row in _rows.Where(r => r.Section == "photo"))
             row.Root.IsVisible = _cam.Applies(row.Code);
         FolderRow.IsVisible = _cam.SendsToComputer;
         PhotoFolderText.Text = _cam.PhotoFolder;
-        ShutterLabel.Text = _cam.TimeLapseRunning ? "Stop time-lapse" : _cam.TimeLapseOn ? "Start time-lapse" : "Take photo";
+        ShutterLabel.Text = _cam.TimeLapseRunning ? "Stop time-lapse" : timeLapse ? "Start time-lapse" : longExposure ? LongExposureLabel() : "Take photo";
         var interval = _cam.Get(PropCode.IntervalRec_ShootingInterval);
         var shots = _cam.Get(PropCode.IntervalRec_NumberOfShots);
         TimeLapsePlan.Text = interval == null || shots == null ? "" : Format.TimeLapse(interval.Value, shots.Value);
@@ -593,25 +863,53 @@ public partial class MainWindow : Window
 
     // ---- Automatic recording ----
 
-    // What automatic recording can look for. Only animals for now: a new subject needs its own detector in BirdTrigger.
-    private static readonly (string Name, string Tip)[] RecordSubjects =
-    [
-        ("Animal", "Birds and a few other animals: cats, dogs, horses, sheep, cows, elephants, bears, zebras and giraffes."),
-    ];
+    private static readonly int[] RecordStopChoices = [10, 15, 30, 60]; // seconds
 
+    /// <summary>What automatic recording looks for and when it stops, kept from one run to the next.</summary>
     private void MakeRecordSubjectButtons()
     {
-        foreach (var (subject, tip) in RecordSubjects)
-        {
-            var b = new ToggleButton
+        _bird.Subject = RecordSubject.Named(_settings.RecordSubject);
+        _bird.QuietStop = TimeSpan.FromSeconds(_settings.RecordStopAfter);
+        _bird.FocusOnIt = _settings.RecordFocus;
+        RecordFocus.IsChecked = _settings.RecordFocus;
+        foreach (var subject in RecordSubject.All)
+            RecordSubjectButtons.Children.Add(OptionButton(subject.Name, subject.Tip, () => _bird.Subject == subject, () =>
             {
-                Content = subject, Margin = new Thickness(2), Padding = new Thickness(8, 5, 8, 5), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Center,
-                IsChecked = subject == RecordSubjects[0].Name,
-            };
-            ToolTip.SetTip(b, tip);
-            b.Click += (_, _) => { foreach (ToggleButton other in RecordSubjectButtons.Children) other.IsChecked = other == b; };
-            RecordSubjectButtons.Children.Add(b);
-        }
+                _bird.Subject = subject;
+                _settings.RecordSubject = subject.Name;
+                AnimalLabel.Text = subject.Name.ToLowerInvariant();
+            }, RecordSubjectButtons));
+        foreach (int seconds in RecordStopChoices)
+            RecordStopButtons.Children.Add(OptionButton(seconds < 60 ? $"{seconds} s" : $"{seconds / 60} min", null, () => _bird.QuietStop.TotalSeconds == seconds, () =>
+            {
+                _bird.QuietStop = TimeSpan.FromSeconds(seconds);
+                _settings.RecordStopAfter = seconds;
+            }, RecordStopButtons));
+        AnimalLabel.Text = _bird.Subject.Name.ToLowerInvariant();
+    }
+
+    private void OnRecordFocusClick(object? sender, RoutedEventArgs e)
+    {
+        _bird.FocusOnIt = _settings.RecordFocus = RecordFocus.IsChecked == true;
+        _settings.Save();
+    }
+
+    /// <summary>One of a row of choices kept by this app. Picking it lights it and saves the settings.</summary>
+    private ToggleButton OptionButton(string text, string? tip, Func<bool> isOn, Action pick, Panel row)
+    {
+        var b = new ToggleButton
+        {
+            Content = text, Margin = new Thickness(2), Padding = new Thickness(6, 5, 6, 5), HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Center, IsChecked = isOn(), Tag = isOn,
+        };
+        if (tip != null) ToolTip.SetTip(b, tip);
+        b.Click += (_, _) =>
+        {
+            pick();
+            _settings.Save();
+            foreach (var other in row.Children.OfType<ToggleButton>()) other.IsChecked = ((Func<bool>)other.Tag!)();
+        };
+        return b;
     }
 
     private void OnBirdWatchClick(object? sender, RoutedEventArgs e)
@@ -626,9 +924,11 @@ public partial class MainWindow : Window
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
+        if (FocusManager?.GetFocusedElement() is TextBox) return; // typing a note, not shortcuts
         if (e.Key == Key.F9 && _cam.State == LinkState.Connected)
         {
-            if (_cam.IsPhotoMode)
+            if (LongExposureShowing) ToggleLongExposure();
+            else if (_cam.IsPhotoMode)
             {
                 _cam.ShutterDown();
                 _cam.ShutterUp();
@@ -653,6 +953,11 @@ public partial class MainWindow : Window
             var chip = e.Key switch { Key.H => HistogramChip, Key.Z => ZebraChip, Key.P => PeakingChip, _ => GridChip };
             chip.IsChecked = chip.IsChecked != true;
             ApplyAssist();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.R && e.KeyModifiers is KeyModifiers.None or KeyModifiers.Shift)
+        {
+            Rotate(e.KeyModifiers == KeyModifiers.Shift ? -90 : 90);
             e.Handled = true;
         }
     }
@@ -700,6 +1005,7 @@ public partial class MainWindow : Window
     private void OnPropsChanged()
     {
         foreach (var row in _rows) row.Update(_cam.Get(row.Code));
+        _drive.Update(_cam.Get(PropCode.DriveMode));
 
         bool iso = _cam.Get(PropCode.IsoSensitivity) is { Writable: true };
         BaseIsoButtons.IsEnabled = iso;
@@ -858,7 +1164,7 @@ public partial class MainWindow : Window
             RecTime.Text = "● REC " + (DateTime.Now - start).ToString(@"hh\:mm\:ss") + (_settings.RecordingJoined ? "+" : "");
         int frames = _useWifi ? _live.TakeFrameCount() : _video.TakeFrameCount();
         string format = _useWifi ? _live.Format : _video.Format;
-        ToolTip.SetTip(MessageBar, format.Length == 0 ? null : $"Picture: {format}, {frames} fps shown");
+        ToolTip.SetTip(MessageText, format.Length == 0 ? null : $"Picture: {format}, {frames} fps shown");
     }
 
     private void ShowMessage(string msg) => MessageText.Text = msg;
@@ -1116,10 +1422,6 @@ public partial class MainWindow : Window
 
     // ---- Shooting guides ----
 
-    private static readonly int[] ZebraLevels = [70, 80, 90, 95, 100];
-    private static readonly (string Name, uint Color)[] PeakColors =
-        [("Red", 0xFF3030u), ("Yellow", 0xFFE030u), ("Cyan", 0x30E0FFu), ("White", 0xFFFFFFu)];
-
     private void SetUpAssist()
     {
         _loadingAssist = true;
@@ -1127,19 +1429,55 @@ public partial class MainWindow : Window
         ZebraChip.IsChecked = _settings.ShowZebras;
         PeakingChip.IsChecked = _settings.ShowPeaking;
         GridChip.IsChecked = _settings.ShowGrid;
-        ZebraLevelBox.ItemsSource = ZebraLevels.Select(v => $"{v}%").ToList();
-        PeakSensitivityBox.ItemsSource = new[] { "Low", "Medium", "High" };
-        PeakColorBox.ItemsSource = PeakColors.Select(c => c.Name).ToList();
-        ZebraLevelBox.SelectedIndex = Array.IndexOf(ZebraLevels, _settings.ZebraLevel);
-        PeakSensitivityBox.SelectedIndex = _settings.PeakSensitivity;
-        PeakColorBox.SelectedIndex = Array.FindIndex(PeakColors, c => c.Color == _settings.PeakColor);
+        foreach (int level in new[] { 70, 80, 90, 95, 100 })
+            ZebraLevelButtons.Children.Add(OptionButton($"{level}%", null, () => _settings.ZebraLevel == level, () =>
+            {
+                _settings.ZebraLevel = level;
+                ZebraChip.IsChecked = true; // picking a level means wanting to see it
+                ApplyAssist();
+            }, ZebraLevelButtons));
+        string[] strengths = ["Low", "Medium", "High"];
+        for (int i = 0; i < strengths.Length; i++)
+        {
+            int s = i;
+            PeakStrengthButtons.Children.Add(OptionButton(strengths[i], null, () => _settings.PeakSensitivity == s, () =>
+            {
+                _settings.PeakSensitivity = s;
+                PeakingChip.IsChecked = true;
+                ApplyAssist();
+            }, PeakStrengthButtons));
+        }
+        foreach (var (name, rgb) in new[] { ("Red", 0xFF3030u), ("Yellow", 0xFFE030u), ("Cyan", 0x30E0FFu), ("White", 0xFFFFFFu) })
+        {
+            var swatch = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Children =
+                {
+                    new Ellipse { Width = 10, Height = 10, Margin = new Thickness(0, 0, 5, 0), VerticalAlignment = VerticalAlignment.Center,
+                                  Fill = new SolidColorBrush(Color.FromRgb((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb)) },
+                    new TextBlock { Text = name },
+                },
+            };
+            var b = OptionButton(name, null, () => _settings.PeakColor == rgb, () =>
+            {
+                _settings.PeakColor = rgb;
+                PeakingChip.IsChecked = true;
+                ApplyAssist();
+            }, PeakColorButtons);
+            b.Content = swatch;
+            PeakColorButtons.Children.Add(b);
+        }
+        ExposureHud.RenderTransform = _hudShift;
+        ExposureHud.Width = Math.Max(200, _settings.HudWidth);
+        _hudShift.X = Math.Min(0, _settings.HudX);
+        _hudShift.Y = Math.Min(0, _settings.HudY);
+        HistogramBox.Height = ExposureHud.Width * 0.23;
         _loadingAssist = false;
         ApplyAssist();
     }
 
     private void OnAssistToggle(object? sender, RoutedEventArgs e) => ApplyAssist();
-
-    private void OnAssistSettingChanged(object? sender, SelectionChangedEventArgs e) => ApplyAssist();
 
     /// <summary>Saves the guide settings, and only reads the picture while something needs it.</summary>
     private void ApplyAssist()
@@ -1149,37 +1487,31 @@ public partial class MainWindow : Window
         _settings.ShowZebras = ZebraChip.IsChecked == true;
         _settings.ShowPeaking = PeakingChip.IsChecked == true;
         _settings.ShowGrid = GridChip.IsChecked == true;
-        if (ZebraLevelBox.SelectedIndex >= 0) _settings.ZebraLevel = ZebraLevels[ZebraLevelBox.SelectedIndex];
-        if (PeakSensitivityBox.SelectedIndex >= 0) _settings.PeakSensitivity = PeakSensitivityBox.SelectedIndex;
-        if (PeakColorBox.SelectedIndex >= 0) _settings.PeakColor = PeakColors[PeakColorBox.SelectedIndex].Color;
         _settings.Save();
 
         bool layer = _settings.ShowZebras || _settings.ShowPeaking;
         _assist.Options = new AssistOptions(_settings.ShowHistogram || layer || AssistDetail.IsOpen, _settings.ShowZebras,
             _settings.ZebraLevel, _settings.ShowPeaking, _settings.PeakSensitivity, _settings.PeakColor);
-        HistogramBox.IsVisible = ClipBox.IsVisible = _settings.ShowHistogram;
+        HistogramPart.IsVisible = _settings.ShowHistogram;
+        ShowHud();
         AssistLayer.IsVisible = layer;
         GuideGrid.IsVisible = _settings.ShowGrid;
     }
 
-    private void OnHistogramPressed(object? sender, PointerPressedEventArgs e) => OpenAssistDetail(HistogramBox);
+    private void OnAssistDetailClick(object? sender, RoutedEventArgs e) => OpenAssistDetail(ViewOptionsButton);
 
-    private void OnAssistDetailClick(object? sender, RoutedEventArgs e) =>
-        OpenAssistDetail(HistogramBox.IsVisible ? HistogramBox : DetailButton);
-
+    /// <summary>
+    /// Opens the levels over what was clicked. A second click on it only closes it: Avalonia's light dismiss
+    /// takes that click, so unlike on Windows there's no need to tell it from a click to open.
+    /// </summary>
     private void OpenAssistDetail(Control target)
     {
-        if ((DateTime.Now - _assistDetailClosed).TotalMilliseconds < 250) return; // that click just closed it
         AssistDetail.PlacementTarget = target;
         AssistDetail.IsOpen = true;
         ApplyAssist();
     }
 
-    private void OnAssistDetailClosed(object? sender, EventArgs e)
-    {
-        _assistDetailClosed = DateTime.Now;
-        ApplyAssist();
-    }
+    private void OnAssistDetailClosed(object? sender, EventArgs e) => ApplyAssist();
 
     private void ShowAssist(AssistResult r)
     {
@@ -1216,10 +1548,99 @@ public partial class MainWindow : Window
         OverText.Text = UnderText.Text = DetailText.Text = "";
     }
 
+    // ---- The histogram and meter over the picture ----
+
+    private readonly TranslateTransform _hudShift = new(); // how far it's been dragged from the picture's bottom-right corner
+    private Point _hudFrom;
+    private bool _hudHeld, _hudDragged, _hudResizing;
+    private double _hudStartX, _hudStartY, _hudStartWidth;
+
+    /// <summary>Shown while it has the histogram or the meter to show.</summary>
+    private void ShowHud() => ExposureHud.IsVisible = HistogramPart.IsVisible || MeterBox.IsVisible;
+
+    private void OnHudGripDown(object? sender, PointerPressedEventArgs e) => _hudResizing = true; // the panel's own handler takes it from here
+
+    private void OnHudDown(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(ExposureHud).Properties.IsLeftButtonPressed)
+        {
+            _hudResizing = false;
+            return;
+        }
+        _hudFrom = e.GetPosition(PictureStage);
+        _hudDragged = false;
+        _hudHeld = true;
+        (_hudStartX, _hudStartY, _hudStartWidth) = (_hudShift.X, _hudShift.Y, ExposureHud.Width);
+        e.Pointer.Capture(ExposureHud);
+        e.Handled = true; // not a click to focus
+    }
+
+    private void OnHudMove(object? sender, PointerEventArgs e)
+    {
+        if (!_hudHeld) return;
+        var d = e.GetPosition(PictureStage) - _hudFrom;
+        if (!_hudDragged && Math.Abs(d.X) + Math.Abs(d.Y) < 4) return; // still a click
+        _hudDragged = true;
+        if (_hudResizing)
+        {
+            // It's pinned by its bottom-right corner, so pulling the top-left corner out makes it wider.
+            ExposureHud.Width = Math.Clamp(_hudStartWidth - d.X, 200, Math.Max(200, PictureStage.Bounds.Width * 0.6));
+            HistogramBox.Height = ExposureHud.Width * 0.23;
+        }
+        else
+        {
+            _hudShift.X = _hudStartX + d.X;
+            _hudShift.Y = _hudStartY + d.Y;
+        }
+        KeepHudInside();
+    }
+
+    private void OnHudUp(object? sender, PointerReleasedEventArgs e)
+    {
+        if (!_hudHeld) return;
+        _hudHeld = false; // first, so losing the capture below doesn't count as a second let-go
+        e.Pointer.Capture(null);
+        bool click = !_hudDragged;
+        _hudResizing = false;
+        if (click)
+        {
+            OpenAssistDetail(ExposureHud);
+            return;
+        }
+        SaveHud();
+    }
+
+    /// <summary>The Mac took the pointer away mid-drag, say for a Mission Control swipe: keep where it got to.</summary>
+    private void OnHudCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        if (!_hudHeld) return;
+        _hudHeld = _hudResizing = false;
+        if (_hudDragged) SaveHud();
+    }
+
+    private void SaveHud()
+    {
+        (_settings.HudX, _settings.HudY, _settings.HudWidth) = (_hudShift.X, _hudShift.Y, ExposureHud.Width);
+        _settings.Save();
+    }
+
+    private void OnPictureStageSized(object? sender, SizeChangedEventArgs e) => KeepHudInside();
+
+    /// <summary>Keeps the panel over the picture when it's dragged or the window shrinks.</summary>
+    private void KeepHudInside()
+    {
+        const double Margin = 24; // its own 12 at the corner, and 12 at the far side
+        double roomX = Math.Max(0, PictureStage.Bounds.Width - ExposureHud.Width - Margin);
+        double roomY = Math.Max(0, PictureStage.Bounds.Height - ExposureHud.Bounds.Height - Margin);
+        _hudShift.X = Math.Clamp(_hudShift.X, -roomX, 0);
+        _hudShift.Y = Math.Clamp(_hudShift.Y, -roomY, 0);
+    }
+
     private void ShowMeter()
     {
         var stops = _cam.State == LinkState.Connected ? _cam.MeterStops : null;
         MeterBox.IsVisible = stops != null;
+        ShowHud();
         if (stops is not double s) return;
         Canvas.SetLeft(ExposureNeedle, MeterX(s) - 1);
         ExposureText.Text = Format.Meter(s);

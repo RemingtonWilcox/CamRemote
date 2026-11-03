@@ -57,8 +57,8 @@
             <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
-        <!-- The side panel's buttons, drawn like the iPhone app's: dark rounded tiles, the chosen one lighter. -->
-        <Style Selector="Border#SidePanel Button, Border#SidePanel RepeatButton, Border#SidePanel ToggleButton:not(.PageTab)">
+        <!-- The side panel's buttons, drawn like the iPhone app's: dark rounded tiles, the chosen one lighter. The levels popup's choices match. -->
+        <Style Selector="Border#SidePanel Button, Border#SidePanel RepeatButton, Border#SidePanel ToggleButton:not(.PageTab), Border#LevelsPanel ToggleButton">
             <Setter Property="Background" Value="#1B1E22" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="BorderThickness" Value="0" />
@@ -66,34 +66,34 @@
             <Setter Property="Padding" Value="8,6" />
             <Setter Property="Focusable" Value="False" />
         </Style>
-        <Style Selector="Border#SidePanel ToggleButton:not(.PageTab)">
+        <Style Selector="Border#SidePanel ToggleButton:not(.PageTab), Border#LevelsPanel ToggleButton">
             <Setter Property="Foreground" Value="#B8B8B8" />
         </Style>
         <Style Selector="Border#SidePanel Button:pointerover /template/ ContentPresenter#PART_ContentPresenter,
                          Border#SidePanel RepeatButton:pointerover /template/ ContentPresenter#PART_ContentPresenter,
-                         Border#SidePanel ToggleButton:not(.PageTab):pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                         Border#SidePanel ToggleButton:not(.PageTab):pointerover /template/ ContentPresenter#PART_ContentPresenter, Border#LevelsPanel ToggleButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#262A30" />
             <Setter Property="Foreground" Value="White" />
         </Style>
         <Style Selector="Border#SidePanel Button:pressed /template/ ContentPresenter#PART_ContentPresenter,
                          Border#SidePanel RepeatButton:pressed /template/ ContentPresenter#PART_ContentPresenter,
-                         Border#SidePanel ToggleButton:not(.PageTab):pressed /template/ ContentPresenter#PART_ContentPresenter">
+                         Border#SidePanel ToggleButton:not(.PageTab):pressed /template/ ContentPresenter#PART_ContentPresenter, Border#LevelsPanel ToggleButton:pressed /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#3A4048" />
         </Style>
-        <Style Selector="Border#SidePanel ToggleButton:not(.PageTab):checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Style Selector="Border#SidePanel ToggleButton:not(.PageTab):checked /template/ ContentPresenter#PART_ContentPresenter, Border#LevelsPanel ToggleButton:checked /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#3A4048" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
-        <Style Selector="Border#SidePanel ToggleButton:not(.PageTab):checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Style Selector="Border#SidePanel ToggleButton:not(.PageTab):checked:pointerover /template/ ContentPresenter#PART_ContentPresenter, Border#LevelsPanel ToggleButton:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#444B54" />
         </Style>
-        <Style Selector="Border#SidePanel Button:disabled, Border#SidePanel RepeatButton:disabled, Border#SidePanel ToggleButton:not(.PageTab):disabled">
+        <Style Selector="Border#SidePanel Button:disabled, Border#SidePanel RepeatButton:disabled, Border#SidePanel ToggleButton:not(.PageTab):disabled, Border#LevelsPanel ToggleButton:disabled">
             <Setter Property="Opacity" Value="0.45" />
         </Style>
         <Style Selector="Border#SidePanel Button:disabled /template/ ContentPresenter#PART_ContentPresenter,
                          Border#SidePanel RepeatButton:disabled /template/ ContentPresenter#PART_ContentPresenter,
-                         Border#SidePanel ToggleButton:not(.PageTab):disabled /template/ ContentPresenter#PART_ContentPresenter">
+                         Border#SidePanel ToggleButton:not(.PageTab):disabled /template/ ContentPresenter#PART_ContentPresenter, Border#LevelsPanel ToggleButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#1B1E22" />
             <Setter Property="Foreground" Value="White" />
         </Style>

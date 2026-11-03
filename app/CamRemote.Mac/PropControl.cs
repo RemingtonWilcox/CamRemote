@@ -70,7 +70,7 @@ public sealed class PropControl : IPropRow
             _more.Click += (_, _) =>
             {
                 Show(); // the click toggled it; what the camera has decides
-                _popup!.IsOpen = true;
+                Open();
             };
             Root.Children.Add(_more);
         }
@@ -84,7 +84,7 @@ public sealed class PropControl : IPropRow
                                          TextTrimming = TextTrimming.CharacterEllipsis };
             _value = new Button { HorizontalAlignment = HorizontalAlignment.Stretch, MinHeight = kind == Kind.Stepper ? 54 : 46, Padding = new Thickness(6, 4, 6, 4),
                                   Content = new StackPanel { Children = { _label, _valueText } } };
-            _value.Click += (_, _) => { if (_popup != null) _popup.IsOpen = true; };
+            _value.Click += (_, _) => Open();
         }
         _grid = new UniformGrid { Columns = 4, Margin = new Thickness(6) };
         _popup = new Popup
@@ -119,6 +119,15 @@ public sealed class PropControl : IPropRow
             Root.Children.Add(row);
         }
         Root.Children.Add(_popup);
+    }
+
+    /// <summary>
+    /// Opens the grid. A click on the button that opened it only closes it: while it's open, Avalonia lays a
+    /// see-through layer over the window that takes the click, so the button never hears it and can't reopen it.
+    /// </summary>
+    private void Open()
+    {
+        if (_popup != null) _popup.IsOpen = true;
     }
 
     private void Step(int dir)
@@ -158,6 +167,9 @@ public sealed class PropControl : IPropRow
     {
         bool usable = p != null && p.Writable;
         Root.Opacity = p == null ? 0.45 : 1;
+        // A connected camera that doesn't have this setting at all never will, so don't show it. Before
+        // connecting it stays, dimmed, so the panel shows what's there.
+        Root.IsVisible = !(p == null && _cam.State == LinkState.Connected && _cam.Props.Count > 0);
         if (p == null)
         {
             _wanted = null;
