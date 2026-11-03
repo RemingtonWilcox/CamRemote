@@ -31,6 +31,8 @@ static int connect_to(const char *host, int port, int timeout_ms)
 
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) return -1;
+    int on = 1;
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof on); // a dropped link must be an error, not a crash
     int flags = fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     if (connect(fd, (struct sockaddr *)&address, sizeof address) != 0) {
@@ -130,6 +132,7 @@ int cam_ssh_read(int channel, void *buffer, int size, int timeout_ms)
         ssize_t n = libssh2_channel_read(g_channels[channel], (char *)buffer + got, size - got);
         if (n > 0) {
             got += (int)n;
+            waited = 0;
         } else if (n == LIBSSH2_ERROR_EAGAIN || n == 0) {
             if (n == 0 && libssh2_channel_eof(g_channels[channel])) return -1;
             if (waited > timeout_ms) return -1;

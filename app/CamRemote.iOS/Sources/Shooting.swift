@@ -25,11 +25,16 @@ struct ShootingView: View {
     @State private var pressing = false
     @State private var shooting = false
     @State private var blink = 0.0
+    @Environment(\.scenePhase) private var phase
 
     var body: some View {
         Group {
             if fullScreen { fullScreenView } else { uprightView }
         }
+        // A call or the button changing mid-press never reports the finger lifting, and the camera would keep firing.
+        .onChange(of: phase) { if $0 != .active { letGoOfShutter() } }
+        .onChange(of: camera.photoMode) { _ in letGoOfShutter() }
+        .onChange(of: camera.timeLapseRunning) { _ in letGoOfShutter() }
         .overlay(alignment: .bottom) { toast }
         .sheet(item: $chooser) { row in
             ChoiceSheet(row: row) { camera.set(row.code, $0) }
@@ -167,7 +172,7 @@ struct ShootingView: View {
                 .background(selected ? Color.chosen : Color.panel, in: RoundedRectangle(cornerRadius: 8))
         }
         .foregroundColor(selected ? .white : .dim)
-        .disabled(selected || camera.recording)
+        .disabled(selected || camera.recording || camera.timeLapseRunning)
     }
 
     @ViewBuilder private var captureNote: some View {
@@ -277,6 +282,7 @@ struct ShootingView: View {
                 }
             }
             .padding(.vertical, 12)
+            .padding(.horizontal, 8)
 
             VStack(spacing: 6) {
                 if showSettings { SettingsBar(camera: camera) }
@@ -458,6 +464,12 @@ struct ShootingView: View {
         }
     }
 
+    private func letGoOfShutter() {
+        pressing = false
+        shooting = false
+        camera.shutterUp()
+    }
+
     private func showShot() {
         shooting = true
         UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
@@ -477,7 +489,7 @@ struct ShootingView: View {
                 .onTapGesture { camera.message = "" }
                 .task(id: camera.message) {
                     try? await Task.sleep(nanoseconds: 3_500_000_000)
-                    camera.message = ""
+                    if !Task.isCancelled { camera.message = "" } // cancelled means a newer message took over
                 }
         }
     }
@@ -521,6 +533,18 @@ struct LiveView: View {
                         .position(focusMark)
                 }
                 Color.black.opacity(blink).allowsHitTesting(false)
+                // A frozen picture looks just like a live one, so say so.
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    if context.date.timeIntervalSince(camera.frameTime) > 3 {
+                        Text("Waiting for the camera")
+                            .font(.footnote.weight(.semibold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.black.opacity(0.7), in: Capsule())
+                            .position(x: box.size.width / 2, y: box.size.height / 2)
+                    }
+                }
+                .allowsHitTesting(false)
             }
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 0).onEnded { touch in
@@ -685,7 +709,12 @@ struct Dial: View {
             .opacity(enabled ? 1 : 0.5)
             .overlay {
                 if let hint {
-                    Text(hint).font(.caption).foregroundColor(.white)
+                    Text(hint)
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.panel, in: RoundedRectangle(cornerRadius: 5))
                 } else if !value.isEmpty {
                     Text(value)
                         .font(.footnote.weight(.bold))
@@ -844,8 +873,8 @@ struct SetupSheet: View {
                     chip(Code.whiteBalance)
                     SilentChip(camera: camera)
                 }
-                section("THIS PHONE")
-                Text("Photos and video stay on the camera's card. \(camera.battery) battery, \(camera.card) left.")
+                section("CONNECTION")
+                Text("Photos and video stay on the camera's card.")
                     .font(.footnote)
                     .foregroundColor(.dim)
                 Button("Disconnect") {

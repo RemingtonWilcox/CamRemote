@@ -136,17 +136,23 @@ private func read32(_ data: [UInt8], _ at: Int) -> UInt32 {
 /// Each entry: code, type, get/set, enabled, default, current, form, then its limits or choices.
 private func parseSettings(_ data: [UInt8]) throws -> [UInt16: Setting] {
     func value(_ pos: inout Int, _ kind: UInt16) throws -> Int64 {
+        func need(_ bytes: Int) throws {
+            guard pos + bytes <= data.count else { throw PtpError(text: "settings list cut short") }
+        }
         if kind == 0xFFFF {
+            try need(1)
             let length = Int(data[pos])
             pos += 1 + 2 * length
             return 0
         }
         if kind & 0x4000 != 0 {
             guard let size = sizes[kind & 0xFF] else { throw PtpError(text: "unknown list type \(kind)") }
+            try need(4)
             pos += 4 + Int(read32(data, pos)) * size
             return 0
         }
         guard let size = sizes[kind] else { throw PtpError(text: "unknown type \(kind)") }
+        try need(size)
         var result: UInt64 = 0
         for i in 0..<min(size, 8) { result |= UInt64(data[pos + i]) << (8 * UInt64(i)) }
         pos += size
@@ -154,11 +160,13 @@ private func parseSettings(_ data: [UInt8]) throws -> [UInt16: Setting] {
         return Int64(bitPattern: result)
     }
     func list(_ pos: inout Int, _ kind: UInt16) throws -> [Int64] {
+        guard pos + 2 <= data.count else { throw PtpError(text: "settings list cut short") }
         let count = Int(read16(data, pos))
         pos += 2
         return try (0..<count).map { _ in try value(&pos, kind) }
     }
 
+    guard data.count >= 8 else { throw PtpError(text: "settings list cut short") }
     let expected = Int(read32(data, 0))
     var found: [UInt16: Setting] = [:]
     var pos = 8
@@ -167,6 +175,7 @@ private func parseSettings(_ data: [UInt8]) throws -> [UInt16: Setting] {
         pos += 6
         _ = try value(&pos, kind)
         let current = try value(&pos, kind)
+        guard pos < data.count else { throw PtpError(text: "settings list cut short") }
         let form = data[pos]
         pos += 1
         var choices: [Int64] = []
@@ -189,6 +198,7 @@ final class Camera: ObservableObject {
 
     @Published var link = Link.off
     @Published var frame: UIImage?
+    @Published var frameTime = Date()
     @Published var problem = ""
     @Published var message = ""
     @Published var rows: [UInt16: Row] = [:]
@@ -207,6 +217,7 @@ final class Camera: ObservableObject {
     @Published var timeLapseTaken = 0
     @Published var dialOnMovie = false // as of connecting; the camera doesn't report the dial after that
     @Published var keepTrying = false
+    @Published var editingLogin = false
     @Published var loginRefused = false
     @Published var lowBattery = false
     @Published var lowCard = false
@@ -435,6 +446,7 @@ final class Camera: ObservableObject {
             }
             guard try self.setValue(Code.timeLapseMode, 2) == ok else {
                 self.tell("The camera won't start a time-lapse right now.")
+                try self.endTimeLapse()
                 return
             }
             Thread.sleep(forTimeInterval: 0.3)
@@ -636,7 +648,10 @@ final class Camera: ObservableObject {
             try loop()
         } catch {
             log("Stopped: \(error)")
-            problem = "Lost the camera. Looking for it again."
+            lock.lock()
+            let leaving = stopping // a hang-up that failed partway is still the hang-up that was asked for
+            lock.unlock()
+            if !leaving { problem = "Lost the camera. Looking for it again." }
         }
         cam_ssh_close()
         finish(problem, retry: !problem.isEmpty)
@@ -651,7 +666,7 @@ final class Camera: ObservableObject {
         let guid: [UInt8] = (0..<16).map { _ in UInt8.random(in: 0...255) }
         try sendPacket(0, 1, guid + name + u32(0x00010000))
         let (kind, body) = try readPacket(0)
-        guard kind == 2 else { throw PtpError(text: "camera refused the start, type \(kind)") }
+        guard kind == 2, body.count >= 4 else { throw PtpError(text: "camera refused the start, type \(kind)") }
         try sendPacket(1, 3, Array(body[0..<4]))
         let (eventKind, _) = try readPacket(1)
         guard eventKind == 4 else { throw PtpError(text: "camera refused the event channel, type \(eventKind)") }
@@ -700,8 +715,8 @@ final class Camera: ObservableObject {
                 pending = []
                 let done = stopping, resting = quiet
                 lock.unlock()
+                for action in actions { try action() } // first, because letting go of the shutter arrives with the hang-up
                 if done { return true }
-                for action in actions { try action() }
                 try pumpEvents()
                 if Date().timeIntervalSince(lastRefresh) > 1 {
                     try refresh()
@@ -721,14 +736,17 @@ final class Camera: ObservableObject {
                     return false
                 }
                 let (rc, data) = try op(0x1009, [liveView])
-                if rc == ok, takeFrameSlot(), let image = jpeg(data) {
-                    DispatchQueue.main.async {
-                        self.frame = image
-                        self.freeFrameSlot()
+                if rc == ok, takeFrameSlot() {
+                    if let image = jpeg(data) {
+                        DispatchQueue.main.async {
+                            self.frame = image
+                            self.frameTime = Date()
+                            self.freeFrameSlot()
+                        }
+                        readGuides(image)
+                    } else {
+                        freeFrameSlot()
                     }
-                    readGuides(image)
-                } else if rc == ok {
-                    freeFrameSlot()
                 }
                 return false
             }
@@ -943,6 +961,7 @@ final class Camera: ObservableObject {
         }
         while events.count >= 8, events.count >= Int(read32(events, 0)) {
             let size = Int(read32(events, 0))
+            guard size >= 8 else { throw PtpError(text: "bad event from the camera") }
             if read32(events, 4) == 13 { try sendPacket(1, 14, []) }
             events.removeFirst(size)
         }
@@ -950,7 +969,7 @@ final class Camera: ObservableObject {
 
     private func read(_ channel: Int32, _ size: Int) throws -> [UInt8] {
         var buffer = [UInt8](repeating: 0, count: size)
-        if size > 0, cam_ssh_read(channel, &buffer, Int32(size), 90000) != Int32(size) {
+        if size > 0, cam_ssh_read(channel, &buffer, Int32(size), 30000) != Int32(size) {
             throw PtpError(text: "the camera stopped answering")
         }
         return buffer
@@ -958,7 +977,9 @@ final class Camera: ObservableObject {
 
     private func readPacket(_ channel: Int32) throws -> (UInt32, [UInt8]) {
         let header = try read(channel, 8)
-        return (read32(header, 4), try read(channel, Int(read32(header, 0)) - 8))
+        let size = Int(read32(header, 0))
+        guard size >= 8 else { throw PtpError(text: "bad packet from the camera") }
+        return (read32(header, 4), try read(channel, size - 8))
     }
 
     private func sendPacket(_ channel: Int32, _ kind: UInt32, _ body: [UInt8]) throws {

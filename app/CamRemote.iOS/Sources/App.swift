@@ -53,6 +53,7 @@ struct CamRemoteApp: App {
     @AppStorage("cameraKey") private var cameraKey = ""
     @State private var password = Keychain.password
     @State private var resume = false
+    @State private var launched = false
     @Environment(\.scenePhase) private var phase
 
     var body: some Scene {
@@ -68,28 +69,39 @@ struct CamRemoteApp: App {
                 }
             }
             .preferredColorScheme(.dark)
-            .onAppear { connectIfReady() }
+            .onAppear {
+                // This also runs each time the connect screen comes back, and Disconnect has to stay disconnected.
+                guard !launched else { return }
+                launched = true
+                connectIfReady()
+            }
             .onChange(of: phase) { now in
                 // iOS pauses the app in the background, so hand the camera back cleanly and pick up again.
                 if now == .background, camera.timeLapseRunning {
                     camera.holdConnection()
                 } else if now == .background {
-                    resume = camera.link == .on
+                    resume = camera.link != .off
                     camera.disconnect()
                 } else if now == .active {
                     camera.releaseHold()
-                    if resume {
-                        resume = false
-                        connectIfReady()
-                    }
+                    resumeIfNeeded()
                 }
             }
-            .onChange(of: camera.link) { UIApplication.shared.isIdleTimerDisabled = $0 == .on }
+            .onChange(of: camera.link) { link in
+                UIApplication.shared.isIdleTimerDisabled = link == .on
+                resumeIfNeeded() // a quick trip out of the app can come back before the old connection has closed
+            }
             // Only while the app is open, so turning the camera on is all it takes.
             .onReceive(Timer.publish(every: 4, on: .main, in: .common).autoconnect()) { _ in
-                if camera.link == .off, camera.keepTrying, phase == .active { connectIfReady() }
+                if camera.link == .off, camera.keepTrying, !camera.editingLogin, phase == .active { connectIfReady() }
             }
         }
+    }
+
+    private func resumeIfNeeded() {
+        guard resume, phase == .active, camera.link == .off else { return }
+        resume = false
+        connectIfReady()
     }
 
     private func connectIfReady() {
@@ -109,9 +121,8 @@ struct ConnectView: View {
     @Binding var password: String
     let connect: () -> Void
     let forget: () -> Void
-    @State private var changingLogin = false
 
-    private var askForLogin: Bool { changingLogin || camera.loginRefused || user.isEmpty || password.isEmpty }
+    private var askForLogin: Bool { camera.editingLogin || camera.loginRefused || user.isEmpty || password.isEmpty }
 
     var body: some View {
         ScrollView {
@@ -132,16 +143,12 @@ struct ConnectView: View {
             Text(camera.problem.isEmpty ? (camera.link == .connecting ? "Looking for your camera" : "Not connected") : camera.problem)
                 .foregroundColor(.dim)
                 .multilineTextAlignment(.center)
-            if camera.link == .off, !camera.keepTrying {
+            if camera.problem.contains("Forget") {
+                Button("Forget this camera", action: forget).buttonStyle(Big(color: .panel))
+            } else if camera.link == .off, !camera.keepTrying {
                 Button("Connect", action: connect).buttonStyle(Big(color: .panel))
             }
-            if camera.problem.contains("Forget") {
-                Button("Forget this camera", action: forget).foregroundColor(.dim)
-            }
-            Button("Change login") {
-                camera.keepTrying = false // so a half-typed password is never tried or saved
-                changingLogin = true
-            }
+            Button("Change login") { camera.editingLogin = true } // so a half-typed password is never tried or saved
                 .font(.footnote)
                 .foregroundColor(.dim)
                 .padding(.top, 24)
@@ -161,7 +168,7 @@ struct ConnectView: View {
             field("Camera address, only on home Wi-Fi", text: $address)
                 .keyboardType(.numbersAndPunctuation)
             Button(camera.link == .connecting ? "Connecting…" : "Connect") {
-                changingLogin = false
+                camera.editingLogin = false
                 camera.loginRefused = false
                 connect()
             }

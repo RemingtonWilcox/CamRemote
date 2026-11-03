@@ -5,6 +5,7 @@ private let clipLengths = [10, 20, 30, 60]
 private let frameRates = [24, 30, 60]
 private let maxShots = 9999
 private let maxDelay = 5999 // the camera's start timer stops at 99 minutes 59 seconds
+private let day = 24 * 3600
 
 private func words(_ total: Int) -> String {
     if total < 60 { return "\(total) s" }
@@ -77,15 +78,19 @@ private struct TimeLapsePlanner: View {
 
     private var interval: Int { intervals[Int(step)] }
 
+    // The pickers only choose a time of day, so their dates mean nothing. A time that's already gone means tomorrow.
     private var seconds: Int {
-        let span = Int(end.timeIntervalSince(start))
-        return span > 0 ? span : span + 24 * 3600 // an end before the start means tomorrow
+        let span = Int(end.timeIntervalSince(start)) % day
+        return span > 0 ? span : span + day
     }
 
     private var shots: Int { max(2, min(maxShots, seconds / interval)) }
     private var clip: Int { max(1, Int((Double(shots) / Double(fps)).rounded())) }
     private var speed: Int { interval * fps }
-    private var delay: Int { max(0, Int(start.timeIntervalSinceNow)) }
+    private var delay: Int {
+        let wait = Int(start.timeIntervalSinceNow) % day
+        return wait < -60 ? wait + day : max(0, wait) // a minute's grace for a sheet left open on "now"
+    }
 
     var body: some View {
         ScrollView {
