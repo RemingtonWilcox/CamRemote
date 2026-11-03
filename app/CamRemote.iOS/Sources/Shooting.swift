@@ -165,7 +165,7 @@ struct ShootingView: View {
             ScrollView {
                 if !camera.photoMode, AnimalTrigger.available { AnimalSwitch(animals: animals) }
                 ChipGrid(columns: columns) {
-                    ForEach(1...3, id: \.self) { slot in
+                    ForEach(1...4, id: \.self) { slot in // C4 as on the computer, often slow motion
                         PresetChip(camera: camera, slot: slot)
                     }
                     chip(Code.mode)

@@ -1103,7 +1103,7 @@ final class Camera: ObservableObject {
             if let taken { self.timeLapseTaken = taken }
             self.lowBattery = batteryIsLow
             self.lowCard = cardIsLow
-            defer { self.activeSlot = (1...3).first { self.preset($0).map { self.matches($0, values) } ?? false } }
+            defer { self.activeSlot = (1...4).first { self.preset($0).map { self.matches($0, values) } ?? false } }
             self.shotsLeft = shots
             self.timeLapseRunning = timeLapseRunning
             if isRecording != self.recording { self.recordingSince = isRecording ? Date() : nil }
