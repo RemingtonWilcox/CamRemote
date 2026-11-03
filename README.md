@@ -94,7 +94,9 @@ CamRemote is tested on the **A7S III**. Sony says its remote software can contro
 
 Update your camera to its latest firmware first. Some features, such as click to focus, may behave differently on your camera.
 
-**Won't work over Wi-Fi:** A9 II, A7R IV, A7R IVA, A7C, RX0 II, BRC-AM7 and FR7. Cameras not listed at all, such as the A7 III or a6400, aren't supported by Sony's software.
+**A9 II:** Sony doesn't list it for Wi-Fi, but a user has it connected. On the camera, turn **Ctrl w/ Smartphone** off, join your Wi-Fi under **Wi-Fi Settings › Access Point Set.**, then under **PC Remote Function** turn **PC Remote** on, set **PC Remote Cnct Method** to **Wi-Fi Access Point**, and choose **Pairing** while CamRemote is searching.
+
+**Won't work over Wi-Fi:** A7R IV, A7R IVA, A7C, RX0 II, BRC-AM7 and FR7. Cameras not listed at all, such as the A7 III or a6400, aren't supported by Sony's software.
 
 <br>
 
@@ -279,6 +281,8 @@ The camera's Wi-Fi signal is weak. Move your router or a mesh point closer to th
 
 Check that **Tap does** isn't set to **Off**, and that **Touch operation** is on in **Setup**.
 
+If **Tap does** is greyed out, or there's no **Touch operation** in **Setup**, turn **Touch Operation** on in the camera's own menu. Some cameras, like the A9 II, don't let the app change it.
+
 </details>
 
 <details>
@@ -328,7 +332,7 @@ That's normal after resetting the camera or changing its Access Authen. settings
 
 ## Other cameras
 
-**More Sony cameras.** The A9 II, A7R IV, A7R IVA, A7C, RX0 II, BRC-AM7 and FR7 are in Sony's software but can't be reached over Wi-Fi. A wired connection could bring some of them in. It hasn't been built yet.
+**More Sony cameras.** The A7R IV, A7R IVA, A7C, RX0 II, BRC-AM7 and FR7 are in Sony's software but can't be reached over Wi-Fi. (The A9 II can, [as above](#which-cameras-work).) A wired connection could bring some of them in. It hasn't been built yet.
 
 **Other brands.** CamRemote only speaks to Sony cameras today. Other makers publish their own developer kits, so the same idea could work there, but each brand would need its own connection built and tested from scratch:
 
