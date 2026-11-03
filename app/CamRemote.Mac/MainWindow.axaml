@@ -93,7 +93,7 @@
         </DockPanel>
 
         <!-- Controls -->
-        <Border Grid.Row="0" Grid.RowSpan="4" Grid.Column="1" BorderBrush="#333" BorderThickness="1,0,0,0">
+        <Border x:Name="SidePanel" Grid.Row="0" Grid.RowSpan="4" Grid.Column="1" BorderBrush="#333" BorderThickness="1,0,0,0">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Margin="16,10,16,0">
                     <DockPanel>
@@ -139,6 +139,8 @@
                                     <TextBlock x:Name="TimeLapsePlan" Classes="Small" Margin="0,0,0,4" />
                                 </StackPanel>
                             </Expander>
+                            <!-- C1 to C4: the camera's settings, saved in this app separately for video and photo -->
+                            <UniformGrid x:Name="PresetButtons" Columns="2" Margin="-3,8,-3,0" />
 
                             <TextBlock Text="EXPOSURE" Classes="Section" />
                             <StackPanel x:Name="ExposurePanel" />
@@ -153,8 +155,8 @@
                             <StackPanel x:Name="FocusPanel" />
                             <StackPanel x:Name="ManualFocus" Margin="0,2,0,0">
                                 <TextBlock Text="Focus ring: drag or scroll" FontSize="12" Foreground="Gray" Margin="0,0,0,3" />
-                                <Border x:Name="FocusWheel" Height="44" Margin="0,0,0,6" Background="#191919" BorderBrush="#444" BorderThickness="1"
-                                        CornerRadius="4" ClipToBounds="True" Cursor="SizeWestEast" PointerPressed="OnWheelDown" PointerMoved="OnWheelMove"
+                                <Border x:Name="FocusWheel" Height="44" Margin="0,0,0,6" Background="#1B1E22" BorderBrush="#30353B" BorderThickness="1"
+                                        CornerRadius="8" ClipToBounds="True" Cursor="SizeWestEast" PointerPressed="OnWheelDown" PointerMoved="OnWheelMove"
                                         PointerReleased="OnWheelUp" PointerWheelChanged="OnWheelScroll" ToolTip.Tip="Drag slowly for fine focus, faster for bigger moves.">
                                     <Canvas x:Name="WheelTicks" />
                                 </Border>
@@ -168,7 +170,7 @@
                                             <TextBlock Text="∞" FontSize="15" />
                                         </StackPanel>
                                     </RepeatButton>
-                                    <Border x:Name="FocusBar" Height="32" Margin="4,0" Background="#191919" BorderBrush="#444" BorderThickness="1" CornerRadius="4"
+                                    <Border x:Name="FocusBar" Height="32" Margin="4,0" Background="#1B1E22" BorderBrush="#30353B" BorderThickness="1" CornerRadius="8"
                                             ClipToBounds="True" Cursor="Hand" PointerPressed="OnFocusBarClick" SizeChanged="OnFocusBarSized"
                                             ToolTip.Tip="Where focus is now, from close up to infinity. Click to jump there.">
                                         <Canvas x:Name="FocusBarTicks" />
@@ -179,6 +181,12 @@
                             <StackPanel x:Name="MagnifierButtons" Orientation="Horizontal" />
                             <Button x:Name="StopTracking" Content="Stop tracking" Margin="0,8,0,0" HorizontalAlignment="Stretch" Click="OnStopTrackingClick" IsVisible="False" />
                             <TextBlock x:Name="TouchHint" Classes="Small" Margin="0,6,0,0" />
+
+                            <!-- Also in Setup, but worth having at hand while shooting -->
+                            <StackPanel x:Name="VideoShoot">
+                                <TextBlock Text="RECORDING" Classes="Section" />
+                                <StackPanel x:Name="RecordingPanel" />
+                            </StackPanel>
 
                             <!-- Only with a capture card: over Wi-Fi the camera sends no sound -->
                             <StackPanel x:Name="AudioSection" IsVisible="False">

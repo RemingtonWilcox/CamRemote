@@ -122,6 +122,14 @@ public static class Format
             : name;
     }
 
+    /// <summary>What subject recognition looks for.</summary>
+    public static string Detect(long v) => Named("RecognitionTarget")(v) switch
+    {
+        "AnimalBird" => "Animal/bird",
+        "CarTrain" => "Car/train",
+        var name => name,
+    };
+
     /// <summary>A time in tenths of a second, as the camera reports the time-lapse interval.</summary>
     public static string Interval(long tenths) => tenths < 600 ? $"{tenths / 10.0:0.#} s" : $"{tenths / 600.0:0.#} min";
 

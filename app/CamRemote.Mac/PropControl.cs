@@ -19,8 +19,8 @@ public sealed class PropControl : IPropRow
         Stepper, // ◀ value ▶, plus the same grid
     }
 
-    private static readonly IBrush PopupBg = new SolidColorBrush(Color.FromRgb(0x26, 0x26, 0x26));
-    private static readonly IBrush PopupLine = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44));
+    private static readonly IBrush PopupBg = new SolidColorBrush(Color.FromRgb(0x10, 0x12, 0x14));
+    private static readonly IBrush PopupLine = new SolidColorBrush(Color.FromRgb(0x30, 0x35, 0x3B));
 
     private static readonly TimeSpan WantedWait = TimeSpan.FromSeconds(2);
 
@@ -29,6 +29,7 @@ public sealed class PropControl : IPropRow
     private readonly Func<long, double>? _order;
     private readonly Kind _kind;
     private readonly TextBlock _label;
+    private readonly TextBlock? _valueText; // the value, in a picker or stepper
     private readonly UniformGrid? _buttons;
     private readonly Button? _value, _prev, _next;
     private readonly Popup? _popup;
@@ -41,6 +42,7 @@ public sealed class PropControl : IPropRow
     public PropCode Code { get; }
     public string Section { get; init; } = ""; // where the phone page shows it
     public long[]? Presets { get; init; } // a short list to offer instead of every step of a long range
+    public bool OnPhone { get; init; } = true; // false for a second copy of a setting shown elsewhere in the window
     public StackPanel Root { get; } = new() { Margin = new Thickness(0, 4, 0, 6) };
 
     public PropControl(CameraService cam, string label, PropCode code, Func<long, string> fmt, Kind kind,
@@ -52,17 +54,23 @@ public sealed class PropControl : IPropRow
         _kind = kind;
         _order = order;
         _label = new TextBlock { Text = label, FontSize = 12, Margin = new Thickness(0, 0, 0, 3), Foreground = Brushes.Gray };
-        Root.Children.Add(_label);
 
         if (kind == Kind.Buttons)
         {
+            Root.Children.Add(_label);
             _buttons = new UniformGrid { Rows = 1 };
             Root.Children.Add(_buttons);
             return;
         }
 
-        _value = new Button { HorizontalAlignment = HorizontalAlignment.Stretch, FontSize = kind == Kind.Stepper ? 18 : 14,
-                              FontWeight = kind == Kind.Stepper ? FontWeight.SemiBold : FontWeight.Normal, Padding = new Thickness(6, 4, 6, 4) };
+        // Its name sits inside, above the value, like a tile in the iPhone app.
+        _label.FontSize = 11;
+        _label.Margin = new Thickness(0);
+        _label.HorizontalAlignment = HorizontalAlignment.Center;
+        _valueText = new TextBlock { FontSize = kind == Kind.Stepper ? 18 : 14, FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Center,
+                                     TextTrimming = TextTrimming.CharacterEllipsis };
+        _value = new Button { HorizontalAlignment = HorizontalAlignment.Stretch, MinHeight = kind == Kind.Stepper ? 54 : 46, Padding = new Thickness(6, 4, 6, 4),
+                              Content = new StackPanel { Children = { _label, _valueText } } };
         _value.Click += (_, _) => { if (_popup != null) _popup.IsOpen = true; };
         _grid = new UniformGrid { Columns = 4, Margin = new Thickness(6) };
         _popup = new Popup
@@ -120,7 +128,7 @@ public sealed class PropControl : IPropRow
     public bool Allows(long v) => _cam.Get(Code) is { Writable: true } && _choices.Contains(v);
 
     /// <summary>This row for the phone page. Values are strings because some are too big for JavaScript numbers.</summary>
-    public object? Snapshot() => _cam.Get(Code) is not { } p ? null : new
+    public object? Snapshot() => !OnPhone || _cam.Get(Code) is not { } p ? null : new
     {
         id = Code.ToString(),
         label = _label.Text,
@@ -141,7 +149,7 @@ public sealed class PropControl : IPropRow
             _wanted = null;
             _choices = [];
             Rebuild();
-            if (_value != null) _value.Content = "—";
+            if (_valueText != null) _valueText.Text = "—";
             SetEnabled(false);
             return;
         }
@@ -175,6 +183,7 @@ public sealed class PropControl : IPropRow
         var target = (Panel?)_buttons ?? _grid!;
         target.Children.Clear();
         if (_grid != null) _grid.Columns = _choices.Length <= 8 ? 2 : _choices.Length <= 24 ? 3 : 4;
+        if (_buttons != null) { _buttons.Rows = 0; _buttons.Columns = _choices.Length <= 5 ? Math.Max(_choices.Length, 1) : 4; } // a long list wraps
         foreach (var v in _choices)
         {
             var b = new ToggleButton
@@ -194,7 +203,7 @@ public sealed class PropControl : IPropRow
 
     private void Show()
     {
-        if (_value != null) _value.Content = _fmt(_current);
+        if (_valueText != null) _valueText.Text = _fmt(_current);
         var target = (Panel?)_buttons ?? _grid;
         if (target == null) return;
         foreach (var b in target.Children.OfType<ToggleButton>()) b.IsChecked = (long)b.Tag! == _current;

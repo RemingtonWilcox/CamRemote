@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Icon="CamRemote.ico"
-        Title="CamRemote" Width="1500" Height="900" MinWidth="980" MinHeight="600"
+        Title="CamRemote" Width="1500" Height="900" MinWidth="980" MinHeight="600" Background="#16181B"
         Loaded="OnLoaded" Closing="OnClosing" KeyDown="OnKeyDown">
     <Grid>
         <Grid.ColumnDefinitions>
@@ -118,6 +118,11 @@
 
         <!-- Controls -->
         <Border Grid.Row="0" Grid.RowSpan="4" Grid.Column="1" BorderBrush="#333" BorderThickness="1,0,0,0">
+            <Border.Resources>
+                <Style TargetType="Button" BasedOn="{StaticResource PanelButton}" />
+                <Style TargetType="RepeatButton" BasedOn="{StaticResource PanelButton}" />
+                <Style TargetType="ToggleButton" BasedOn="{StaticResource PanelToggle}" />
+            </Border.Resources>
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Margin="16,10,16,0">
                     <DockPanel>
@@ -163,6 +168,8 @@
                                     <TextBlock x:Name="TimeLapsePlan" TextWrapping="Wrap" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,0,0,4" />
                                 </StackPanel>
                             </Expander>
+                            <!-- C1 to C4: the camera's settings, saved in this app separately for video and photo -->
+                            <UniformGrid x:Name="PresetButtons" Columns="2" Margin="-3,8,-3,0" />
 
                             <TextBlock Text="EXPOSURE" Style="{StaticResource Section}" />
                             <StackPanel x:Name="ExposurePanel" />
@@ -177,8 +184,8 @@
                             <StackPanel x:Name="FocusPanel" />
                             <StackPanel x:Name="ManualFocus" Margin="0,2,0,0">
                                 <TextBlock Text="Focus ring: drag or scroll" FontSize="12" Foreground="Gray" Margin="0,0,0,3" />
-                                <Border x:Name="FocusWheel" Height="44" Margin="0,0,0,6" Background="#191919" BorderBrush="#444" BorderThickness="1"
-                                        CornerRadius="4" ClipToBounds="True" Cursor="SizeWE" MouseLeftButtonDown="OnWheelDown" MouseMove="OnWheelMove"
+                                <Border x:Name="FocusWheel" Height="44" Margin="0,0,0,6" Background="#1B1E22" BorderBrush="#30353B" BorderThickness="1"
+                                        CornerRadius="8" ClipToBounds="True" Cursor="SizeWE" MouseLeftButtonDown="OnWheelDown" MouseMove="OnWheelMove"
                                         MouseLeftButtonUp="OnWheelUp" MouseWheel="OnWheelScroll" ToolTip="Drag slowly for fine focus, faster for bigger moves.">
                                     <Canvas x:Name="WheelTicks" />
                                 </Border>
@@ -192,7 +199,7 @@
                                             <TextBlock Text="∞" FontSize="15" />
                                         </StackPanel>
                                     </RepeatButton>
-                                    <Border x:Name="FocusBar" Height="32" Margin="4,0" Background="#191919" BorderBrush="#444" BorderThickness="1" CornerRadius="4"
+                                    <Border x:Name="FocusBar" Height="32" Margin="4,0" Background="#1B1E22" BorderBrush="#30353B" BorderThickness="1" CornerRadius="8"
                                             ClipToBounds="True" Cursor="Hand" MouseLeftButtonDown="OnFocusBarClick" SizeChanged="OnFocusBarSized"
                                             ToolTip="Where focus is now, from close up to infinity. Click to jump there.">
                                         <Canvas x:Name="FocusBarTicks" />
@@ -204,6 +211,12 @@
                             <Button x:Name="StopTracking" Content="Stop tracking" Margin="0,8,0,0" HorizontalAlignment="Stretch" Click="OnStopTrackingClick" Visibility="Collapsed" />
                             <TextBlock x:Name="TouchHint" TextWrapping="Wrap" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,6,0,0"
                                        Text="" />
+
+                            <!-- Also in Setup, but worth having at hand while shooting -->
+                            <StackPanel x:Name="VideoShoot">
+                                <TextBlock Text="RECORDING" Style="{StaticResource Section}" />
+                                <StackPanel x:Name="RecordingPanel" />
+                            </StackPanel>
 
                             <!-- Only with a capture card: over Wi-Fi the camera sends no sound -->
                             <StackPanel x:Name="AudioSection" Visibility="Collapsed">

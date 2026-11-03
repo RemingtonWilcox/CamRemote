@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -92,7 +93,10 @@ public partial class MainWindow : Window
         Add(FocusPanel, "Focus mode", PropCode.FocusMode, Format.Named("FocusMode"), PropControl.Kind.Buttons);
         Add(FocusPanel, "Tap does", PropCode.FunctionOfTouchOperation, Format.Named("TouchFunction"), PropControl.Kind.Buttons);
         Add(FocusPanel, "Focus area", PropCode.FocusArea, Format.Named("FocusArea"), pick);
-        Add(FocusSetup, "Detect", PropCode.RecognitionTarget, Format.Named("RecognitionTarget"), PropControl.Kind.Buttons);
+        Add(FocusPanel, "Detect", PropCode.RecognitionTarget, Format.Detect, PropControl.Kind.Buttons);
+        Add(RecordingPanel, "Frame rate", PropCode.Movie_Recording_FrameRateSetting, Format.Named("MovieFrameRate"), pick, onPhone: false);
+        Add(RecordingPanel, "File format", PropCode.Movie_File_Format, Format.Named("MovieFileFormat"), pick, onPhone: false);
+        Add(RecordingPanel, "Rec setting", PropCode.Movie_Recording_Setting, Format.Named("MovieRecordingSetting"), pick, onPhone: false);
         Add(FocusSetup, "Face/eye priority", PropCode.SubjectRecognitionInAF, Format.Named("SubjectInAf"), PropControl.Kind.Buttons);
         Add(FocusSetup, "Which eye", PropCode.RightLeftEyeSelect, Format.Named("EyeSelect"), PropControl.Kind.Buttons);
         _recordLevel = Add(AudioSetup, "Record level", PropCode.AudioInputMasterLevel, v => v.ToString(), big, v => v);
@@ -123,6 +127,7 @@ public partial class MainWindow : Window
         Add(TimeLapsePanel, "One photo every", PropCode.IntervalRec_ShootingInterval, Format.Interval, pick, v => v, IntervalChoices);
         Add(TimeLapsePanel, "Photos", PropCode.IntervalRec_NumberOfShots, v => v.ToString("N0"), pick, v => v, ShotChoices);
         Add(TimeLapsePanel, "Start after", PropCode.IntervalRec_ShootingStartTime, v => Format.Interval(v * 10), pick, v => v, StartChoices);
+        MakePresetButtons();
         OnPropsChanged();
         ApplyRotation();
         SetUpAssist();
@@ -500,7 +505,7 @@ public partial class MainWindow : Window
         SetupTab.IsChecked = _setup;
         ShootPage.Visibility = _setup ? Visibility.Collapsed : Visibility.Visible;
         SetupPage.Visibility = _setup ? Visibility.Visible : Visibility.Collapsed;
-        VideoTop.Visibility = VideoSetup.Visibility = video;
+        VideoTop.Visibility = VideoShoot.Visibility = VideoSetup.Visibility = video;
         AudioSection.Visibility = photo || _useWifi ? Visibility.Collapsed : Visibility.Visible;
         ShutterButton.Visibility = DrivePanel.Visibility = TimeLapseSection.Visibility = PhotoSetup.Visibility = still;
         foreach (var row in _rows.Where(r => r.Section == "photo"))
@@ -690,6 +695,7 @@ public partial class MainWindow : Window
         }
         if (mode != null) _lastMode = mode;
         ShowPage(photo);
+        ShowPresets();
 
         // Shutter, iris and ISO are already big on the right, so this says what they don't.
         CamSummary.Text = _cam.State != LinkState.Connected ? "" : string.Join("   ", (photo
@@ -775,17 +781,87 @@ public partial class MainWindow : Window
     // ---- Settings ----
 
     private PropControl Add(Panel panel, string label, PropCode code, Func<long, string> fmt, PropControl.Kind kind,
-        Func<long, double>? order = null, long[]? presets = null)
+        Func<long, double>? order = null, long[]? presets = null, bool onPhone = true)
     {
         var c = new PropControl(_cam, label, code, fmt, kind, order)
         {
-            Section = panel == ExposurePanel ? "exposure" : panel == AudioPanel || panel == AudioSetup ? "audio" : panel == MorePanel || panel == MovieMore ? "more"
-                : panel == FocusPanel || panel == FocusSetup ? "focus" : "photo",
+            Section = panel == ExposurePanel ? "exposure" : panel == AudioPanel || panel == AudioSetup ? "audio"
+                : panel == MorePanel || panel == MovieMore || panel == RecordingPanel ? "more" : panel == FocusPanel || panel == FocusSetup ? "focus" : "photo",
             Presets = presets,
+            OnPhone = onPhone,
         };
         panel.Children.Add(c.Root);
         _rows.Add(c);
         return c;
+    }
+
+    // ---- Presets ----
+
+    private const int PresetSlots = 4;
+
+    /// <summary>C1 to C4. A click on an empty one saves the camera's settings there; on a full one, puts them back.</summary>
+    private void MakePresetButtons()
+    {
+        for (int slot = 1; slot <= PresetSlots; slot++)
+        {
+            int s = slot;
+            var summary = new TextBlock { FontSize = 13, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Center };
+            var name = new TextBlock { Text = $"C{s}", FontSize = 11, Foreground = (Brush)FindResource("Dim"), HorizontalAlignment = HorizontalAlignment.Center };
+            var b = new Button { Style = (Style)FindResource("Tile"), Tag = summary, Content = new StackPanel { Children = { name, summary } } };
+            b.Click += (_, _) =>
+            {
+                if (PresetIn(s) is { } preset) { if (_cam.ApplyPreset(preset, $"C{s}") is { } problem) ShowMessage(problem); }
+                else SavePreset(s);
+            };
+            var save = new MenuItem { Header = $"Save current settings as C{s}" };
+            save.Click += (_, _) => SavePreset(s);
+            var clear = new MenuItem { Header = $"Clear C{s}" };
+            clear.Click += (_, _) =>
+            {
+                _settings.Presets.Remove(PresetKey(s));
+                _settings.Save();
+                ShowPresets();
+            };
+            b.ContextMenu = new ContextMenu { Items = { save, clear } };
+            PresetButtons.Children.Add(b);
+        }
+    }
+
+    /// <summary>Video and Photo each have their own C1 to C4.</summary>
+    private string PresetKey(int slot) => (_cam.IsPhotoMode ? "photo" : "video") + slot;
+
+    private Preset? PresetIn(int slot) => _settings.Presets.GetValueOrDefault(PresetKey(slot));
+
+    private void SavePreset(int slot)
+    {
+        if (_cam.TakePreset() is not { } preset)
+        {
+            ShowMessage("Connect the camera first, then save its settings.");
+            return;
+        }
+        _settings.Presets[PresetKey(slot)] = preset;
+        _settings.Save();
+        ShowMessage($"Saved C{slot}: {preset.Summary}. Click C{slot} to come back to these settings.");
+        ShowPresets();
+    }
+
+    private void ShowPresets()
+    {
+        bool connected = _cam.State == LinkState.Connected;
+        string page = _cam.IsPhotoMode ? "photo" : "video";
+        for (int i = 0; i < PresetButtons.Children.Count; i++)
+        {
+            var b = (Button)PresetButtons.Children[i];
+            var preset = PresetIn(i + 1);
+            var summary = (TextBlock)b.Tag;
+            summary.Text = preset == null ? "Empty" : preset.Summary.Length > 0 ? preset.Summary : "Saved";
+            // Green when the camera is set that way now, as on the phone.
+            summary.Foreground = preset == null ? (Brush)FindResource("Dim") : _cam.Matches(preset) ? (Brush)FindResource("Ok") : Brushes.White;
+            b.IsEnabled = connected;
+            ((MenuItem)b.ContextMenu.Items[1]).IsEnabled = preset != null;
+            b.ToolTip = preset == null ? $"Click to save the camera's {page} settings here."
+                : $"Click to put these {page} settings back on the camera. Right-click to save over them or clear them.";
+        }
     }
 
     private static long BaseIsoOf(Button b) => long.TryParse(b.Tag as string, out long v) ? v : 0;

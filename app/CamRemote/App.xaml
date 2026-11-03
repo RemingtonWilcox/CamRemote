@@ -49,6 +49,56 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- The side panel's buttons, drawn like the iPhone app's: dark rounded tiles, the chosen one lighter. -->
+        <SolidColorBrush x:Key="Panel" Color="#1B1E22" />
+        <SolidColorBrush x:Key="Chosen" Color="#3A4048" />
+        <SolidColorBrush x:Key="Line" Color="#30353B" />
+        <ControlTemplate x:Key="TileFace" TargetType="ButtonBase">
+            <Grid>
+                <Border x:Name="Face" Background="{TemplateBinding Background}" CornerRadius="8" />
+                <!-- Lightens whatever colour the button is, so a red Stop button stays red under the mouse -->
+                <Border x:Name="Glow" Background="White" CornerRadius="8" Opacity="0" />
+                <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Glow" Property="Opacity" Value="0.06" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter TargetName="Glow" Property="Opacity" Value="0.12" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.45" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+        <Style x:Key="PanelButton" TargetType="ButtonBase">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="{StaticResource Panel}" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template" Value="{StaticResource TileFace}" />
+        </Style>
+        <Style x:Key="PanelToggle" TargetType="ToggleButton" BasedOn="{StaticResource PanelButton}">
+            <Setter Property="Foreground" Value="#B8B8B8" />
+            <Style.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="{StaticResource Chosen}" />
+                    <Setter Property="Foreground" Value="White" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <!-- A setting as a tile, like the iPhone app: its name small and grey, its value below. -->
+        <Style x:Key="Tile" TargetType="Button" BasedOn="{StaticResource PanelButton}">
+            <Setter Property="MinHeight" Value="46" />
+            <Setter Property="Margin" Value="3" />
+            <Setter Property="Padding" Value="6,4" />
+        </Style>
         <Style x:Key="Label" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource Dim}" />
             <Setter Property="VerticalAlignment" Value="Center" />

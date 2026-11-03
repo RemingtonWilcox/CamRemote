@@ -7,6 +7,13 @@ using Windows.Security.Credentials;
 
 namespace CamRemote;
 
+/// <summary>A C1 to C4 slot: the camera's settings when it was saved. They live in the app, so the camera's own C1 to C3 stay as they are.</summary>
+public sealed class Preset
+{
+    public string Summary { get; set; } = "";
+    public Dictionary<string, long> Values { get; set; } = new(); // PropCode name to value
+}
+
 /// <summary>App settings in settings.json in <see cref="Folder"/>. The camera password lives in Windows Credential Manager or the macOS Keychain.</summary>
 public sealed class Settings
 {
@@ -35,6 +42,7 @@ public sealed class Settings
     public string PhoneCode { get; set; } = ""; // typed once on a phone
     public string PhoneToken { get; set; } = ""; // what the phone keeps afterwards
     public string PhotoFolder { get; set; } = ""; // blank means Pictures/CamRemote
+    public Dictionary<string, Preset> Presets { get; set; } = new(); // "video1" to "video4" and "photo1" to "photo4"
 
     /// <summary>%APPDATA%\CamRemote on Windows, ~/Library/Application Support/CamRemote on a Mac.</summary>
     public static string Folder => System.IO.Path.Combine(OperatingSystem.IsMacOS()

@@ -413,27 +413,12 @@ public sealed class CameraService : IDisposable
         Run(() =>
         {
             _refreshQueued = false;
-            var json = Native.GetProps(null);
-            if (json == null)
+            var map = ReadAll();
+            if (map == null)
             {
                 Log.Write($"Couldn't read the camera's settings, try {++_refreshFails}.");
                 if (_refreshFails == RefreshTries) RestartLink("The camera stopped answering.");
                 return;
-            }
-            var map = new Dictionary<uint, Prop>();
-            foreach (var e in JsonDocument.Parse(json).RootElement.EnumerateArray())
-            {
-                var p = new Prop
-                {
-                    Code = e.GetProperty("c").GetUInt32(),
-                    Type = e.GetProperty("t").GetUInt32(),
-                    Enable = e.GetProperty("e").GetInt32(),
-                    Writable = e.GetProperty("w").GetBoolean(),
-                    Value = (long)e.GetProperty("v").GetUInt64(),
-                    Str = e.TryGetProperty("s", out var s) ? s.GetString() : null,
-                    Candidates = e.GetProperty("p").EnumerateArray().Select(x => x.GetInt64()).ToArray(),
-                };
-                map[p.Code] = p;
             }
             if (!CheckControl(map)) return;
             _ui.Post(() =>
@@ -443,6 +428,29 @@ public sealed class CameraService : IDisposable
                 PropsChanged?.Invoke();
             });
         });
+    }
+
+    /// <summary>Runs on the camera thread. Every setting the camera reports right now, or null if it didn't answer.</summary>
+    private static Dictionary<uint, Prop>? ReadAll()
+    {
+        var json = Native.GetProps(null);
+        if (json == null) return null;
+        var map = new Dictionary<uint, Prop>();
+        foreach (var e in JsonDocument.Parse(json).RootElement.EnumerateArray())
+        {
+            var p = new Prop
+            {
+                Code = e.GetProperty("c").GetUInt32(),
+                Type = e.GetProperty("t").GetUInt32(),
+                Enable = e.GetProperty("e").GetInt32(),
+                Writable = e.GetProperty("w").GetBoolean(),
+                Value = (long)e.GetProperty("v").GetUInt64(),
+                Str = e.TryGetProperty("s", out var s) ? s.GetString() : null,
+                Candidates = e.GetProperty("p").EnumerateArray().Select(x => x.GetInt64()).ToArray(),
+            };
+            map[p.Code] = p;
+        }
+        return map;
     }
 
     public Prop? Get(PropCode code) => Props.GetValueOrDefault((uint)code);
@@ -545,6 +553,97 @@ public sealed class CameraService : IDisposable
     public bool Applies(PropCode code) =>
         Get(code) is not (null or { Writable: false, Candidates.Length: 0 })
         && (SendsToComputer || code is not (PropCode.Still_Image_Trans_Size or PropCode.RAW_J_PC_Save_Image));
+
+    // ---- Presets ----
+
+    // The order they go back on: the mode first, then format and frame rate, which decide which record settings exist.
+    private static readonly PropCode[] PresetCodes =
+    [
+        PropCode.ExposureProgramMode, PropCode.Movie_File_Format, PropCode.Movie_Recording_FrameRateSetting, PropCode.Movie_Recording_Setting,
+        PropCode.ShutterSpeed, PropCode.FNumber, PropCode.IsoSensitivity, PropCode.ExposureBiasCompensation, PropCode.WhiteBalance,
+        PropCode.Colortemp, PropCode.FocusMode, PropCode.FocusArea, PropCode.RecognitionTarget, PropCode.DriveMode,
+    ];
+    private static readonly PropCode[] MovieOnly = [PropCode.Movie_File_Format, PropCode.Movie_Recording_FrameRateSetting, PropCode.Movie_Recording_Setting];
+    private const long WhiteBalanceColorTemp = 0x100;
+
+    /// <summary>The camera's settings now, to keep as a preset for the page it's on.</summary>
+    public Preset? TakePreset()
+    {
+        if (State != LinkState.Connected || Props.Count == 0) return null;
+        bool photo = IsPhotoMode;
+        var values = PresetCodes.Where(c => photo ? !MovieOnly.Contains(c) : c != PropCode.DriveMode)
+            .Select(c => (c, Get(c))).Where(x => x.Item2 != null).ToDictionary(x => x.c.ToString(), x => x.Item2!.Value);
+        string Text(PropCode code, Func<long, string> fmt) => Get(code) is { } p ? fmt(p.Value) : "";
+        var parts = new[]
+        {
+            photo ? "" : Text(PropCode.Movie_Recording_FrameRateSetting, Format.Named("MovieFrameRate")).Replace(' ', '.'),
+            Text(PropCode.ShutterSpeed, Format.Shutter), Text(PropCode.FNumber, Format.FNumber), Text(PropCode.IsoSensitivity, Format.Iso).Replace("ISO ", ""),
+        };
+        return new Preset { Summary = string.Join(" ", parts.Where(s => s.Length > 0 && s != "--")), Values = values };
+    }
+
+    /// <summary>
+    /// True when the camera is set the way the preset says. Whatever the camera works out for itself in
+    /// P, A or S doesn't count as having moved away from it.
+    /// </summary>
+    public bool Matches(Preset preset)
+    {
+        if (State != LinkState.Connected || Props.Count == 0) return false;
+        long mode = Get(PropCode.ExposureProgramMode)?.Value ?? 0;
+        var ignored = new HashSet<PropCode>();
+        if (mode is 2 or 3 or 0x8050 or 0x8051) ignored.Add(PropCode.ShutterSpeed);
+        if (mode is 2 or 4 or 0x8050 or 0x8052) ignored.Add(PropCode.FNumber);
+        if (Get(PropCode.WhiteBalance)?.Value != WhiteBalanceColorTemp) ignored.Add(PropCode.Colortemp);
+        return preset.Values.All(kv => !Enum.TryParse<PropCode>(kv.Key, out var code) || ignored.Contains(code)
+                                       || Get(code) is not { } p || p.Value == kv.Value);
+    }
+
+    /// <summary>Puts a preset's settings back on the camera. Returns what went wrong, if anything.</summary>
+    public string? ApplyPreset(Preset preset, string name)
+    {
+        if (State != LinkState.Connected) return "Connect the camera first.";
+        if (IsRecording) return "Stop recording first, then switch settings.";
+        if (TimeLapseRunning) return "Stop the time-lapse first.";
+        var wanted = PresetCodes.Where(c => preset.Values.ContainsKey(c.ToString())).Select(c => (Code: c, Value: preset.Values[c.ToString()])).ToList();
+        Run(() =>
+        {
+            var props = ReadAll();
+            if (props == null)
+            {
+                Say("The camera didn't answer. Try again.");
+                return;
+            }
+            var refused = new List<PropCode>();
+            foreach (var (code, value) in wanted)
+            {
+                if (!props.TryGetValue((uint)code, out var p) || p.Value == value) continue;
+                if (!p.Writable || !p.Choices().Contains(value))
+                {
+                    refused.Add(code);
+                    continue;
+                }
+                int err = Native.cb_set_prop((uint)code, (ulong)value, p.Type);
+                if (err != 0)
+                {
+                    Log.Write($"Preset: {code} to 0x{value:X} refused, {Native.ErrorName(err)}");
+                    refused.Add(code);
+                    continue;
+                }
+                // The other settings' choices change with these, so look again before going on.
+                if (code is PropCode.ExposureProgramMode or PropCode.Movie_File_Format or PropCode.Movie_Recording_FrameRateSetting)
+                {
+                    Thread.Sleep(code == PropCode.ExposureProgramMode ? 700 : 300);
+                    props = ReadAll() ?? props;
+                }
+            }
+            if (refused.Count > 0) Log.Write("Preset: the camera didn't take " + string.Join(", ", refused));
+            Say(refused.Contains(PropCode.ExposureProgramMode) ? $"{name}: turn the camera's mode dial to match, then try again."
+                : refused.Count > 0 ? $"{name}: {preset.Summary}. The camera didn't take every setting in this mode."
+                : $"{name}: {preset.Summary}");
+        });
+        RequestRefresh();
+        return null;
+    }
 
     /// <summary>Holds the shutter down, half-pressing first to focus unless the lens is in manual. In a burst drive mode it keeps shooting until <see cref="ShutterUp"/>.</summary>
     public void ShutterDown()
