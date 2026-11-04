@@ -197,7 +197,8 @@ public sealed class RemoteLink : IDisposable
         {
             try
             {
-                using var r = await Send(HttpMethod.Get, $"/api/{CameraId}/frame?after={after}", ct: ct);
+                // Without "after" until there's a frame number: an empty one is refused by Egret 1.0.12 and older.
+                using var r = await Send(HttpMethod.Get, after.Length > 0 ? $"/api/{CameraId}/frame?after={after}" : $"/api/{CameraId}/frame", ct: ct);
                 if (r.StatusCode == HttpStatusCode.OK)
                 {
                     if (r.Headers.TryGetValues("X-Frame", out var no)) after = no.First();

@@ -44,7 +44,10 @@ public sealed class PhoneServer : IAsyncDisposable
     private readonly Dictionary<string, IRemoteCamera> _cameras;
     private readonly Dictionary<string, long> _lastFrameAsk = new();
     private readonly Dictionary<string, long> _refusedUntil = new(); // by address, so a "no" isn't asked again straight away
-    private int _asking; // 1 while the person is being asked about a device
+    private readonly object _pairLock = new();
+    private (string Key, Task<string?> Answer)? _question; // the device the person is being asked about now
+    // A yes that came after the device stopped waiting, by device and address, kept for its next ask.
+    private readonly Dictionary<string, (string Token, long Until)> _lateYes = new();
     private WebApplication? _app;
     private UdpClient? _udp;
     private readonly CancellationTokenSource _stop = new();
@@ -153,30 +156,52 @@ public sealed class PhoneServer : IAsyncDisposable
     /// <summary>
     /// A device asking to join for the first time. The person answers here, so this waits for them.
     /// Only one is asked about at a time, and an address told no isn't asked about again for five minutes.
+    /// The question stays up after the device gives up waiting: it asks again, and gets the same question or its yes.
     /// </summary>
     private async Task<IResult> PairAsync(PairBody body, HttpContext ctx)
     {
         if (!_settings.ShareWithEgrets || AskToJoin == null) return Results.StatusCode(403);
         string id = body.Id ?? "";
         if (id.Length is < 16 or > 64 || !id.All(char.IsAsciiHexDigit)) return Results.BadRequest();
-        string address = Shown(ctx.Connection.RemoteIpAddress!);
-        lock (_refusedUntil)
-            if (_refusedUntil.TryGetValue(address, out long until) && Environment.TickCount64 < until) return Results.StatusCode(429);
-        if (Interlocked.CompareExchange(ref _asking, 1, 0) != 0) return Results.StatusCode(409);
-        try
+        string address = Shown(ctx.Connection.RemoteIpAddress!), key = id + " " + address;
+        Task<string?> answer;
+        lock (_pairLock)
         {
-            string? token = await AskToJoin(id, Peers.Clean(body.Name), address);
-            if (token == null)
+            if (_refusedUntil.TryGetValue(address, out long until) && Environment.TickCount64 < until) return Results.StatusCode(429);
+            if (_lateYes.Remove(key, out var yes) && Environment.TickCount64 < yes.Until) return Results.Json(new { token = yes.Token });
+            if (_question is { } asking)
             {
-                lock (_refusedUntil) _refusedUntil[address] = Environment.TickCount64 + 5 * 60_000;
-                return Results.StatusCode(403);
+                if (asking.Key != key) return Results.StatusCode(409);
+                answer = asking.Answer;
             }
-            return Results.Json(new { token });
+            else
+            {
+                answer = AskAsync(id, Peers.Clean(body.Name), address, key);
+                if (!answer.IsCompleted) _question = (key, answer);
+            }
         }
+        string? token;
+        try { token = await answer.WaitAsync(ctx.RequestAborted); }
+        catch (OperationCanceledException) { return Results.StatusCode(408); } // it stopped waiting; a yes is kept for it
+        if (token == null) return Results.StatusCode(403);
+        lock (_pairLock) _lateYes.Remove(key);
+        return Results.Json(new { token });
+    }
+
+    private async Task<string?> AskAsync(string id, string name, string address, string key)
+    {
+        string? token = null;
+        try { token = await AskToJoin!(id, name, address); }
         finally
         {
-            _asking = 0;
+            lock (_pairLock)
+            {
+                _question = null;
+                if (token == null) _refusedUntil[address] = Environment.TickCount64 + 5 * 60_000;
+                else _lateYes[key] = (token, Environment.TickCount64 + 10 * 60_000);
+            }
         }
+        return token;
     }
 
     private static string Shown(IPAddress ip) => (ip.IsIPv4MappedToIPv6 ? ip.MapToIPv4() : ip).ToString();
@@ -212,13 +237,15 @@ public sealed class PhoneServer : IAsyncDisposable
     }
 
     /// <summary>Waits briefly for a frame newer than the last one, so the picture paces itself to the connection.</summary>
-    private async Task<IResult> FrameAsync(string cam, long? after, HttpContext ctx)
+    // "after" is text: the first ask sends it empty, which a number would turn away with 400 and no picture ever.
+    private async Task<IResult> FrameAsync(string cam, string? after, HttpContext ctx)
     {
         if (Find(cam) is not { } camera) return Results.NotFound();
+        long? seen = long.TryParse(after, out long no) ? no : null;
         lock (_lastFrameAsk) _lastFrameAsk[cam] = Environment.TickCount64;
         for (int i = 0; i < 50 && !ctx.RequestAborted.IsCancellationRequested; i++)
         {
-            if (camera.LatestFrame() is { } frame && frame.No != after)
+            if (camera.LatestFrame() is { } frame && frame.No != seen)
             {
                 ctx.Response.Headers["X-Frame"] = frame.No.ToString();
                 ctx.Response.Headers.CacheControl = "no-store";

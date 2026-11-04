@@ -53,7 +53,8 @@ public static class Peers
             }
             if (host.Token != null || !asked.Add(host.Id)) continue;
             say($"The Egret on {host.Name} has the camera. Asking it to let this computer join: answer on {host.Name}.");
-            var (given, why) = await AskToJoinAsync(settings, host);
+            var (given, why, unanswered) = await AskToJoinAsync(settings, host);
+            if (unanswered) asked.Remove(host.Id); // the question is still up there, so the next try waits on it again
             if (given == null)
             {
                 say(why!);
@@ -208,8 +209,11 @@ public static class Peers
         }
     }
 
-    /// <summary>Asks the host to let this computer in. Its person answers there, so this waits up to two minutes. Returns the token, or why not.</summary>
-    private static async Task<(string? Token, string? Problem)> AskToJoinAsync(Settings settings, FoundPeer host)
+    /// <summary>
+    /// Asks the host to let this computer in. Its person answers there, so this waits up to two minutes.
+    /// Returns the token, or why not, and whether the question is still waiting for an answer.
+    /// </summary>
+    private static async Task<(string? Token, string? Problem, bool Unanswered)> AskToJoinAsync(Settings settings, FoundPeer host)
     {
         using var http = Client(TimeSpan.FromMinutes(2));
         try
@@ -223,24 +227,27 @@ public static class Peers
             if (r.IsSuccessStatusCode)
             {
                 string token = JsonDocument.Parse(await r.Content.ReadAsStringAsync()).RootElement.GetProperty("token").GetString() ?? "";
-                if (token.Length > 0) return (token, null);
+                if (token.Length > 0) return (token, null, false);
             }
-            return (null, (int)r.StatusCode switch
+            int status = (int)r.StatusCode;
+            return (null, status switch
             {
                 403 => $"{host.Name} didn't let this computer join.",
-                408 => $"Nobody answered on {host.Name}. To try again, click Connect camera… here.",
+                408 => Waiting(host),
                 409 => $"{host.Name} is asking about another device. To try again, click Connect camera… here.",
                 429 => $"{host.Name} said no a moment ago. Try again in a few minutes.",
                 404 => $"The Egret on {host.Name} is older and can't let this computer in by itself. Update it, or join with its access code.",
-                _ => $"{host.Name} couldn't take this computer ({(int)r.StatusCode}).",
-            });
+                _ => $"{host.Name} couldn't take this computer ({status}).",
+            }, status == 408);
         }
-        catch (TaskCanceledException) { return (null, $"Nobody answered on {host.Name}. To try again, click Connect camera… here."); }
+        catch (TaskCanceledException) { return (null, Waiting(host), true); }
         catch (Exception e) when (e is HttpRequestException or JsonException or KeyNotFoundException or InvalidOperationException)
         {
-            return (null, $"Lost touch with {host.Name} while asking to join.");
+            return (null, $"Lost touch with {host.Name} while asking to join.", false);
         }
     }
+
+    private static string Waiting(FoundPeer host) => $"Still waiting for an answer on {host.Name}. This computer joins as soon as you allow it there.";
 
     private static HttpClient Client(TimeSpan timeout) =>
         new(new SocketsHttpHandler { UseCookies = false, ConnectTimeout = TimeSpan.FromSeconds(Math.Min(6, timeout.TotalSeconds)) }) { Timeout = timeout };

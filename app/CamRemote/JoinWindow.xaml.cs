@@ -290,7 +290,7 @@ public partial class JoinWindow : Window
         bool on = s.Connected;
         LinkDot.Fill = on ? (Brush)FindResource("Ok") : s.Link == "connecting" ? (Brush)FindResource("Warn") : new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66));
         LinkText.Text = on ? "Connected" : s.Link == "connecting" ? "The other Egret is connecting…" : "The other Egret has no camera";
-        BatteryText.Text = s.Battery.Length > 0 ? "Battery " + s.Battery : "";
+        BatteryText.Text = s.Battery.Length == 0 || s.Battery.StartsWith("Battery") ? s.Battery : "Battery " + s.Battery; // an Egret host already sends "Battery 80%"
         CardText.Text = s.Card;
         AlertText.Text = s.Alert;
         AlertBox.Visibility = s.Alert.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
