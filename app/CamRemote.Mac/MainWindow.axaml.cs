@@ -1213,7 +1213,11 @@ public partial class MainWindow : Window
         bool noCard = _cam.State == LinkState.Connected && !cardReady && _cam.Props.Count > 0;
         CardText.Text = noCard && parts.Count == 0 ? "No card ready" : string.Join("    ", parts);
         CardMenu.IsVisible = _cam.State == LinkState.Connected && _cam.CardSlots.Any();
-        bool cardLow = minutes.Count > 0 && minutes.Max() < 10;
+        // While it finishes writing a take, the camera reports almost nothing left for a moment, so only a low card that stays low counts.
+        if (minutes.Count > 0 && minutes.Max() < 10) _cardLowSince ??= DateTime.Now;
+        else _cardLowSince = null;
+        bool cardLow = _cardLowSince is { } lowSince && DateTime.Now - lowSince >= CardLowWait;
+        _cardLowShown = cardLow;
         CardText.Foreground = cardLow || noCard ? Rec : Brushes.White;
 
         // One banner over the picture for whatever needs attention most.
@@ -1311,9 +1315,14 @@ public partial class MainWindow : Window
         return p == null ? "" : fmt(p.Value);
     }
 
+    private static readonly TimeSpan CardLowWait = TimeSpan.FromSeconds(5);
+    private DateTime? _cardLowSince; // when the card first reported under 10 minutes or 100 photos left
+    private bool _cardLowShown;
+
     private void Tick()
     {
         _ = TryReconnectAsync();
+        if (_cardLowSince is { } lowSince && !_cardLowShown && DateTime.Now - lowSince >= CardLowWait) OnPropsChanged();
         bool watching = _phone?.Watching("sony") == true;
         if (watching != _phoneWatching)
         {
