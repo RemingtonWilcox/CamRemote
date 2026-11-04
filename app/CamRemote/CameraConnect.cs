@@ -77,6 +77,7 @@ public static class CameraConnect
         }
 
         say("Connecting…");
+        cam.Model = settings.CameraModel;
         cam.Connect(index, settings.CameraUser, password, fingerprint);
         return true;
     }

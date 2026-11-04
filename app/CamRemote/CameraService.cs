@@ -495,17 +495,32 @@ public sealed class CameraService : IDisposable, ITriggerCamera
     public bool RecordWaiting => _recordWaiting;
     public DateTime RecordSent { get; private set; }
 
-    /// <summary>The camera toggles recording on "Down"; Sony asks for "Up" right after.</summary>
+    /// <summary>The camera's model as it reports itself, set before connecting. It decides how the record button is pressed.</summary>
+    public string Model { get; set; } = "";
+
+    // Sony: these models start and stop on "Down" and want "Up" straight after. Every other camera starts on "Down"
+    // and stops on "Up", so a quick Down and Up there starts a take and ends it a moment later.
+    private static readonly string[] TogglesOnDown = ["ILCE-1", "ILCE-9M2", "ILCE-7RM4A", "ILCE-7RM4", "ILCE-7SM3", "ILCE-7C", "DSC-RX0M2"];
+
+    /// <summary>Starts recording, or stops it if the camera is recording.</summary>
     public void ToggleRecord()
     {
         _recordWaiting = true;
+        bool start = !IsRecording;
+        bool toggles = TogglesOnDown.Contains(Model.Trim(), StringComparer.OrdinalIgnoreCase);
         Run(() =>
         {
             try
             {
-                int err = Native.cb_command(CmdMovieRecord, ParamDown);
-                Thread.Sleep(80);
-                Native.cb_command(CmdMovieRecord, ParamUp);
+                int err;
+                if (toggles)
+                {
+                    err = Native.cb_command(CmdMovieRecord, ParamDown);
+                    Thread.Sleep(80);
+                    Native.cb_command(CmdMovieRecord, ParamUp);
+                }
+                else err = Native.cb_command(CmdMovieRecord, start ? ParamDown : ParamUp);
+                Log.Write($"Record button: {(start ? "start" : "stop")} on {(Model.Length > 0 ? Model : "an unknown model")}{(toggles ? ", Down and Up" : "")}, result {err}.");
                 if (err != 0) SayFailed("The camera didn't respond to the record button.", err);
             }
             finally

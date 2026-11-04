@@ -262,7 +262,12 @@ public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, l
             {
                 _took = null; // stopped by hand, or the camera never started
                 _sightings.Clear();
-                if (_rolled) Status?.Invoke(Watching);
+                if (_rolled)
+                {
+                    _restUntil = now + Rest; // so a camera that keeps stopping can't be started twice a second
+                    Log.Write($"The animal trigger's take ended {(now - began).TotalSeconds:0} s in, by hand or by the camera.");
+                    Status?.Invoke(Watching);
+                }
                 else
                 {
                     _restUntil = now + RefusedRest;
