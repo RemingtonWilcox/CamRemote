@@ -35,6 +35,8 @@ public partial class JoinWindow : Window
     private int _misses; // state requests in a row that got no answer
     private DateTime _recBusyUntil;
     private DateTime? _recSince; // when this window first saw the take rolling
+    private DateTime _lastFrameAt;
+    private static readonly TimeSpan FrameGap = TimeSpan.FromSeconds(5); // this long without a new picture and the last one comes down
     private bool _polling;
     private bool _setup; // the Setup tab is showing
     private bool _shutterHeld;
@@ -154,6 +156,8 @@ public partial class JoinWindow : Window
         Dispatcher.UIThread.Post(() =>
         {
             _drawing = 0;
+            if (!Live) return; // an old picture the host still had, from before the camera went
+            _lastFrameAt = DateTime.Now;
             Blit(ref _pictureBitmap, Picture, pixels, w, h);
             NoSignal.IsVisible = false;
             _assist.Offer(w, h, target => pixels.AsSpan(0, target.Length).CopyTo(target));
@@ -171,6 +175,24 @@ public partial class JoinWindow : Window
         using (var target = bitmap.Lock())
             for (int y = 0; y < h; y++) Marshal.Copy(pixels, y * w * 4, target.Address + y * target.RowBytes, w * 4);
         image.InvalidateVisual();
+    }
+
+    private bool Live => _state?.Connected == true && _misses < 3;
+
+    /// <summary>Takes the last picture down when no more are coming, so a frozen frame never passes for the live one.</summary>
+    private void ShowNoPicture(string why)
+    {
+        NoSignal.Text = why;
+        NoSignal.IsVisible = true;
+        if (Picture.Source == null) return;
+        Picture.Source = null;
+        _pictureBitmap = null;
+        _assistBitmap = null;
+        AssistLayer.Source = null;
+        _histBitmap = null;
+        Histogram.Source = null;
+        OverText.Text = UnderText.Text = "";
+        AnimalBox.IsVisible = AnimalLabel.IsVisible = false;
     }
 
     private void OnPicturePressed(object? sender, PointerPressedEventArgs e)
@@ -231,6 +253,7 @@ public partial class JoinWindow : Window
 
     private void ShowAssist(AssistResult r)
     {
+        if (Picture.Source == null) return; // worked out from a picture that's since come down
         int level = _state?.ZebraLevel ?? _settings.ZebraLevel;
         if (HistogramChip.IsChecked == true)
         {
@@ -258,6 +281,7 @@ public partial class JoinWindow : Window
                     LinkDot.Fill = Brush("Rec");
                     LinkText.Text = "Can't reach the other Egret";
                     RecButton.IsEnabled = ShutterButton.IsEnabled = false;
+                    ShowNoPicture("Can't reach the other Egret. This picks up again by itself when it's back.");
                 }
                 return;
             }
@@ -300,7 +324,9 @@ public partial class JoinWindow : Window
         TimeLapseNote.Text = "A time-lapse is running on the other Egret. Stop it there.";
         TimeLapseNote.IsVisible = s.TimeLapse;
         ShowTimeLapse();
-        if (!on) NoSignal.Text = "The other Egret isn't connected to the camera";
+        if (!on) ShowNoPicture(s.Link == "connecting" ? "The other Egret is connecting to the camera…"
+            : "The other Egret isn't connected to the camera. The picture comes back when it is.");
+        else if (Picture.Source != null && DateTime.Now - _lastFrameAt > FrameGap) ShowNoPicture("The picture stopped coming. Waiting for it…");
         ShowMeter();
         ApplyGuides();
 
@@ -639,7 +665,7 @@ public partial class JoinWindow : Window
     /// <summary>The other Egret's camera as the trigger sees it.</summary>
     private sealed class JoinedCamera(JoinWindow w) : ITriggerCamera
     {
-        public bool Connected => w._state?.Connected == true;
+        public bool Connected => w.Live;
         public bool IsRecording => w._state?.Recording == true;
         public bool RecordWaiting => w._recordWaiting;
         public DateTime RecordSent => w._recordSent;
