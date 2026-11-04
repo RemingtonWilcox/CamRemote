@@ -175,7 +175,7 @@ public partial class MainWindow : Window
         return (bmp, bmp.PixelWidth, bmp.PixelHeight);
     }
 
-    private static byte[] ShrinkForBird(byte[] jpeg, int size)
+    internal static byte[] ShrinkForBird(byte[] jpeg, int size)
     {
         var bmp = new BitmapImage();
         using (var ms = new System.IO.MemoryStream(jpeg))

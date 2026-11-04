@@ -18,7 +18,7 @@ public partial class JoinWindow : Window
     private readonly RemoteLink _link;
     private readonly Settings _settings;
     private readonly PictureAssist _assist;
-    private readonly DispatcherTimer _poll, _hideMark, _hideToast;
+    private readonly DispatcherTimer _poll, _hideMark, _hideToast, _lapse;
     private readonly CancellationTokenSource _stop = new();
     private readonly Dictionary<string, RowView> _rows = [];
     private RemoteState? _state;
@@ -56,6 +56,15 @@ public partial class JoinWindow : Window
         ApplyGuides();
         FocusWheel.SizeChanged += (_, _) => DrawWheel();
         MakePresetButtons();
+        MakeTimeLapseButtons();
+        _bird = new BirdTrigger(new WpfUi(Dispatcher), new JoinedCamera(this), () => _latestFrame is { } f ? (f.Item1, f.Item2) : null,
+            MainWindow.ShrinkForBird, FocusOnAnimal, () => Rotation);
+        _bird.Status += text => BirdStatus.Text = text;
+        _bird.Spotted += ShowAnimal;
+        BirdBox.Visibility = BirdTrigger.Available ? Visibility.Visible : Visibility.Collapsed;
+        MakeRecordSubjectButtons();
+        _lapse = new DispatcherTimer(TimeSpan.FromSeconds(0.2), DispatcherPriority.Normal, async (_, _) => await LapseTickAsync(), Dispatcher);
+        _lapse.Stop();
         _poll = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Normal, async (_, _) => await RefreshAsync(), Dispatcher);
         _hideMark = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.8) };
         _hideMark.Tick += (_, _) => { FocusMark.Visibility = Visibility.Collapsed; _hideMark.Stop(); };
@@ -73,6 +82,9 @@ public partial class JoinWindow : Window
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
+        if (_lapse.IsEnabled) Log.Write($"Time-lapse stopped by leaving, after {_lapseTaken} photos.");
+        _lapse.Stop();
+        _bird.Stop();
         _poll.Stop();
         _stop.Cancel();
         _link.Dispose();
@@ -111,6 +123,7 @@ public partial class JoinWindow : Window
     /// <summary>On the frame loop's thread. Frames that arrive while the last is still being drawn are dropped.</summary>
     private void OnJpeg(byte[] jpeg)
     {
+        _latestFrame = Tuple.Create(jpeg, ++_frameNo); // for the animal trigger, even when this one isn't drawn
         if (Interlocked.CompareExchange(ref _drawing, 1, 0) != 0) return;
         BitmapSource bmp;
         try
@@ -276,7 +289,7 @@ public partial class JoinWindow : Window
         else RecButton.ClearValue(BackgroundProperty);
         TimeLapseNote.Text = "A time-lapse is running on the other Egret. Stop it there.";
         TimeLapseNote.Visibility = s.TimeLapse ? Visibility.Visible : Visibility.Collapsed;
-        ShutterLabel.Text = s.TimeLapse ? "Time-lapse running" : "Take photo";
+        ShowTimeLapse();
         if (!on) NoSignal.Text = "The other Egret isn't connected to the camera";
         ShowMeter();
         ApplyGuides();
@@ -333,7 +346,119 @@ public partial class JoinWindow : Window
         ShootPage.Visibility = _setup ? Visibility.Collapsed : Visibility.Visible;
         SetupPage.Visibility = _setup ? Visibility.Visible : Visibility.Collapsed;
         RecButton.Visibility = VideoShoot.Visibility = photo ? Visibility.Collapsed : Visibility.Visible;
-        ShutterButton.Visibility = DriveRows.Visibility = photo ? Visibility.Visible : Visibility.Collapsed;
+        BirdBox.Visibility = photo || !BirdTrigger.Available ? Visibility.Collapsed : Visibility.Visible;
+        ShutterButton.Visibility = DriveRows.Visibility = PhotoModes.Visibility = photo ? Visibility.Visible : Visibility.Collapsed;
+        TimeLapseBox.Visibility = photo && _timeLapse ? Visibility.Visible : Visibility.Collapsed;
+        StillMode.IsChecked = !_timeLapse;
+        TimeLapseMode.IsChecked = _timeLapse;
+    }
+
+    // ---- Time-lapse ----
+    // The iPhone app takes no time-lapse orders, so this computer times it and presses the shutter through the host.
+
+    private static readonly int[] LapseIntervals = [1, 2, 5, 10, 30, 60]; // seconds
+    private static readonly int[] LapseCounts = [100, 300, 600, 1000, 0]; // 0: until stopped
+    private bool _timeLapse; // the Time-lapse mode is picked
+    private int _lapseEvery = 2, _lapseShots = 300, _lapseTaken, _lapseFails;
+    private DateTime _lapseNext;
+    private bool _lapseFiring;
+
+    private void MakeTimeLapseButtons()
+    {
+        foreach (int every in LapseIntervals)
+        {
+            var b = new ToggleButton { Content = every < 60 ? $"{every} s" : $"{every / 60} min", Tag = every, Margin = new Thickness(2), Padding = new Thickness(2, 5, 2, 5) };
+            b.Click += (_, _) => { if (!_lapse.IsEnabled) _lapseEvery = every; ShowTimeLapse(); };
+            IntervalButtons.Children.Add(b);
+        }
+        foreach (int shots in LapseCounts)
+        {
+            var b = new ToggleButton { Content = shots == 0 ? "∞" : shots.ToString("N0"), Tag = shots, Margin = new Thickness(2), Padding = new Thickness(2, 5, 2, 5),
+                ToolTip = shots == 0 ? "Until you stop it" : null };
+            b.Click += (_, _) => { if (!_lapse.IsEnabled) _lapseShots = shots; ShowTimeLapse(); };
+            ShotButtons.Children.Add(b);
+        }
+    }
+
+    private void OnPhotoModeClick(object sender, RoutedEventArgs e)
+    {
+        if (_lapse.IsEnabled) ShowToast("Stop the time-lapse first.");
+        else _timeLapse = sender == TimeLapseMode;
+        ShowPage();
+        ShowTimeLapse();
+    }
+
+    private void ShowTimeLapse()
+    {
+        bool running = _lapse.IsEnabled;
+        foreach (ToggleButton b in IntervalButtons.Children) { b.IsChecked = (int)b.Tag == _lapseEvery; b.IsEnabled = !running; }
+        foreach (ToggleButton b in ShotButtons.Children) { b.IsChecked = (int)b.Tag == _lapseShots; b.IsEnabled = !running; }
+        string every = _lapseEvery < 60 ? $"{_lapseEvery} s" : $"{_lapseEvery / 60} min";
+        if (running)
+        {
+            int next = Math.Max(0, (int)Math.Ceiling((_lapseNext - DateTime.Now).TotalSeconds));
+            TimeLapsePlan.Text = (_lapseShots > 0 ? $"Photo {_lapseTaken:N0} of {_lapseShots:N0}" : $"{_lapseTaken:N0} photos so far") + $", the next in {next} s.";
+        }
+        else if (_lapseShots > 0)
+        {
+            var length = TimeSpan.FromSeconds((double)_lapseEvery * (_lapseShots - 1));
+            string takes = length.TotalHours >= 1 ? $"{(int)length.TotalHours} h {length.Minutes} min" : length.TotalMinutes >= 1 ? $"{(int)length.TotalMinutes} min" : $"{length.Seconds} s";
+            TimeLapsePlan.Text = $"{_lapseShots:N0} photos, one every {every}: about {takes}, and {_lapseShots / 24.0:0.#} s of video at 24p. Keep this window open while it runs.";
+        }
+        else TimeLapsePlan.Text = $"One photo every {every} until you stop it. Keep this window open while it runs.";
+        ShutterLabel.Text = _state?.TimeLapse == true ? "Time-lapse running" : running ? "Stop time-lapse" : _timeLapse ? "Start time-lapse" : "Take photo";
+        ShutterButton.ToolTip = _timeLapse ? "Start or stop the time-lapse (F9)" : "Take a photo (F9). Hold it down for a burst when Drive is set to continuous.";
+    }
+
+    private void StartOrStopTimeLapse()
+    {
+        if (_lapse.IsEnabled)
+        {
+            StopTimeLapse($"Time-lapse stopped after {_lapseTaken:N0} photos.");
+            return;
+        }
+        if (_state?.Connected != true) return;
+        _lapseTaken = _lapseFails = 0;
+        _lapseNext = DateTime.Now; // the first one straight away
+        _lapse.Start();
+        Log.Write($"Time-lapse through the other Egret: {(_lapseShots > 0 ? _lapseShots.ToString() : "unlimited")} photos, one every {_lapseEvery} s.");
+        ShowTimeLapse();
+    }
+
+    private void StopTimeLapse(string message)
+    {
+        _lapse.Stop();
+        Log.Write(message);
+        ShowToast(message);
+        ShowTimeLapse();
+    }
+
+    private async Task LapseTickAsync()
+    {
+        if (_lapseFiring) return;
+        if (DateTime.Now < _lapseNext) { ShowTimeLapse(); return; }
+        _lapseFiring = true;
+        _lapseNext = _lapseNext.AddSeconds(_lapseEvery);
+        if (_lapseNext < DateTime.Now) _lapseNext = DateTime.Now.AddSeconds(_lapseEvery); // fell behind on a slow link: don't catch up in a rush
+        try
+        {
+            string? problem = await _link.ShutterAsync(true);
+            await _link.ShutterAsync(false);
+            if (!_lapse.IsEnabled) return; // stopped while that photo was on its way
+            if (problem != null)
+            {
+                if (++_lapseFails >= 3) StopTimeLapse($"Time-lapse stopped after {_lapseTaken:N0} photos: {problem}");
+                else ShowToast(problem);
+                return;
+            }
+            _lapseFails = 0;
+            if (++_lapseTaken >= _lapseShots && _lapseShots > 0) StopTimeLapse($"Time-lapse done: {_lapseTaken:N0} photos.");
+            else ShowTimeLapse();
+        }
+        finally
+        {
+            _lapseFiring = false;
+        }
     }
 
     private void OnSetupClick(object sender, RoutedEventArgs e)
@@ -471,7 +596,113 @@ public partial class JoinWindow : Window
     {
         if (_state?.Connected != true || DateTime.Now < _recBusyUntil) return;
         _recBusyUntil = DateTime.Now.AddSeconds(1.5); // a slow link shouldn't let a double tap stop it again
-        _ = Do(_link.RecordAsync(!_state.Recording));
+        SendRecord(!_state.Recording);
+    }
+
+    private async void SendRecord(bool on)
+    {
+        _recordWaiting = true;
+        _recordSent = DateTime.Now;
+        try { await Do(_link.RecordAsync(on)); }
+        finally { _recordWaiting = false; }
+    }
+
+    // ---- Automatic recording ----
+    // The animal detector runs here on the picture the other Egret sends, and starts and stops the take through it.
+
+    private readonly BirdTrigger _bird;
+    private volatile Tuple<byte[], long>? _latestFrame;
+    private long _frameNo;
+    private bool _recordWaiting;
+    private DateTime _recordSent;
+    private static readonly int[] RecordStopChoices = [10, 15, 30, 60]; // seconds
+
+    private int Rotation => ((_state?.Rotation ?? 0) + _turn) % 360;
+
+    /// <summary>The other Egret's camera as the trigger sees it.</summary>
+    private sealed class JoinedCamera(JoinWindow w) : ITriggerCamera
+    {
+        public bool Connected => w._state?.Connected == true;
+        public bool IsRecording => w._state?.Recording == true;
+        public bool RecordWaiting => w._recordWaiting;
+        public DateTime RecordSent => w._recordSent;
+        public bool IsPhotoMode => w._state?.Photo == true;
+        public bool IsFormatting => false;
+        public void ToggleRecord() => w.SendRecord(!IsRecording);
+    }
+
+    private void MakeRecordSubjectButtons()
+    {
+        _bird.Subject = RecordSubject.Named(_settings.RecordSubject);
+        _bird.QuietStop = TimeSpan.FromSeconds(_settings.RecordStopAfter);
+        _bird.FocusOnIt = _settings.RecordFocus;
+        RecordFocus.IsChecked = _settings.RecordFocus;
+        foreach (var subject in RecordSubject.All)
+            RecordSubjectButtons.Children.Add(OptionButton(subject.Name, subject.Tip, () => _bird.Subject == subject, () =>
+            {
+                _bird.Subject = subject;
+                _settings.RecordSubject = subject.Name;
+                AnimalLabel.Text = subject.Name.ToLowerInvariant();
+            }, RecordSubjectButtons));
+        foreach (int seconds in RecordStopChoices)
+            RecordStopButtons.Children.Add(OptionButton(seconds < 60 ? $"{seconds} s" : $"{seconds / 60} min", null, () => _bird.QuietStop.TotalSeconds == seconds, () =>
+            {
+                _bird.QuietStop = TimeSpan.FromSeconds(seconds);
+                _settings.RecordStopAfter = seconds;
+            }, RecordStopButtons));
+        AnimalLabel.Text = _bird.Subject.Name.ToLowerInvariant();
+    }
+
+    private ToggleButton OptionButton(string text, string? tip, Func<bool> isOn, Action pick, Panel row)
+    {
+        var b = new ToggleButton { Content = text, Margin = new Thickness(2), Padding = new Thickness(6, 5, 6, 5), HorizontalAlignment = HorizontalAlignment.Stretch, ToolTip = tip, IsChecked = isOn(), Tag = isOn };
+        b.Click += (_, _) =>
+        {
+            pick();
+            _settings.Save();
+            foreach (var other in row.Children.OfType<ToggleButton>()) other.IsChecked = ((Func<bool>)other.Tag)();
+        };
+        return b;
+    }
+
+    private void OnRecordFocusClick(object sender, RoutedEventArgs e)
+    {
+        _bird.FocusOnIt = _settings.RecordFocus = RecordFocus.IsChecked == true;
+        _settings.Save();
+    }
+
+    private void OnBirdWatchClick(object sender, RoutedEventArgs e)
+    {
+        bool on = BirdWatch.IsChecked == true;
+        if (on) _bird.Start();
+        else _bird.Stop();
+        BirdStatus.Visibility = RecordSubjectPanel.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void FocusOnAnimal(double fx, double fy)
+    {
+        if (_state?.Connected != true) return;
+        ShowFocusMark(fx * Picture.ActualWidth, fy * Picture.ActualHeight);
+        _ = Do(_link.FocusAsync(fx, fy), quiet: true);
+    }
+
+    /// <summary>Draws the box around what the trigger sees. The label stays upright however the picture is turned.</summary>
+    private void ShowAnimal((double X, double Y, double W, double H)? box)
+    {
+        double w = Picture.ActualWidth, h = Picture.ActualHeight;
+        bool show = box != null && w > 0 && (_state?.Magnify ?? 0) == 0;
+        AnimalBox.Visibility = AnimalLabel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (!show) return;
+        var b = box!.Value;
+        AnimalBox.Width = Math.Max(b.W * w, 24);
+        AnimalBox.Height = Math.Max(b.H * h, 24);
+        double left = b.X * w - AnimalBox.Width / 2, top = b.Y * h - AnimalBox.Height / 2;
+        Canvas.SetLeft(AnimalBox, left);
+        Canvas.SetTop(AnimalBox, top);
+        int turn = Rotation;
+        Canvas.SetLeft(AnimalLabel, turn is 0 or 90 ? left : left + AnimalBox.Width);
+        Canvas.SetTop(AnimalLabel, turn is 0 or 270 ? top : top + AnimalBox.Height);
+        AnimalLabelTurn.Angle = -turn;
     }
 
     private void OnStopTrackingClick(object sender, RoutedEventArgs e) => _ = Do(_link.SetAsync("stoptracking", "0"));
@@ -480,6 +711,12 @@ public partial class JoinWindow : Window
     private void OnModeClick(object sender, RoutedEventArgs e)
     {
         bool photo = sender == PhotoTab;
+        if (!photo && _lapse.IsEnabled)
+        {
+            ShowToast("Stop the time-lapse first.");
+            ShowPage();
+            return;
+        }
         _setup = false;
         ShowPage();
         if (photo != (_state?.Photo == true)) _ = Do(_link.ModeAsync(photo));
@@ -497,6 +734,11 @@ public partial class JoinWindow : Window
     // Holding it down is what makes a burst, so the press and the release go to the host separately.
     private void OnShutterDown(object sender, MouseButtonEventArgs e)
     {
+        if (_timeLapse)
+        {
+            StartOrStopTimeLapse();
+            return;
+        }
         if (_state?.Connected != true || _shutterHeld) return;
         _shutterHeld = true;
         _shutterPress = _link.ShutterAsync(true);
@@ -513,6 +755,11 @@ public partial class JoinWindow : Window
 
     private async Task TakePhotoAsync()
     {
+        if (_timeLapse)
+        {
+            StartOrStopTimeLapse();
+            return;
+        }
         if (_state?.Connected != true || _shutterHeld) return;
         if (await _link.ShutterAsync(true) is { } problem)
         {

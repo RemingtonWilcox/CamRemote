@@ -105,13 +105,25 @@ public sealed class BirdModel : IDisposable
     public void Dispose() => _session.Dispose();
 }
 
+/// <summary>What the trigger needs from a camera: this app's own connection, or another Egret's camera used through it.</summary>
+public interface ITriggerCamera
+{
+    bool Connected { get; }
+    bool IsRecording { get; }
+    bool RecordWaiting { get; }
+    DateTime RecordSent { get; }
+    bool IsPhotoMode { get; }
+    bool IsFormatting { get; }
+    void ToggleRecord();
+}
+
 /// <summary>
 /// Checks the live view twice a second, starts recording after two sightings in three seconds and stops
 /// once no animal has been seen for a while. It only ever stops a take it started itself. A confident
 /// sighting also focuses there. Sightings that keep landing on one spot without ever being sure are scenery,
 /// like splashing water.
 /// </summary>
-public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, long No)?> latest, Func<byte[], int, byte[]> shrink,
+public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, long No)?> latest, Func<byte[], int, byte[]> shrink,
     Action<double, double> focus, Func<int> rotation)
 {
     private const float Bar = 0.25f;
@@ -276,7 +288,7 @@ public sealed class BirdTrigger(IUi ui, CameraService cam, Func<(byte[] Jpeg, lo
             return;
         }
         if (seen && _sightings.Count >= StartHits && now >= _restUntil
-            && cam.State == LinkState.Connected && !cam.IsRecording && !cam.IsFormatting && !cam.IsPhotoMode)
+            && cam.Connected && !cam.IsRecording && !cam.IsFormatting && !cam.IsPhotoMode)
         {
             cam.ToggleRecord();
             _took = _lastBird = now;

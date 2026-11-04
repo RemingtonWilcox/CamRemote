@@ -52,7 +52,7 @@ public sealed record FocusFrame(FrameKind Kind, bool Focused, double X, double Y
 /// Owns the SDK session. Every SDK call runs on one worker thread, in order; results and
 /// camera events are delivered on the UI thread.
 /// </summary>
-public sealed class CameraService : IDisposable
+public sealed class CameraService : IDisposable, ITriggerCamera
 {
     private const uint TypeUInt32 = 0x0003, TypeUInt64 = 0x0004, TypeInt16 = 0x1002;
     private const long FocusManual = 1, FocusContinuous = 3;
@@ -84,6 +84,7 @@ public sealed class CameraService : IDisposable
 
     public Dictionary<uint, Prop> Props { get; private set; } = new();
     public LinkState State { get; private set; } = LinkState.Disconnected;
+    bool ITriggerCamera.Connected => State == LinkState.Connected;
 
     /// <summary>
     /// Set when automatic reconnecting should pause until the user connects by hand: after they
