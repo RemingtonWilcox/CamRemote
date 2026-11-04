@@ -135,9 +135,9 @@
   <div class="wrap hero-stage">
     <div class="stage" id="stage">
       <figure class="screen">
-        <img src="assets/window.jpg" width="1760" height="905" alt="The app's window: a cattle egret beside a red ginger flower in the live picture, the histogram and meter in the corner, and the Video tab on the right with the Record button, four saved setups and exposure.">
+        <img src="assets/window.jpg" width="1760" height="946" alt="The app recording a backyard feeder: a woodpecker on the suet with the camera's tracking box around it, REC 00:02:32 at the top left, the grid and zebras on, the histogram in the corner, and the Video tab on the right with Stop, four saved setups, exposure and focus.">
       </figure>
-      <div class="chip-float c1" aria-hidden="true"><span class="rec-dot"></span>REC <b class="mono" id="heroRec">00:00:09</b></div>
+      <div class="chip-float c1" aria-hidden="true"><span class="rec-dot"></span>REC <b class="mono" id="heroRec">00:02:32</b></div>
       <div class="chip-float c2" aria-hidden="true"><svg class="ic"><use href="#i-wifi"/></svg>Live view · <b>~20 fps</b></div>
       <div class="chip-float c3" aria-hidden="true"><svg class="ic"><use href="#i-bird"/></svg>Bird seen · recording</div>
       <div class="chip-float c4" aria-hidden="true"><svg class="ic"><use href="#i-pin"/></svg>Across town</div>
@@ -309,17 +309,35 @@
     <!-- Peaking: the real thing -->
     <div class="split reveal">
       <figure class="shot shot-tilt">
-        <img src="assets/peaking.jpg" width="720" height="405" loading="lazy" alt="Close-up of the egret's head and neck in the app, outlined in blue where the picture is sharp.">
-        <figcaption>Peaking on the real egret: the eye and neck light up.</figcaption>
+        <video class="loop" src="assets/peaking.mp4" poster="assets/peaking-poster.jpg" width="980" height="580" autoplay muted loop playsinline preload="metadata" aria-label="Peaking switched on and off at a bird feeder: the feeder's edges light up blue where they're sharp while a woodpecker feeds inside the camera's focus box."></video>
+        <figcaption>Peaking on and off at the feeder, live over Wi-Fi.</figcaption>
       </figure>
       <div class="split-copy">
         <p class="eyebrow"><span class="dot"></span>See what's sharp</p>
         <h2>Tell what's in focus from across the yard.</h2>
         <p>Click the bird and the camera focuses there. Turn on <b>Peaking</b> and the sharp edges light up. The camera's own focus boxes show what it's locked on, and the magnifier zooms in to check.</p>
         <ul class="ticks">
-          <li><svg class="ic"><use href="#i-check"/></svg>Click to focus, or to track</li>
+          <li><svg class="ic"><use href="#i-check"/></svg>Peaking in red, yellow, cyan or white</li>
           <li><svg class="ic"><use href="#i-check"/></svg>Focus ring and focus bar in MF or DMF</li>
           <li><svg class="ic"><use href="#i-check"/></svg>×2 and ×4 magnifier</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Tracking: the real thing -->
+    <div class="split split-rev reveal">
+      <figure class="shot shot-tilt">
+        <video class="loop" src="assets/tracking.mp4" poster="assets/tracking-poster.jpg" width="1280" height="716" autoplay muted loop playsinline preload="metadata" aria-label="Tracking: the camera's focus box follows a small bird as it moves between two feeders."></video>
+        <figcaption>The camera's own tracking, following a bird between feeders.</figcaption>
+      </figure>
+      <div class="split-copy">
+        <p class="eyebrow"><span class="dot"></span>Lock on and follow</p>
+        <h2>Click a bird once. The camera keeps it sharp.</h2>
+        <p>Set <b>Tap does</b> to <b>Tracking</b> and click. The camera's tracking box stays on the bird as it hops about, and you see it move in the live picture.</p>
+        <ul class="ticks">
+          <li><svg class="ic"><use href="#i-check"/></svg>Click to focus, or to track</li>
+          <li><svg class="ic"><use href="#i-check"/></svg>The camera's own focus boxes, drawn on the picture</li>
+          <li><svg class="ic"><use href="#i-check"/></svg>Tells you if the camera didn't start tracking</li>
           <li><svg class="ic"><use href="#i-check"/></svg>Right-click cancels a touch focus or tracking</li>
         </ul>
       </div>
@@ -496,6 +514,18 @@
           </div>
         </div>
       </div>
+
+      <!-- Real results for the chosen mode -->
+      <div class="photo-real">
+        <figure class="shot" data-mode="0">
+          <img src="assets/bracket.jpg" width="1816" height="400" loading="lazy" alt="Three photos of the same forest clearing from one bracket: darker at 1/1000, normal at 1/500 and brighter at 1/250.">
+          <figcaption>One press of <b>Take photo</b> with a 1-stop, 3-photo bracket, straight off the A7S III.</figcaption>
+        </figure>
+        <figure class="shot shot-tl" data-mode="1" hidden>
+          <video class="loop" src="assets/timelapse.mp4" poster="assets/timelapse-poster.jpg" width="1280" height="856" muted loop playsinline preload="none" aria-label="A time-lapse of autumn leaves over a lake valley, 36 photos taken one every 2 seconds."></video>
+          <figcaption>A real time-lapse from the app: 36 photos, one every 2 seconds.</figcaption>
+        </figure>
+      </div>
     </div>
   </div>
 </section>
@@ -610,7 +640,7 @@
         <h2>No computer at all.<br>Just your phone and its hotspot.</h2>
         <p class="sub"><span class="nm"></span> for iPhone and iPad runs the camera on its own, out where there's no Wi-Fi. It's a free beta on TestFlight, Apple's app for testing, before it comes to the App Store.</p>
         <ul class="chips">
-          <li>Live picture</li><li>Tap to focus</li><li>Exposure</li><li>Video</li><li>S&amp;Q</li><li>Photos</li><li>Burst</li><li>Time-lapse</li><li>C1 to C3</li><li>Automatic recording</li><li>Hand it to a computer</li>
+          <li>Live picture</li><li>Tap to focus</li><li>Exposure</li><li>Video</li><li>S&amp;Q</li><li>Photos</li><li>Burst</li><li>Time-lapse</li><li>C1 to C4</li><li>Automatic recording</li><li>Hand it to a computer</li>
         </ul>
         <div class="cta">
           <a class="btn btn-primary btn-lg" data-link="testflight" href="#"><svg class="ic"><use href="#i-apple"/></svg><span>Join the free beta</span></a>
@@ -618,19 +648,10 @@
         <p class="fine">iOS and iPadOS 16 or newer. Photos and video stay on the camera's card. It only works while the app is open on screen, so keep the phone plugged in for long sessions. Close the app on your computer first: the camera takes one remote at a time.</p>
       </div>
 
-      <div class="devices reveal" aria-label="iPhone and iPad screenshots">
-        <!-- PLACEHOLDER: set screens.ipad and screens.iphone in config.js -->
-        <div class="ipad">
-          <div class="dev-screen" data-screen="ipad">
-            <div class="ph"><img src="assets/liveview.jpg" alt="" loading="lazy"><span class="ph-tag">iPad screenshot coming soon</span></div>
-          </div>
-        </div>
-        <div class="iphone">
-          <div class="dev-screen" data-screen="iphone">
-            <div class="ph"><img src="assets/liveview.jpg" alt="" loading="lazy"><span class="ph-tag">iPhone screenshot coming soon</span></div>
-          </div>
-          <i class="island"></i>
-        </div>
+      <div class="devices reveal" role="group" aria-label="iPhone screenshots">
+        <figure class="iphone ip-l"><div class="dev-screen"><img src="assets/iphone-timelapse.jpg" width="440" height="908" loading="lazy" alt="The iPhone's time-lapse planner: two hours of real time at one photo every 5 seconds makes a one-minute clip at 24 fps, 120 times faster."></div><i class="island"></i></figure>
+        <figure class="iphone ip-r"><div class="dev-screen"><img src="assets/iphone-computer.jpg" width="440" height="908" loading="lazy" alt="Computer control on: the iPhone app showing the live picture at 120p while a computer runs the camera through the phone."></div><i class="island"></i></figure>
+        <figure class="iphone ip-c"><div class="dev-screen"><img src="assets/iphone-rec.jpg" width="440" height="908" loading="lazy" alt="The iPhone app recording 60p at a bird feeder, with shutter, iris and ISO, the Record button, automatic recording and the C1 to C4 setups below."></div><i class="island"></i></figure>
       </div>
     </div>
   </div>

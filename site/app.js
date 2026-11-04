@@ -113,7 +113,7 @@
   onScroll();
 
   const heroRec = $('#heroRec');
-  let heroSecs = 9;
+  let heroSecs = 152;
   if (!reduced) setInterval(() => { heroSecs += 1; heroRec.textContent = clock(heroSecs); }, 1000);
 
   /* ---------- Which download fits this visitor (worked out here, never sent) ---------- */
@@ -577,7 +577,7 @@
   function showMode(i) {
     colCrop.dataset.mode = i;
     $$('#photoShow [role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.mode === String(i))));
-    $$('.pane').forEach((p) => { p.hidden = p.dataset.mode !== String(i); });
+    $$('.pane, .photo-real [data-mode]').forEach((p) => { p.hidden = p.dataset.mode !== String(i); });
     if (+i === 2) runExposureRing();
   }
   $$('#photoShow [role="tab"]').forEach((b) => b.addEventListener('click', () => showMode(b.dataset.mode)));
@@ -760,14 +760,13 @@
     }, { threshold: 0.4 }).observe($('#journey'));
   }
 
-  /* ---------- iPhone and iPad screenshots ---------- */
-  Object.entries(S.screens || {}).forEach(([k, src]) => {
-    if (!src) return;
-    const el = $(`.dev-screen[data-screen="${k}"]`);
-    if (!el) return;
-    const im = new Image();
-    im.src = src; im.alt = `${S.name} on ${k === 'ipad' ? 'iPad' : 'iPhone'}`;
-    el.replaceChildren(im);
+  /* ---------- Real clips loop only while on screen ---------- */
+  $$('video.loop').forEach((v) => {
+    if (reduced) { v.pause(); v.controls = true; return; }
+    if (!('IntersectionObserver' in window)) { v.play().catch(() => {}); return; }
+    new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) v.play().catch(() => {}); else v.pause();
+    }, { threshold: 0.25 }).observe(v);
   });
 
   /* ---------- Bento glow follows the pointer ---------- */

@@ -40,12 +40,4 @@ window.SITE = {
     x: '',
     discord: '',
   },
-
-  // PLACEHOLDER: iPhone and iPad screenshots. Drop the files in site/assets/
-  // and put their paths here, like 'assets/iphone.png'.
-  // Best sizes: iPhone upright 1179×2556, iPad sideways 2732×2048.
-  screens: {
-    iphone: '',
-    ipad: '',
-  },
 };

@@ -5,18 +5,18 @@ A single static page: plain HTML, CSS and JavaScript, with no build step and not
 | File | What it is |
 |---|---|
 | `index.html` | The page |
-| `config.js` | **Everything you'd change:** the app's name, version, download links, TestFlight link, YouTube video, social links and iPhone/iPad screenshots |
+| `config.js` | **Everything you'd change:** the app's name, version, download links, TestFlight link, YouTube video and social links |
 | `styles.css` | Look and layout, light and dark |
 | `app.js` | The interactive parts |
 | `theme.js` | Picks light or dark before the page draws |
-| `assets/` | Pictures. `liveview.jpg` is the egret frame the live-view demo works on |
+| `assets/` | Pictures. `liveview.jpg` is the egret frame the live-view demo works on; the `.mp4` clips play muted on a loop while they're on screen |
 
 ## Change something
 
 - **The name:** `name` in `config.js`, plus the three lines marked `APP NAME` at the top of `index.html`.
 - **A new version:** `version` in `config.js`.
 - **Placeholders:** anything left as `''` in `config.js` shows as "coming soon". Fill it in and it appears.
-- **iPhone and iPad screenshots:** put them in `assets/` and set `screens.iphone` and `screens.ipad` in `config.js`.
+- **Pictures and clips:** they're in `assets/`. Replace a file with one of the same name, or change its `src` in `index.html`.
 
 ## Look at it
 
