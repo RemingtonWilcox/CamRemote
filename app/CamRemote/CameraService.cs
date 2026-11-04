@@ -171,7 +171,7 @@ public sealed class CameraService : IDisposable, ITriggerCamera
     private static string Explain(int err) => Math.Abs((long)err) switch
     {
         0x8202 => "Couldn't reach the camera. It may be off, or another app like Imaging Edge or Monitor & Control may be using it.",
-        0x820B or 0x8210 => "Another app is using the camera. Close Imaging Edge or Monitor & Control, then CamRemote can connect.",
+        0x820B or 0x8210 => "Another app is using the camera, maybe Egret on another device, Imaging Edge or Monitor & Control. Close it, then Egret can connect.",
         0x820A => "The camera refused the connection. Check that Remote Shooting is on.",
         0x8207 or 0x8208 or 0x8209 => "Lost contact with the camera. Check that it's on and on the same Wi-Fi.",
         0x8212 or 0x8213 or 0x8214 or 0x8215 => "Couldn't make a secure connection to the camera. Turn it off and on, then try again.",
@@ -290,7 +290,8 @@ public sealed class CameraService : IDisposable, ITriggerCamera
                 if (a != _lastWarning)
                 {
                     Log.Write("Camera notice: " + Native.ErrorName((int)a));
-                    if (ExplainNotice(a) is { } notice) Say(notice);
+                    if (a == 0x2006A) _ui.Post(() => Say(WhyNoRecording()));
+                    else if (ExplainNotice(a) is { } notice) Say(notice);
                 }
                 _lastWarning = a;
                 _propsDirty = true; // a resumed session sends no connect event of its own on every camera
@@ -820,6 +821,17 @@ public sealed class CameraService : IDisposable, ITriggerCamera
     private PropCode CardStatus(int slot) => slot == 1 ? PropCode.MediaSLOT1_Status : PropCode.MediaSLOT2_Status;
     private PropCode CardFormat(int slot) => slot == 1 ? PropCode.MediaSLOT1_QuickFormatEnableStatus : PropCode.MediaSLOT2_QuickFormatEnableStatus;
     private PropCode CardTime(int slot) => slot == 1 ? PropCode.MediaSLOT1_RemainingTime : PropCode.MediaSLOT2_RemainingTime;
+
+    /// <summary>Why the camera turned down the record button, when its cards explain it. A full card is the usual reason.</summary>
+    private string WhyNoRecording()
+    {
+        var ready = new[] { 1, 2 }.Where(s => Get(CardStatus(s))?.Value == 0).ToList();
+        if (ready.Count == 0 && new[] { 1, 2 }.Any(s => Get(CardStatus(s)) != null))
+            return "The camera couldn't record: there's no card it can use. Check the card is in and not locked.";
+        if (ready.Count > 0 && ready.All(s => Get(CardTime(s))?.Value == 0))
+            return "The camera couldn't record: its card is full.";
+        return "The camera couldn't start or stop recording.";
+    }
 
     /// <summary>The cards in the camera, on cameras that can format over the SDK.</summary>
     public IEnumerable<int> CardSlots => new[] { 1, 2 }.Where(s => Get(CardStatus(s))?.Value == 0 && Get(CardFormat(s)) != null);
