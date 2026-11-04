@@ -445,6 +445,7 @@ That's normal after resetting the camera or changing its Access Authen. settings
 | **Time-lapse** | One photo every 1 to 60 seconds, up to 9,999 photos, using the camera's own interval shooting |
 | **Animal detection** | Runs on your computer once a second. It knows birds, common mammals and people, and no pictures leave your computer |
 | **Phone control** | A web page on your phone, over your home network or Tailscale, protected by an access code. The computer stays on with the app open |
+| **More than one computer** | A second computer shows the camera through the first one, after you allow it once. Home network and Tailscale only |
 | **Your camera password** | Stays on your computer, in Windows Credential Manager or your Mac's Keychain |
 | **Built on** | Sony's Camera Remote SDK v2.02.00 |
 | **Price** | Free. The code is MIT licensed |
@@ -500,6 +501,7 @@ If you'd use one of these, [open an issue](https://github.com/RemingtonWilcox/Eg
 - **Shooting guides:** worked out from the preview, not the recorded file, so a Monitor LUT changes them. At Wi-Fi preview size, peaking shows the plane of focus. Use the magnifier for critical focus.
 - **Recording timer:** keeps counting through a dropped link or an app restart. A take already rolling when the app first sees it shows a **+**.
 - **Phone control:** works on your home network and over Tailscale, and needs the access code. The app hides it until you click **Show code**, and **New code** replaces it and signs phones out. The computer must stay on with the app open. On an iPhone, use Share › Add to Home Screen for a full-screen app.
+- **Two computers, one camera:** the camera takes one remote at a time. When Egret is already running the camera on one computer, Egret on your other computer finds it and shows the camera through it, instead of fighting over it. The first time, the computer with the camera asks **"… wants to join this camera. Allow?"**. After that it joins by itself, at home and over Tailscale. To stop one joining, click **Remove** next to it under **Other computers** in **Setup**, or untick **Let my other computers join**. Windows or your Mac may ask whether Egret can use the network the first time: allow it on private networks.
 - **Audio:** live meters need HDMI through a capture card, because the camera sends no sound over Wi-Fi. Aim for loud sounds peaking around −12 dB and never reaching 0.
 - **Keeping the same address:** reserve the camera's IP address in your router so it never changes. The app usually finds the camera again anyway.
 

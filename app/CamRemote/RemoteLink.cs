@@ -67,7 +67,7 @@ public sealed class RemoteState
 /// </summary>
 public sealed class RemoteLink : IDisposable
 {
-    private const string Cookie = "camremote";
+    private const string Cookie = PhoneServer.Cookie;
     private static readonly JsonSerializerOptions Json = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -77,6 +77,8 @@ public sealed class RemoteLink : IDisposable
     private readonly HttpClient _http;
     private string _token;
     public string Address { get; }
+    public string HostName { get; set; } = ""; // the computer's name, when it was found by itself
+    public const string SignedOut = "Signed out: type the access code again.";
     public string CameraId { get; private set; } = "";
     public string CameraName { get; private set; } = "";
 
@@ -112,6 +114,7 @@ public sealed class RemoteLink : IDisposable
         {
             using var r = await link._http.PostAsync("/api/login", Body(new { code = code.Trim().ToUpperInvariant() }));
             if (r.StatusCode == HttpStatusCode.Unauthorized) { link.Dispose(); return (null, "That access code isn't right."); }
+            if (r.StatusCode == HttpStatusCode.Forbidden) { link.Dispose(); return (null, "Phone control is off on the other Egret, so its access code doesn't work. It can let this computer in by itself: click Connect camera… and answer there."); }
             if (!r.IsSuccessStatusCode) { link.Dispose(); return (null, $"The other Egret said no ({(int)r.StatusCode})."); }
             string? token = r.Headers.TryGetValues("Set-Cookie", out var cookies)
                 ? cookies.Select(c => c.Split(';')[0]).Where(c => c.StartsWith(Cookie + "=")).Select(c => c[(Cookie.Length + 1)..]).FirstOrDefault()
@@ -144,7 +147,7 @@ public sealed class RemoteLink : IDisposable
     private async Task<(RemoteLink?, string?)> FindCameraAsync()
     {
         using var r = await Send(HttpMethod.Get, "/api/cameras");
-        if (r.StatusCode == HttpStatusCode.Unauthorized) { Dispose(); return (null, "Signed out: type the access code again."); }
+        if (r.StatusCode == HttpStatusCode.Unauthorized) { Dispose(); return (null, SignedOut); }
         r.EnsureSuccessStatusCode();
         using var doc = JsonDocument.Parse(await r.Content.ReadAsStringAsync());
         var first = doc.RootElement.EnumerateArray().FirstOrDefault();
@@ -228,7 +231,7 @@ public sealed class RemoteLink : IDisposable
                 using var doc = JsonDocument.Parse(await r.Content.ReadAsStringAsync());
                 return doc.RootElement.TryGetProperty("message", out var m) ? m.GetString() : "The camera didn't take that.";
             }
-            return r.StatusCode == HttpStatusCode.Unauthorized ? "Signed out: type the access code again." : $"The other Egret refused that ({(int)r.StatusCode}).";
+            return r.StatusCode == HttpStatusCode.Unauthorized ? SignedOut : $"The other Egret refused that ({(int)r.StatusCode}).";
         }
         catch (Exception ex) { return Unreachable(ex); }
     }

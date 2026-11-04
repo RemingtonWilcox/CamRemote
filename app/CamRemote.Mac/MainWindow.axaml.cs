@@ -60,6 +60,11 @@ public partial class MainWindow : Window
     private bool _reconnecting;
     private bool _wasConnected; // connected at some point this run, so a drop is worth a banner
     private PhoneServer? _phone;
+    private PeerAllowList? _allowed; // read from the Keychain when sharing first starts
+    private Window? _joined; // the camera through another Egret, while it's open
+    private bool _autoJoin = true; // off once the person leaves a joined camera, until they click Connect camera…
+    private bool _joining; // looking for, or asking, another Egret
+    private readonly HashSet<string> _asked = []; // other Egrets already asked this run, so a "no" stays a no
     private readonly BirdTrigger _bird;
     private bool _setup; // the Setup tab is showing
     private bool _phoneWatching; // a phone wants the live view, even if this window shows a capture card
@@ -92,6 +97,10 @@ public partial class MainWindow : Window
         _bird.Spotted += ShowAnimal;
         BirdWatch.IsVisible = BirdTrigger.Available;
         _cam.Message += ShowMessage;
+        _cam.Failed += err =>
+        {
+            if (CameraService.IsBusy(err)) _ = JoinPeerAsync();
+        };
         _cam.StateChanged += OnLinkChanged;
         _cam.PropsChanged += OnPropsChanged;
         _cam.FramesChanged += ShowFrames;
@@ -322,7 +331,7 @@ public partial class MainWindow : Window
             _settings.Save();
         }
         await LoadSourcesAsync();
-        await SetPhoneAsync(_settings.PhoneEnabled);
+        await SetPhoneAsync();
         _ = ShowUpdateAsync();
         await TryReconnectAsync(first: true);
     }
@@ -361,7 +370,7 @@ public partial class MainWindow : Window
 
     private async Task TryReconnectAsync(bool first = false)
     {
-        if (_settings.AgreedVersion < Agreement.Version || _reconnecting || _cam.HoldReconnect || !_settings.AutoConnect || _settings.CameraIp.Length == 0) return;
+        if (_settings.AgreedVersion < Agreement.Version || _reconnecting || _cam.HoldReconnect || !_settings.AutoConnect) return;
         var idle = DateTime.Now - _linkSince;
         bool due = _cam.State switch
         {
@@ -374,6 +383,7 @@ public partial class MainWindow : Window
         try
         {
             _linkSince = DateTime.Now;
+            if (await JoinPeerAsync() || _settings.CameraIp.Length == 0) return;
             if (!await CameraConnect.SavedAsync(_cam, _settings, ShowMessage, AskFingerprint, quiet: !first))
                 ShowMessage("Waiting for the camera (on, on Wi-Fi, Remote Shooting on). Trying again every 15 s…");
         }
@@ -602,6 +612,8 @@ public partial class MainWindow : Window
         }
         var dlg = new ConnectWindow(_cam, _settings);
         if (!await dlg.ShowDialog<bool>(this)) return;
+        _autoJoin = true; // if another Egret has the camera after all, join it
+        _asked.Clear();
         if (dlg.Joined is { } link)
         {
             Join(link);
@@ -619,10 +631,14 @@ public partial class MainWindow : Window
     private void Join(RemoteLink link)
     {
         bool held = _cam.HoldReconnect;
+        if (_cam.State != LinkState.Disconnected) _cam.Disconnect(); // stop asking for the camera the other one has
         _cam.HoldReconnect = true;
         var join = new JoinWindow(link, _settings);
+        _joined = join;
         join.Closed += (_, _) =>
         {
+            _joined = null;
+            _autoJoin = false; // the person left it, so don't pull them back in
             _cam.HoldReconnect = held;
             _linkSince = DateTime.Now;
             Show();
@@ -630,6 +646,31 @@ public partial class MainWindow : Window
         };
         join.Show();
         Hide();
+    }
+
+    /// <summary>
+    /// Uses the camera through another Egret that already holds it, if one is in reach: at startup, before
+    /// each try at the camera, and when the camera says it's busy. True when joined.
+    /// </summary>
+    private async Task<bool> JoinPeerAsync()
+    {
+        if (!_autoJoin || _joining || _joined != null || _cam.State == LinkState.Connected) return false;
+        _joining = true;
+        try
+        {
+            if (await Peers.JoinAsync(_settings, ShowMessage, _asked) is not { } link) return false;
+            if (!_autoJoin || _joined != null || _cam.State == LinkState.Connected)
+            {
+                link.Dispose();
+                return false;
+            }
+            Join(link);
+            return true;
+        }
+        finally
+        {
+            _joining = false;
+        }
     }
 
     private void OnRecClick(object? sender, RoutedEventArgs e) => _cam.ToggleRecord();
@@ -1724,7 +1765,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void KeepAwake()
     {
-        if (OperatingSystem.IsMacOS()) MacNative.cb_awake(_cam.State == LinkState.Connected ? 2 : _phone != null ? 1 : 0);
+        if (OperatingSystem.IsMacOS()) MacNative.cb_awake(_cam.State == LinkState.Connected ? 2 : _phone != null && _settings.PhoneEnabled ? 1 : 0);
     }
 
     // ---- Phone control ----
@@ -1735,7 +1776,7 @@ public partial class MainWindow : Window
 
     private void ShowPhoneInfo()
     {
-        PhoneInfo.Text = _phone == null ? "" : string.Join("\n", PhoneServer.Addresses(_settings.PhonePort))
+        PhoneInfo.Text = _phone == null || !_settings.PhoneEnabled ? "" : string.Join("\n", PhoneServer.Addresses(_settings.PhonePort))
             + $"\nAccess code: {(_codeShown ? _settings.PhoneCode : "••••••••")}";
         PhoneCodeShow.Content = _codeShown ? "Hide code" : "Show code";
     }
@@ -1775,24 +1816,42 @@ public partial class MainWindow : Window
     {
         _settings.PhoneEnabled = PhoneEnabled.IsChecked == true;
         _settings.Save();
-        await SetPhoneAsync(_settings.PhoneEnabled);
+        await SetPhoneAsync();
     }
 
-    private async Task SetPhoneAsync(bool on)
+    private async void OnShareToggle(object? sender, RoutedEventArgs e)
     {
-        PhoneEnabled.IsChecked = on;
+        _settings.ShareWithEgrets = ShareEnabled.IsChecked == true;
+        _settings.Save();
+        await SetPhoneAsync();
+    }
+
+    /// <summary>Serves the camera while phone control or sharing with other Egrets is on.</summary>
+    private async Task SetPhoneAsync()
+    {
+        PhoneEnabled.IsChecked = _settings.PhoneEnabled;
+        ShareEnabled.IsChecked = _settings.ShareWithEgrets;
         if (_phone != null)
         {
             await _phone.DisposeAsync();
             _phone = null;
         }
-        if (on)
+        if (_settings.PhoneEnabled || _settings.ShareWithEgrets)
         {
-            _settings.EnsurePhoneSecrets();
-            _settings.Save();
+            if (_settings.PhoneEnabled)
+            {
+                _settings.EnsurePhoneSecrets();
+                _settings.Save();
+            }
+            _allowed ??= new PeerAllowList(_settings);
             var sony = new SonyRemote(_ui, _cam, () => _live.Latest, _settings, _rows, () =>
                 (BatteryText.Text ?? "", CardText.Text ?? "", AlertBanner.IsVisible ? AlertText.Text ?? "" : ""));
-            var server = new PhoneServer(_settings, [sony]);
+            var server = new PhoneServer(_settings, [sony])
+            {
+                Allowed = _allowed,
+                HasCamera = () => _cam.State == LinkState.Connected,
+                AskToJoin = AskToJoinAsync,
+            };
             try
             {
                 await server.StartAsync();
@@ -1800,13 +1859,60 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                ShowMessage($"Phone control couldn't start: {ex.Message}");
+                ShowMessage($"{(_settings.PhoneEnabled ? "Phone control" : "Sharing with your other computers")} couldn't start: {ex.Message}");
             }
         }
-        PhoneInfo.IsVisible = _phone != null;
-        PhoneCodeButtons.IsVisible = _phone != null;
+        bool phone = _phone != null && _settings.PhoneEnabled;
+        PhoneInfo.IsVisible = phone;
+        PhoneCodeButtons.IsVisible = phone;
         ShowPhoneInfo();
+        ShowAllowed();
         KeepAwake();
+    }
+
+    // ---- Other computers ----
+
+    /// <summary>Another Egret asks to use this camera for the first time. A yes lasts until it's removed in Setup.</summary>
+    private Task<string?> AskToJoinAsync(string id, string name, string address) => Dispatcher.UIThread.InvokeAsync(async () =>
+    {
+        if (!IsVisible) return null;
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        Activate();
+        bool yes = await ConnectWindow.AskAsync(this, "Egret",
+            $"{name} wants to join this camera (from {address}).\n\nAllow it? You won't be asked again for {name}. You can remove it in Setup.",
+            "Allow", "Don't allow");
+        if (!yes)
+        {
+            Log.Write($"Didn't let {name} join this camera.");
+            return null;
+        }
+        string token = _allowed!.Allow(id, name);
+        ShowAllowed();
+        return (string?)token;
+    });
+
+    private void ShowAllowed()
+    {
+        AllowedList.Children.Clear();
+        foreach (var device in _settings.AllowedDevices)
+        {
+            var remove = new Button { Content = "Remove", Padding = new Thickness(8, 1, 8, 1) };
+            ToolTip.SetTip(remove, $"{device.Name} has to ask again to join.");
+            string id = device.Id;
+            remove.Click += (_, _) =>
+            {
+                (_allowed ??= new PeerAllowList(_settings)).Remove(id);
+                ShowAllowed();
+            };
+            var row = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
+            DockPanel.SetDock(remove, Dock.Right);
+            row.Children.Add(remove);
+            row.Children.Add(new TextBlock { Text = device.Name, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
+            AllowedList.Children.Add(row);
+        }
+        AllowedHint.Text = _settings.AllowedDevices.Count == 0
+            ? "The first time another computer joins, you're asked here."
+            : "Allowed to join:";
     }
 
     // ---- Audio meters ----

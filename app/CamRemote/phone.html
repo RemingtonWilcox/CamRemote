@@ -129,7 +129,7 @@ function showMain() { $('login').classList.add('hide'); $('main').classList.remo
 
 $('loginBtn').onclick = async () => {
   const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: $('code').value }) });
-  if (r.ok) start(); else toast("That code isn't right.");
+  if (r.ok) start(); else toast(r.status === 403 ? "Phone control is off in Egret's Setup." : "That code isn't right.");
 };
 
 function chooser(row) {

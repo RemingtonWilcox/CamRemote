@@ -1,0 +1,300 @@
+using System.Collections.Concurrent;
+using System.Net;
+using System.Net.Http;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+
+namespace CamRemote;
+
+/// <summary>Another CamRemote found holding a camera. Token is set for the one joined by access code before.</summary>
+public sealed record FoundPeer(string Id, string Name, string Address, string? Token = null);
+
+/// <summary>
+/// Lets one CamRemote use the camera another already holds, with nothing to type. A host answers a
+/// "who has the camera?" broadcast on its phone port (UDP). A joiner it hasn't seen asks to join
+/// (/api/pair), the host's person allows it or not, and the host hands that device its own token.
+/// Both sides keep the token in Windows Credential Manager or the macOS Keychain. Broadcasts don't
+/// cross Tailscale, so a joiner also tries the addresses of hosts it has joined before.
+/// </summary>
+public static class Peers
+{
+    public const string AllowedResource = "CamRemote allowed"; // tokens this CamRemote handed out, by device id
+    public const string HostResource = "CamRemote host"; // tokens other CamRemotes handed this one, by their device id
+    public static readonly byte[] Question = "camremote-who-has-the-camera-1"u8.ToArray();
+    private const int KeepHosts = 8, KeepAddresses = 6;
+
+    public static string ThisName => Clean(Environment.MachineName);
+
+    /// <summary>A name sent by another device, made safe to show.</summary>
+    public static string Clean(string? name)
+    {
+        string s = new string((name ?? "").Where(c => !char.IsControl(c)).ToArray()).Trim();
+        return s.Length == 0 ? "another computer" : s.Length > 40 ? s[..40] : s;
+    }
+
+    /// <summary>
+    /// Finds another CamRemote holding a camera and gets this one in: with its token from last time, or by
+    /// asking (once a run per host, in <paramref name="asked"/>). Null when there's none or it said no.
+    /// </summary>
+    public static async Task<RemoteLink?> JoinAsync(Settings settings, Action<string> say, HashSet<string> asked)
+    {
+        foreach (var host in await FindAsync(settings))
+        {
+            string token = host.Token ?? settings.LoadSecret(HostResource, host.Id);
+            if (token.Length > 0)
+            {
+                var (link, problem) = await RemoteLink.ResumeAsync(host.Address, token);
+                if (link != null) return await JoinedAsync(settings, link, host);
+                if (problem != RemoteLink.SignedOut || host.Token != null) continue;
+                settings.SaveSecret(HostResource, host.Id, ""); // that host no longer lets this one in
+            }
+            if (host.Token != null || !asked.Add(host.Id)) continue;
+            say($"The Egret on {host.Name} has the camera. Asking it to let this computer join: answer on {host.Name}.");
+            var (given, why) = await AskToJoinAsync(settings, host);
+            if (given == null)
+            {
+                say(why!);
+                continue;
+            }
+            settings.SaveSecret(HostResource, host.Id, given);
+            var (joined, notJoined) = await RemoteLink.ResumeAsync(host.Address, given);
+            if (joined != null) return await JoinedAsync(settings, joined, host);
+            say(notJoined!);
+        }
+        return null;
+    }
+
+    private static async Task<RemoteLink> JoinedAsync(Settings settings, RemoteLink link, FoundPeer host)
+    {
+        link.HostName = host.Name;
+        if (host.Token != null) return link; // joined by access code; ConnectWindow keeps that one
+        using var http = Client(TimeSpan.FromSeconds(3));
+        var hello = await HelloAsync(http, host.Address, link.Token);
+        var known = settings.KnownHosts.FirstOrDefault(h => h.Id == host.Id) ?? new PeerDevice { Id = host.Id };
+        settings.KnownHosts.Remove(known);
+        known.Name = host.Name;
+        known.Addresses = new[] { host.Address }.Concat(hello?.Addresses ?? []).Concat(known.Addresses).Distinct().Take(KeepAddresses).ToList();
+        settings.KnownHosts.Insert(0, known);
+        if (settings.KnownHosts.Count > KeepHosts) settings.KnownHosts.RemoveRange(KeepHosts, settings.KnownHosts.Count - KeepHosts);
+        settings.Save();
+        return link;
+    }
+
+    /// <summary>Every CamRemote within reach that holds a camera: by broadcast at home, and at remembered addresses.</summary>
+    public static async Task<List<FoundPeer>> FindAsync(Settings settings)
+    {
+        var found = new ConcurrentDictionary<string, FoundPeer>();
+        var known = settings.KnownHosts.SelectMany(h => h.Addresses.Select(a => (h.Id, a))).ToList();
+        string last = settings.JoinAddress;
+        string lastToken = last.Length > 0 ? LastJoinToken(settings) : "";
+        await Task.WhenAll(AskAroundAsync(settings.DeviceId, settings.PhonePort, found), TryKnownAsync(known, found),
+            lastToken.Length > 0 ? TryLastAsync(last, lastToken, found) : Task.CompletedTask);
+        // A host found by its id beats the same one joined by code before.
+        return found.Values.OrderBy(p => p.Token != null).ToList();
+    }
+
+    // Read once a run: a Keychain read can ask the person, and this runs every 15 s while waiting.
+    private static (string Address, string Token)? _lastJoin;
+
+    private static string LastJoinToken(Settings settings)
+    {
+        if (_lastJoin is not { } j || j.Address != settings.JoinAddress) _lastJoin = j = (settings.JoinAddress, settings.LoadJoinToken());
+        return j.Token;
+    }
+
+    private static async Task AskAroundAsync(string ownId, int port, ConcurrentDictionary<string, FoundPeer> found)
+    {
+        try
+        {
+            using var udp = new UdpClient(new IPEndPoint(IPAddress.Any, 0)) { EnableBroadcast = true };
+            foreach (var to in BroadcastAddresses())
+                try { await udp.SendAsync(Question, new IPEndPoint(to, port)); }
+                catch (SocketException) { /* that network can't broadcast */ }
+            using var wait = new CancellationTokenSource(TimeSpan.FromSeconds(1.5));
+            while (true)
+            {
+                UdpReceiveResult r;
+                try { r = await udp.ReceiveAsync(wait.Token); }
+                catch (SocketException) { continue; } // Windows reports an earlier send that went nowhere
+                var from = r.RemoteEndPoint.Address;
+                if (!PhoneServer.IsLocalOrTailscale(from)) continue;
+                try
+                {
+                    var root = JsonDocument.Parse(r.Buffer).RootElement;
+                    string id = root.GetProperty("id").GetString() ?? "";
+                    if (id.Length == 0 || id == ownId || !root.GetProperty("camera").GetBoolean()) continue;
+                    int hostPort = root.GetProperty("port").GetInt32();
+                    if (from.IsIPv4MappedToIPv6) from = from.MapToIPv4();
+                    found.TryAdd(id, new FoundPeer(id, Clean(root.GetProperty("name").GetString()), $"http://{from}:{hostPort}"));
+                }
+                catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException) { /* not one of ours */ }
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (SocketException ex) { Log.Write("Couldn't look for other Egrets on the network: " + ex.SocketErrorCode); }
+    }
+
+    /// <summary>The whole-network address, plus each home network's own, since Windows sends the first on one network only.</summary>
+    private static HashSet<IPAddress> BroadcastAddresses()
+    {
+        var all = new HashSet<IPAddress> { IPAddress.Broadcast };
+        try
+        {
+            foreach (var nic in NetworkInterface.GetAllNetworkInterfaces().Where(n => n.OperationalStatus == OperationalStatus.Up))
+                foreach (var u in nic.GetIPProperties().UnicastAddresses.Where(u => u.Address.AddressFamily == AddressFamily.InterNetwork))
+                {
+                    byte[] a = u.Address.GetAddressBytes(), m = u.IPv4Mask.GetAddressBytes();
+                    if (IPAddress.IsLoopback(u.Address) || !PhoneServer.IsLocalOrTailscale(u.Address) || m.All(b => b == 255)) continue; // Tailscale is one address wide
+                    all.Add(new IPAddress(a.Zip(m, (x, y) => (byte)(x | ~y)).ToArray()));
+                }
+        }
+        catch (NetworkInformationException) { /* the whole-network one still goes */ }
+        return all;
+    }
+
+    private static async Task TryKnownAsync(List<(string Id, string Address)> known, ConcurrentDictionary<string, FoundPeer> found)
+    {
+        if (known.Count == 0) return;
+        using var http = Client(TimeSpan.FromSeconds(3));
+        await Task.WhenAll(known.Select(async k =>
+        {
+            // The same address may belong to another device by now, so the id has to match.
+            if (await HelloAsync(http, k.Address, null) is { Camera: true } hello && hello.Id == k.Id)
+                found.TryAdd(k.Id, new FoundPeer(k.Id, hello.Name, k.Address));
+        }));
+    }
+
+    /// <summary>The CamRemote last joined with its access code, like the iPhone app, which doesn't answer broadcasts.</summary>
+    private static async Task TryLastAsync(string address, string token, ConcurrentDictionary<string, FoundPeer> found)
+    {
+        using var http = Client(TimeSpan.FromSeconds(3));
+        try
+        {
+            using var cameras = await http.SendAsync(Get(address + "/api/cameras", token));
+            if (!cameras.IsSuccessStatusCode) return;
+            var first = JsonDocument.Parse(await cameras.Content.ReadAsStringAsync()).RootElement.EnumerateArray().FirstOrDefault();
+            if (first.ValueKind != JsonValueKind.Object || first.GetProperty("id").GetString() is not { Length: > 0 } cam) return;
+            using var state = await http.SendAsync(Get($"{address}/api/{cam}/state", token));
+            if (!state.IsSuccessStatusCode) return;
+            if (JsonDocument.Parse(await state.Content.ReadAsStringAsync()).RootElement.GetProperty("link").GetString() != "connected") return;
+            found.TryAdd("last:" + address, new FoundPeer("", new Uri(address).Host, address, token));
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or JsonException or KeyNotFoundException or InvalidOperationException) { }
+    }
+
+    private sealed record Hello(string Id, string Name, bool Camera, List<string> Addresses);
+
+    /// <summary>Who answers at an address. With this computer's token, it also lists its other addresses.</summary>
+    private static async Task<Hello?> HelloAsync(HttpClient http, string address, string? token)
+    {
+        try
+        {
+            using var r = await http.SendAsync(Get(address + "/api/hello", token));
+            if (!r.IsSuccessStatusCode) return null;
+            var root = JsonDocument.Parse(await r.Content.ReadAsStringAsync()).RootElement;
+            if (root.GetProperty("app").GetString() != "egret") return null;
+            var addresses = root.TryGetProperty("addresses", out var a) && a.ValueKind == JsonValueKind.Array
+                ? a.EnumerateArray().Select(x => RemoteLink.Normalize(x.GetString() ?? "")).OfType<string>().ToList()
+                : [];
+            return new Hello(root.GetProperty("id").GetString() ?? "", Clean(root.GetProperty("name").GetString()),
+                root.GetProperty("camera").GetBoolean(), addresses);
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Asks the host to let this computer in. Its person answers there, so this waits up to two minutes. Returns the token, or why not.</summary>
+    private static async Task<(string? Token, string? Problem)> AskToJoinAsync(Settings settings, FoundPeer host)
+    {
+        using var http = Client(TimeSpan.FromMinutes(2));
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, host.Address + "/api/pair")
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new { id = settings.DeviceId, name = ThisName }), Encoding.UTF8, "application/json"),
+            };
+            req.Headers.Add("X-CamRemote", "1");
+            using var r = await http.SendAsync(req);
+            if (r.IsSuccessStatusCode)
+            {
+                string token = JsonDocument.Parse(await r.Content.ReadAsStringAsync()).RootElement.GetProperty("token").GetString() ?? "";
+                if (token.Length > 0) return (token, null);
+            }
+            return (null, (int)r.StatusCode switch
+            {
+                403 => $"{host.Name} didn't let this computer join.",
+                408 => $"Nobody answered on {host.Name}. To try again, click Connect camera… here.",
+                409 => $"{host.Name} is asking about another device. To try again, click Connect camera… here.",
+                429 => $"{host.Name} said no a moment ago. Try again in a few minutes.",
+                404 => $"The Egret on {host.Name} is older and can't let this computer in by itself. Update it, or join with its access code.",
+                _ => $"{host.Name} couldn't take this computer ({(int)r.StatusCode}).",
+            });
+        }
+        catch (TaskCanceledException) { return (null, $"Nobody answered on {host.Name}. To try again, click Connect camera… here."); }
+        catch (Exception e) when (e is HttpRequestException or JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            return (null, $"Lost touch with {host.Name} while asking to join.");
+        }
+    }
+
+    private static HttpClient Client(TimeSpan timeout) =>
+        new(new SocketsHttpHandler { UseCookies = false, ConnectTimeout = TimeSpan.FromSeconds(Math.Min(6, timeout.TotalSeconds)) }) { Timeout = timeout };
+
+    private static HttpRequestMessage Get(string url, string? token)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Get, url);
+        if (!string.IsNullOrEmpty(token)) req.Headers.Add("Cookie", $"{PhoneServer.Cookie}={token}");
+        return req;
+    }
+}
+
+/// <summary>The other CamRemotes allowed to use this one's camera. Their tokens are read from the vault once, at startup.</summary>
+public sealed class PeerAllowList
+{
+    private readonly Settings _settings;
+    private readonly Dictionary<string, string> _tokens = []; // device id to token
+
+    public PeerAllowList(Settings settings)
+    {
+        _settings = settings;
+        foreach (var d in settings.AllowedDevices)
+            if (settings.LoadSecret(Peers.AllowedResource, d.Id) is { Length: > 0 } token) _tokens[d.Id] = token;
+    }
+
+    /// <summary>The device this token was handed to, if it's still allowed. Any thread.</summary>
+    public string? DeviceFor(string? token)
+    {
+        if (string.IsNullOrEmpty(token)) return null;
+        lock (_tokens)
+            foreach (var (id, t) in _tokens)
+                if (PhoneServer.SameSecret(token, t)) return id;
+        return null;
+    }
+
+    /// <summary>Lets a device in for good, until it's removed in Setup. Returns its new token. On the UI thread.</summary>
+    public string Allow(string id, string name)
+    {
+        string token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+        _settings.SaveSecret(Peers.AllowedResource, id, token);
+        _settings.AllowedDevices.RemoveAll(d => d.Id == id);
+        _settings.AllowedDevices.Add(new PeerDevice { Id = id, Name = name });
+        _settings.Save();
+        lock (_tokens) _tokens[id] = token;
+        Log.Write($"Let {name} join this camera.");
+        return token;
+    }
+
+    /// <summary>Signs a device out at once. It has to ask again to come back. On the UI thread.</summary>
+    public void Remove(string id)
+    {
+        lock (_tokens) _tokens.Remove(id);
+        _settings.SaveSecret(Peers.AllowedResource, id, "");
+        _settings.AllowedDevices.RemoveAll(d => d.Id == id);
+        _settings.Save();
+    }
+}

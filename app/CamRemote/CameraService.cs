@@ -97,6 +97,8 @@ public sealed class CameraService : IDisposable, ITriggerCamera
     public event Action? FramesChanged;
     public event Action? FocusMoved;
     public event Action<string>? Message;
+    /// <summary>A connection or command failed, with the SDK's error code. On the UI thread.</summary>
+    public event Action<int>? Failed;
 
     public CameraService(IUi ui)
     {
@@ -164,14 +166,21 @@ public sealed class CameraService : IDisposable, ITriggerCamera
     private void SayFailed(string msg, int err)
     {
         Log.Write($"{msg} {Native.ErrorName(err)}");
-        _ui.Post(() => Message?.Invoke(msg));
+        _ui.Post(() =>
+        {
+            Message?.Invoke(msg);
+            Failed?.Invoke(err);
+        });
     }
+
+    /// <summary>The camera already has a remote, maybe another CamRemote. It takes one at a time.</summary>
+    public static bool IsBusy(int err) => Math.Abs((long)err) is 0x820B or 0x8210;
 
     /// <summary>What a Sony connection error means for the person using the app.</summary>
     private static string Explain(int err) => Math.Abs((long)err) switch
     {
         0x8202 => "Couldn't reach the camera. It may be off, or another app like Imaging Edge or Monitor & Control may be using it.",
-        0x820B or 0x8210 => "Another app is using the camera. Close Imaging Edge or Monitor & Control, then CamRemote can connect.",
+        0x820B or 0x8210 => "Another app is using the camera, like another Egret, Imaging Edge or Monitor & Control. Close it, then Egret can connect.",
         0x820A => "The camera refused the connection. Check that Remote Shooting is on.",
         0x8207 or 0x8208 or 0x8209 => "Lost contact with the camera. Check that it's on and on the same Wi-Fi.",
         0x8212 or 0x8213 or 0x8214 or 0x8215 => "Couldn't make a secure connection to the camera. Turn it off and on, then try again.",

@@ -57,7 +57,7 @@ public partial class JoinWindow : Window
         var ui = new AvaloniaUi();
         _assist = new PictureAssist(ui);
         _assist.Done += ShowAssist;
-        HostText.Text = "Through the Egret at " + new Uri(link.Address).Host;
+        HostText.Text = link.HostName.Length > 0 ? "Through the Egret on " + link.HostName : "Through the Egret at " + new Uri(link.Address).Host;
         CamSummary.Text = link.CameraName;
         AboutText.Text = $"Egret {UpdateCheck.Current} · Made by Remington Wilcox";
         HistogramChip.IsChecked = settings.ShowHistogram;
