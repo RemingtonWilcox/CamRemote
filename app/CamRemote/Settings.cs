@@ -14,6 +14,14 @@ public sealed class Preset
     public Dictionary<string, long> Values { get; set; } = new(); // PropCode name to value
 }
 
+/// <summary>Another CamRemote: one allowed to join this one, or one this one has joined.</summary>
+public sealed class PeerDevice
+{
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+    public List<string> Addresses { get; set; } = []; // http://ip:port, newest first (only kept for hosts)
+}
+
 /// <summary>App settings in settings.json in <see cref="Folder"/>. The camera password lives in Windows Credential Manager or the macOS Keychain.</summary>
 public sealed class Settings
 {
@@ -43,6 +51,10 @@ public sealed class Settings
     public string PhoneCode { get; set; } = ""; // typed once on a phone
     public string PhoneToken { get; set; } = ""; // what the phone keeps afterwards
     public string JoinAddress { get; set; } = ""; // another CamRemote this one last used a camera through
+    public string DeviceId { get; set; } = ""; // how other CamRemotes recognise this one; not a secret
+    public bool ShareWithEgrets { get; set; } = true; // other CamRemotes may ask to use the camera this one holds
+    public List<PeerDevice> AllowedDevices { get; set; } = []; // ones the person let in; their tokens are in the vault
+    public List<PeerDevice> KnownHosts { get; set; } = []; // ones this CamRemote joined, newest first, to find again over Tailscale
     public string PhotoFolder { get; set; } = ""; // blank means Pictures/CamRemote
     public string RecordSubject { get; set; } = "Animal"; // what automatic recording looks for
     public int RecordStopAfter { get; set; } = 15; // seconds with nothing seen before automatic recording stops
@@ -68,8 +80,15 @@ public sealed class Settings
 
     public static Settings Load()
     {
-        try { return JsonSerializer.Deserialize<Settings>(File.ReadAllText(Path)) ?? new(); }
-        catch { return new(); }
+        Settings settings;
+        try { settings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(Path)) ?? new(); }
+        catch { settings = new(); }
+        if (settings.DeviceId.Length == 0)
+        {
+            settings.EnsureDeviceId();
+            try { settings.Save(); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* made again next time */ }
+        }
+        return settings;
     }
 
     /// <summary>Makes the phone code and token the first time phone control is turned on.</summary>
@@ -77,6 +96,11 @@ public sealed class Settings
     {
         if (PhoneCode.Length == 0) PhoneCode = RandomNumberGenerator.GetString("ABCDEFGHJKMNPQRSTUVWXYZ23456789", 8);
         if (PhoneToken.Length == 0) PhoneToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+    }
+
+    public void EnsureDeviceId()
+    {
+        if (DeviceId.Length == 0) DeviceId = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
     }
 
     /// <summary>Replaces the code and token. Phones already signed in have to enter the new code.</summary>
@@ -120,6 +144,20 @@ public sealed class Settings
         try { foreach (var c in vault.FindAllByResource(JoinResource)) vault.Remove(c); } catch { /* none saved */ }
         if (token.Length > 0) vault.Add(new PasswordCredential(JoinResource, JoinAddress, token));
     }
+
+    /// <summary>A secret kept per other CamRemote, under its device id. Saving an empty one removes it.</summary>
+    public string LoadSecret(string resource, string account)
+    {
+        try { var c = new PasswordVault().Retrieve(resource, account); c.RetrievePassword(); return c.Password; }
+        catch { return ""; }
+    }
+
+    public void SaveSecret(string resource, string account, string secret)
+    {
+        var vault = new PasswordVault();
+        try { vault.Remove(vault.Retrieve(resource, account)); } catch { /* none saved */ }
+        if (secret.Length > 0) vault.Add(new PasswordCredential(resource, account, secret));
+    }
 #else
     // Kept after the first read: each Keychain read can ask the person to allow it, and reconnecting reads it every 15 s.
     private (string User, string Password)? _password;
@@ -141,5 +179,10 @@ public sealed class Settings
     public string LoadJoinToken() => MacNative.LoadSecret(JoinResource, JoinAddress);
 
     public void SaveJoinToken(string token) => MacNative.SaveSecret(JoinResource, JoinAddress, token);
+
+    /// <summary>A secret kept per other CamRemote, under its device id. Saving an empty one removes it.</summary>
+    public string LoadSecret(string resource, string account) => MacNative.LoadSecret(resource, account);
+
+    public void SaveSecret(string resource, string account, string secret) => MacNative.SaveSecret(resource, account, secret);
 #endif
 }

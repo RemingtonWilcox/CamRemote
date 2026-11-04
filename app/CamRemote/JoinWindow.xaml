@@ -128,6 +128,9 @@
                         <Ellipse x:Name="LinkDot" Width="10" Height="10" Fill="#666" Margin="0,0,8,0" DockPanel.Dock="Left" />
                         <TextBlock x:Name="LinkText" Text="Joining…" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                     </DockPanel>
+                    <Button x:Name="UseHereButton" Content="Use the camera here" Click="OnUseHereClick" Margin="0,8,0,0" Padding="10,4"
+                            HorizontalAlignment="Stretch" Visibility="Collapsed"
+                            ToolTip="Connect this computer to the camera itself, so the picture doesn't pass through the other computer. The other Egret joins this one instead." />
                     <UniformGrid Rows="1" Margin="0,12,0,0">
                         <ToggleButton x:Name="VideoTab" Content="Video" Style="{StaticResource PageTab}" Click="OnModeClick" IsChecked="True"
                                       ToolTip="Switches the camera to movie mode." />

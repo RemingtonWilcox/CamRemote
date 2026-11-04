@@ -62,6 +62,7 @@ public sealed class CameraService : IDisposable, ITriggerCamera
     private const uint ParamUp = 0, ParamDown = 1;
     private const long PriorityPcRemote = 2;
     private const long LiveViewQualityHigh = 1;
+    private const long LiveViewProtocolAlt = 2; // CrLiveViewProtocol_Alt, the camera's HTTP stream
     private const int ControlTries = 5; // about 10 s at the 2 s poll
     private const int RefreshTries = 5;
     private const int FocusQuietMs = 700;
@@ -81,7 +82,7 @@ public sealed class CameraService : IDisposable, ITriggerCamera
     private volatile bool _propsDirty;
     private bool _refreshQueued;
     private int _controlMisses, _refreshFails;
-    private bool _hadControl, _restartedLink;
+    private bool _hadControl, _restartedLink, _triedHttpLiveView;
     private long _reconnectingSince; // when Sony's SDK started reconnecting on its own; 0 while it isn't
 
     public Dictionary<uint, Prop> Props { get; private set; } = new();
@@ -99,6 +100,8 @@ public sealed class CameraService : IDisposable, ITriggerCamera
     public event Action? FramesChanged;
     public event Action? FocusMoved;
     public event Action<string>? Message;
+    /// <summary>A connection or command failed, with the SDK's error code. On the UI thread.</summary>
+    public event Action<int>? Failed;
 
     public CameraService(IUi ui)
     {
@@ -168,8 +171,15 @@ public sealed class CameraService : IDisposable, ITriggerCamera
     private void SayFailed(string msg, int err)
     {
         Log.Write($"{msg} {Native.ErrorName(err)}");
-        _ui.Post(() => Message?.Invoke(msg));
+        _ui.Post(() =>
+        {
+            Message?.Invoke(msg);
+            Failed?.Invoke(err);
+        });
     }
+
+    /// <summary>The camera already has a remote, maybe another CamRemote. It takes one at a time.</summary>
+    public static bool IsBusy(int err) => Math.Abs((long)err) is 0x820B or 0x8210;
 
     /// <summary>What a Sony connection error means for the person using the app.</summary>
     private static string Explain(int err) => Math.Abs((long)err) switch
@@ -321,6 +331,7 @@ public sealed class CameraService : IDisposable, ITriggerCamera
         Log.Write(err == 0 ? "Asked the camera for control of its settings." : "Asking for control failed: " + Native.ErrorName(err));
         // Ask for the sharper live-view stream; harmless if the camera ignores it.
         Native.cb_set_prop((uint)PropCode.LiveView_Image_Quality, LiveViewQualityHigh, 0x2002);
+        _triedHttpLiveView = false; // the camera goes back to its usual stream on each connect
         SendPhotoFolder();
     }
 
@@ -450,6 +461,7 @@ public sealed class CameraService : IDisposable, ITriggerCamera
                 return;
             }
             if (!CheckControl(map)) return;
+            UseHttpLiveView(map);
             _ui.Post(() =>
             {
                 Props = map;
@@ -457,6 +469,20 @@ public sealed class CameraService : IDisposable, ITriggerCamera
                 PropsChanged?.Invoke();
             });
         });
+    }
+
+    /// <summary>
+    /// Runs on the camera thread. Switches live view to the camera's HTTP stream where it offers one. Measured on
+    /// the A7S III: 24 frames a second instead of 15 to 19, and the picture shows about 40 ms sooner (0.165 s
+    /// against 0.20 s), with fewer slow frames. Focus boxes and picture size stay the same.
+    /// </summary>
+    private void UseHttpLiveView(Dictionary<uint, Prop> map)
+    {
+        if (_triedHttpLiveView || !map.TryGetValue((uint)PropCode.LiveViewProtocol, out var p)) return;
+        _triedHttpLiveView = true;
+        if (p.Value == LiveViewProtocolAlt || !p.Writable || !p.Candidates.Contains(LiveViewProtocolAlt)) return;
+        int err = Native.cb_set_prop((uint)PropCode.LiveViewProtocol, LiveViewProtocolAlt, p.Type);
+        Log.Write(err == 0 ? "Switched live view to the camera's faster stream." : "The camera kept its usual live view stream: " + Native.ErrorName(err));
     }
 
     /// <summary>Runs on the camera thread. Every setting the camera reports right now, or null if it didn't answer.</summary>

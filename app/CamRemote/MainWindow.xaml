@@ -362,6 +362,12 @@
                                         ToolTip="Makes a new access code. Phones already signed in will need it." />
                             </StackPanel>
 
+                            <TextBlock Text="OTHER COMPUTERS" Style="{StaticResource Section}" />
+                            <CheckBox x:Name="ShareEnabled" Content="Let my other computers join" Click="OnShareToggle"
+                                      ToolTip="When this Egret has the camera, Egret on your other computers shows it too, instead of fighting over it. Home network and Tailscale only." />
+                            <TextBlock x:Name="AllowedHint" TextWrapping="Wrap" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,6,0,0" />
+                            <StackPanel x:Name="AllowedList" />
+
                             <TextBlock Text="SOMETHING NOT WORKING?" Style="{StaticResource Section}" />
                             <TextBlock Text="What happened? (optional)" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,0,0,4" />
                             <TextBox x:Name="LogNote" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="48" MaxLength="2000" />
