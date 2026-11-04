@@ -886,7 +886,7 @@ public sealed class CameraService : IDisposable, ITriggerCamera
             return null;
         }
         if (!evenIfTapIsOff && Get(PropCode.FunctionOfTouchOperation)?.Value == TouchFnOff)
-            return "Tap does is set to Off, so clicks do nothing. Pick Focus or Tracking.";
+            return TapOffHint;
         uint xy = TouchPoint(fx, fy);
         Log.Write($"Tap at {fx:0.00}, {fy:0.00}: focus mode {Get(PropCode.FocusMode)?.Value}, tap function {Get(PropCode.FunctionOfTouchOperation)?.Value}, " +
                   $"touch allowed {Get(PropCode.RemoteTouchOperationEnableStatus)?.Value}, spot movable {Get(PropCode.AF_Area_Position)?.Writable}");
@@ -954,7 +954,19 @@ public sealed class CameraService : IDisposable, ITriggerCamera
                "or set Focus Area to a Spot type.";
     }
 
-    private const string SpotNeeded = "To click to focus on this camera, set Focus area to Spot S, Spot M or Spot L.";
+    /// <summary>What to say when Tap does is Off. It names only the choices the camera offers: the A7S III in movie mode has no Focus.</summary>
+    public string TapOffHint
+    {
+        get
+        {
+            var offered = Get(PropCode.FunctionOfTouchOperation)?.Candidates ?? [];
+            bool focus = offered.Contains(TouchFnFocus), tracking = offered.Contains(TouchFnTracking);
+            return "Tap does is Off, so clicks do nothing." +
+                   (focus && tracking ? " Pick Focus or Tracking." : focus ? " Pick Focus." : tracking ? " Pick Tracking." : "");
+        }
+    }
+
+    private const string SpotNeeded ="To click to focus on this camera, set Focus area to Spot S, Spot M or Spot L.";
 
     /// <summary>
     /// Runs on the camera thread. For cameras without remote touch: moves a spot focus area to the tap, and in
@@ -988,7 +1000,9 @@ public sealed class CameraService : IDisposable, ITriggerCamera
     private void EnableTouch(long function)
     {
         if (Get(PropCode.TouchOperation)?.Value != TouchOn) SetNow(PropCode.TouchOperation, TouchOn);
-        if (Get(PropCode.FunctionOfTouchOperation)?.Value != function) SetNow(PropCode.FunctionOfTouchOperation, function);
+        // Only a function the camera offers: asking for Focus where it has none only gets a refusal.
+        if (Get(PropCode.FunctionOfTouchOperation) is { } now && now.Value != function && (now.Candidates.Length == 0 || now.Candidates.Contains(function)))
+            SetNow(PropCode.FunctionOfTouchOperation, function);
         Thread.Sleep(150);
     }
 
