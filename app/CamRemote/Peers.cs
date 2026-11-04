@@ -44,9 +44,9 @@ public static class Peers
     /// Finds another CamRemote holding a camera and gets this one in: with its token from last time, or by
     /// asking (once a run per host, in <paramref name="asked"/>). Null when there's none or it said no.
     /// </summary>
-    public static async Task<RemoteLink?> JoinAsync(Settings settings, Action<string> say, HashSet<string> asked)
+    public static async Task<RemoteLink?> JoinAsync(Settings settings, Action<string> say, HashSet<string> asked, bool patient = false)
     {
-        foreach (var host in await FindAsync(settings))
+        foreach (var host in await FindAsync(settings, patient))
         {
             string token = host.Token ?? settings.LoadSecret(HostResource, host.Id);
             if (token.Length > 0)
@@ -97,14 +97,20 @@ public static class Peers
     }
 
     /// <summary>Every CamRemote within reach that holds a camera: by broadcast at home, and at remembered addresses.</summary>
-    public static async Task<List<FoundPeer>> FindAsync(Settings settings)
+    public static async Task<List<FoundPeer>> FindAsync(Settings settings, bool patient = false)
     {
         var found = new ConcurrentDictionary<string, FoundPeer>();
         var known = settings.KnownHosts.SelectMany(h => h.Addresses.Select(a => (h.Id, a))).ToList();
         string last = settings.JoinAddress;
         string lastToken = last.Length > 0 ? LastJoinToken(settings) : "";
-        await Task.WhenAll(AskAroundAsync(settings.DeviceId, settings.PhonePort, found), TryKnownAsync(known, found),
-            lastToken.Length > 0 ? TryLastAsync(last, lastToken, found) : Task.CompletedTask);
+        var took = System.Diagnostics.Stopwatch.StartNew();
+        // Remembered addresses get 1.5 s, or 3 s when one is surely there (the camera said it's busy), since Tailscale can be slow to answer first.
+        var wait = TimeSpan.FromSeconds(patient ? 3 : 1.5);
+        var others = Task.WhenAll(TryKnownAsync(known, found, wait), lastToken.Length > 0 ? TryLastAsync(last, lastToken, found, wait) : Task.CompletedTask);
+        await AskAroundAsync(settings.DeviceId, settings.PhonePort, found);
+        // One found at home is enough; remembered addresses can take seconds to time out.
+        if (found.IsEmpty) await others;
+        if (known.Count > 0 || !found.IsEmpty) Log.Write($"Looked for other Egrets in {took.Elapsed.TotalSeconds:0.0} s: found {found.Count}.");
         // A host found by its id beats the same one joined by code before.
         return found.Values.OrderBy(p => p.Token != null).ToList();
     }
@@ -126,7 +132,9 @@ public static class Peers
             foreach (var to in BroadcastAddresses())
                 try { await udp.SendAsync(Question, new IPEndPoint(to, port)); }
                 catch (SocketException) { /* that network can't broadcast */ }
-            using var wait = new CancellationTokenSource(TimeSpan.FromSeconds(1.5));
+            // Answers at home come back within a few hundredths of a second. One missed here isn't lost: the
+            // camera then says it's busy, and that looks again.
+            using var wait = new CancellationTokenSource(TimeSpan.FromSeconds(0.8));
             while (true)
             {
                 UdpReceiveResult r;
@@ -170,10 +178,10 @@ public static class Peers
         return all;
     }
 
-    private static async Task TryKnownAsync(List<(string Id, string Address)> known, ConcurrentDictionary<string, FoundPeer> found)
+    private static async Task TryKnownAsync(List<(string Id, string Address)> known, ConcurrentDictionary<string, FoundPeer> found, TimeSpan wait)
     {
         if (known.Count == 0) return;
-        using var http = Client(TimeSpan.FromSeconds(3));
+        using var http = Client(wait);
         await Task.WhenAll(known.Select(async k =>
         {
             // The same address may belong to another device by now, so the id has to match.
@@ -183,9 +191,9 @@ public static class Peers
     }
 
     /// <summary>The CamRemote last joined with its access code, like the iPhone app, which doesn't answer broadcasts.</summary>
-    private static async Task TryLastAsync(string address, string token, ConcurrentDictionary<string, FoundPeer> found)
+    private static async Task TryLastAsync(string address, string token, ConcurrentDictionary<string, FoundPeer> found, TimeSpan wait)
     {
-        using var http = Client(TimeSpan.FromSeconds(3));
+        using var http = Client(wait);
         try
         {
             using var cameras = await http.SendAsync(Get(address + "/api/cameras", token));

@@ -99,7 +99,7 @@ public partial class MainWindow : Window
         _cam.Message += ShowMessage;
         _cam.Failed += err =>
         {
-            if (CameraService.IsBusy(err)) _ = JoinPeerAsync();
+            if (CameraService.IsBusy(err)) _ = JoinPeerAsync(patient: true);
         };
         _cam.StateChanged += OnLinkChanged;
         _cam.PropsChanged += OnPropsChanged;
@@ -663,8 +663,7 @@ public partial class MainWindow : Window
         _autoJoin = false; // the other Egret joins this one now, not the other way round
         _cam.HoldReconnect = false;
         _linkSince = DateTime.Now;
-        await Task.Delay(1000); // the camera takes a moment to free up
-        if (!await CameraConnect.SavedAsync(_cam, _settings, ShowMessage, AskFingerprint))
+        if (!await CameraConnect.TakeOverAsync(_cam, _settings, ShowMessage, AskFingerprint))
             ShowMessage("Waiting for the camera (on, on Wi-Fi, Remote Shooting on). Trying again every 15 s…");
         return null;
     }
@@ -694,8 +693,8 @@ public partial class MainWindow : Window
         _asked.Clear();
         for (int i = 0; i < 20; i++)
         {
-            await Task.Delay(TimeSpan.FromSeconds(3));
-            if (_joined != null || _cam.State != LinkState.Disconnected || await JoinPeerAsync()) return;
+            await Task.Delay(TimeSpan.FromSeconds(i == 0 ? 2 : 3)); // the other one connects in a couple of seconds
+            if (_joined != null || _cam.State != LinkState.Disconnected || await JoinPeerAsync(patient: true)) return;
         }
         ShowMessage($"Couldn't join {name}. Click Connect camera to use the camera here again.");
     }
@@ -704,13 +703,13 @@ public partial class MainWindow : Window
     /// Uses the camera through another Egret that already holds it, if one is in reach: at startup, before
     /// each try at the camera, and when the camera says it's busy. True when joined.
     /// </summary>
-    private async Task<bool> JoinPeerAsync()
+    private async Task<bool> JoinPeerAsync(bool patient = false)
     {
         if (!_autoJoin || _joining || _joined != null || _cam.State == LinkState.Connected) return false;
         _joining = true;
         try
         {
-            if (await Peers.JoinAsync(_settings, ShowMessage, _asked) is not { } link) return false;
+            if (await Peers.JoinAsync(_settings, ShowMessage, _asked, patient) is not { } link) return false;
             if (!_autoJoin || _joined != null || _cam.State == LinkState.Connected)
             {
                 link.Dispose();
