@@ -439,6 +439,8 @@ public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, l
         bool sure = _animals.Any(s => Near(s.X, s.Y, x, y, SureSpot));
         _recent.Enqueue((x, y, w, h, score, now));
         _scenery.RemoveAll(s => s.Until <= now || (sure && Near(s.X, s.Y, x, y, SceneryArea)));
+        for (int i = 0; i < _scenery.Count; i++) // scenery that keeps scoring stays scenery, so a suet cake costs one take, not one every ten minutes
+            if (Near(_scenery[i].X, _scenery[i].Y, x, y, SceneryArea)) _scenery[i] = (_scenery[i].X, _scenery[i].Y, now + SceneryFor);
         if (same.Count >= SpotHits && now - same[0].At >= SpotLasts && !sure && !IsScenery(x, y))
         {
             _scenery.Add((x, y, now + SceneryFor));
