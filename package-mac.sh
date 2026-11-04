@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-[ -f vendor/BirdModel/rfdetr_nano_fp16.onnx ] || { echo "The animal detector's model is missing. See 'Build it yourself' in README.md."; exit 1; }
+[ -f vendor/BirdModel/rfdetr_small.onnx ] || { echo "The animal detector's model is missing. See 'Build it yourself' in README.md."; exit 1; }
 
 export PATH="$HOME/.dotnet:/opt/homebrew/bin:/usr/local/bin:$PATH"
 dotnet restore app/CamRemote.Mac/CamRemote.Mac.csproj # the notices below read ONNX Runtime's from this

@@ -22,10 +22,16 @@ public sealed record RecordSubject(string Name, string Plural, int First, int La
     public static RecordSubject Named(string name) => All.FirstOrDefault(s => s.Name == name) ?? All[0];
 }
 
-/// <summary>RF-DETR Nano looking for an animal, or another subject, in one small square picture. It runs on this computer only.</summary>
+/// <summary>
+/// The live view as Size by Size RGB bytes for the model: all of it, or a square around a box (0..1 of the picture,
+/// by its centre) for a closer look. X, Y, W and H say which part was shown, its top left corner and size as 0..1 of the picture.
+/// </summary>
+public delegate (byte[] Rgb, float X, float Y, float W, float H) BirdPicture(byte[] jpeg, int size, (float X, float Y, float W, float H)? around);
+
+/// <summary>RF-DETR Small looking for an animal, or another subject, in one small square picture. It runs on this computer only.</summary>
 public sealed class BirdModel : IDisposable
 {
-    public const int Size = 384;
+    public const int Size = 512;
     private static readonly float[] Mean = [0.485f, 0.456f, 0.406f];
     private static readonly float[] Std = [0.229f, 0.224f, 0.225f];
 
@@ -33,7 +39,7 @@ public sealed class BirdModel : IDisposable
     private readonly string _input;
     private readonly DenseTensor<float> _pixels = new([1, 3, Size, Size]);
 
-    private const string FileName = "rfdetr_nano_fp16.onnx";
+    public const string FileName = "rfdetr_small.onnx"; // the full-size file: the half-size one is slower on a CPU
 
     // Beside the app on Windows, in Contents/Resources on a Mac.
     public static string FilePath => OperatingSystem.IsMacOS()
@@ -66,7 +72,8 @@ public sealed class BirdModel : IDisposable
     /// </summary>
     public (float Score, float X, float Y, float W, float H) Look(byte[] rgb, int rotation, RecordSubject subject)
     {
-        int last = Size - 1;
+        int last = Size - 1, plane = Size * Size;
+        var pixels = _pixels.Buffer.Span;
         for (int y = 0; y < Size; y++)
             for (int x = 0; x < Size; x++)
             {
@@ -78,7 +85,7 @@ public sealed class BirdModel : IDisposable
                     _ => (x, y),
                 };
                 int i = (fromY * Size + fromX) * 3;
-                for (int c = 0; c < 3; c++) _pixels[0, c, y, x] = (rgb[i + c] / 255f - Mean[c]) / Std[c];
+                for (int c = 0; c < 3; c++) pixels[c * plane + y * Size + x] = (rgb[i + c] / 255f - Mean[c]) / Std[c];
             }
         using var results = _session.Run([NamedOnnxValue.CreateFromTensor(_input, _pixels)]);
         var logits = results.First(r => r.Name == "logits").AsTensor<float>();
@@ -103,6 +110,17 @@ public sealed class BirdModel : IDisposable
         return (1 / (1 + MathF.Exp(-best)), cx, cy, rotation is 90 or 270 ? bh : bw, rotation is 90 or 270 ? bw : bh);
     }
 
+    /// <summary>
+    /// The square of a width by height picture to look at closely around a box (0..1 of the picture, by its centre),
+    /// in pixels: four times the box's longer edge, from 256 to 576 pixels, kept inside the picture.
+    /// </summary>
+    public static (int X, int Y, int Side) CloseLook(int width, int height, (float X, float Y, float W, float H) box)
+    {
+        int most = Math.Min(576, Math.Min(width, height));
+        int side = (int)Math.Clamp(4 * Math.Max(box.W * width, box.H * height), Math.Min(256, most), most);
+        return ((int)Math.Clamp(box.X * width - side / 2f, 0, width - side), (int)Math.Clamp(box.Y * height - side / 2f, 0, height - side), side);
+    }
+
     public void Dispose() => _session.Dispose();
 }
 
@@ -122,12 +140,15 @@ public interface ITriggerCamera
 /// Checks the live view twice a second, starts recording after two sightings in three seconds and stops
 /// once no animal has been seen for a while. It only ever stops a take it started itself. A confident
 /// sighting also focuses there. Sightings that keep landing on one spot without ever being sure are scenery,
-/// like splashing water.
+/// like splashing water. While it's following something, each check also looks closely around the last sighting,
+/// which finds small birds the whole picture misses.
 /// </summary>
-public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, long No)?> latest, Func<byte[], int, byte[]> shrink,
+public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, long No)?> latest, BirdPicture picture,
     Action<double, double> focus, Func<int> rotation)
 {
     private const float Bar = 0.25f;
+    private static readonly TimeSpan Follow = TimeSpan.FromSeconds(3); // a sighting this recent gets the closer look
+    private static readonly TimeSpan QuickCheck = TimeSpan.FromSeconds(0.4); // slower than this, there's no time for two looks
     private const float Sure = 0.6f; // scenery never scores this high, so a spot that has is an animal
     private const float WorthFocus = 0.5f;
     private const float SameSpot = 0.015f;
@@ -214,6 +235,8 @@ public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, l
         using (model)
         {
             long last = -1;
+            (float X, float Y, float W, float H, DateTime At)? following = null;
+            bool slow = false;
             while (_run)
             {
                 var began = DateTime.Now;
@@ -222,7 +245,22 @@ public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, l
                     last = frame.No;
                     try
                     {
-                        var (score, x, y, w, h) = model.Look(shrink(frame.Jpeg, BirdModel.Size), rotation(), Subject);
+                        int turn = rotation();
+                        var seen = model.Look(picture(frame.Jpeg, BirdModel.Size, null).Rgb, turn, Subject);
+                        var took = DateTime.Now - began;
+                        if ((took > QuickCheck) != slow)
+                        {
+                            slow = !slow;
+                            Log.Write($"An animal check took {took.TotalSeconds:0.00} s, so the closer look is {(slow ? "off" : "back on")}.");
+                        }
+                        if (following is { } f && began - f.At <= Follow && !slow)
+                        {
+                            var (rgb, ax, ay, aw, ah) = picture(frame.Jpeg, BirdModel.Size, (f.X, f.Y, f.W, f.H));
+                            var close = model.Look(rgb, turn, Subject);
+                            if (close.Score > seen.Score) seen = (close.Score, ax + close.X * aw, ay + close.Y * ah, close.W * aw, close.H * ah);
+                        }
+                        following = seen.Score >= Bar ? (seen.X, seen.Y, seen.W, seen.H, began) : null;
+                        var (score, x, y, w, h) = seen;
                         ui.Post(() => Decide(score, x, y, w, h));
                     }
                     catch (Exception ex)

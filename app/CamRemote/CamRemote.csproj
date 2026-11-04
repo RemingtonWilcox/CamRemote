@@ -29,7 +29,7 @@
     <None Include="$(RepoRoot)build\bridge\Release\CamBridge.dll" Link="CamBridge.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
     <None Include="$(CrRuntime)*.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
     <None Include="$(CrRuntime)CrAdapter\*.dll" Link="CrAdapter\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
-    <None Include="$(RepoRoot)vendor\BirdModel\*.onnx" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <None Include="$(RepoRoot)vendor\BirdModel\rfdetr_small.onnx" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />

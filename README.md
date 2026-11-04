@@ -496,13 +496,13 @@ If you'd use one of these, [open an issue](https://github.com/RemingtonWilcox/Re
 
 You'll need Sony's Camera Remote SDK from [their site](https://support.d-imaging.sony.co.jp/app/sdk/en/index.html). Unzip the version for your system into `vendor/CrSDK` so `vendor/CrSDK/RemoteCli.zip` exists. Never commit anything under `vendor/`.
 
-The animal detector needs one more file, which the app can be built without (the option just won't appear). Save it as `vendor/BirdModel/rfdetr_nano_fp16.onnx`:
+The animal detector needs one more file, which the app can be built without (the option just won't appear). Save it as `vendor/BirdModel/rfdetr_small.onnx`. It adds about 115 MB to the app:
 
 ```bash
-curl -L --create-dirs -o vendor/BirdModel/rfdetr_nano_fp16.onnx https://huggingface.co/onnx-community/rfdetr_nano-ONNX/resolve/main/onnx/model_fp16.onnx
+curl -L --create-dirs -o vendor/BirdModel/rfdetr_small.onnx https://huggingface.co/onnx-community/rfdetr_small-ONNX/resolve/main/onnx/model.onnx
 ```
 
-The iPhone app uses the full-size version of the same model instead, because Core ML can't run the half-size one. It adds about 110 MB to the app:
+The iPhone app uses the smaller RF-DETR Nano instead. It adds about 110 MB to that app:
 
 ```bash
 curl -L --create-dirs -o vendor/BirdModel/rfdetr_nano.onnx https://huggingface.co/onnx-community/rfdetr_nano-ONNX/resolve/main/onnx/model.onnx

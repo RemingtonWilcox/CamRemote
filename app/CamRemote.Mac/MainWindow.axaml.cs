@@ -199,10 +199,18 @@ public partial class MainWindow : Window
         return ((bmp.GetPixelSpan().ToArray(), info.Width, info.Height), info.Width, info.Height);
     }
 
-    internal static byte[] ShrinkForBird(byte[] jpeg, int size)
+    internal static (byte[], float, float, float, float) ShrinkForBird(byte[] jpeg, int size, (float X, float Y, float W, float H)? around)
     {
         using var full = SKBitmap.Decode(jpeg);
-        using var small = full.Resize(new SKImageInfo(size, size, SKColorType.Rgba8888, SKAlphaType.Premul),
+        using var crop = new SKBitmap();
+        (float, float, float, float) part = (0, 0, 1, 1);
+        if (around is { } box)
+        {
+            var (x, y, side) = BirdModel.CloseLook(full.Width, full.Height, box);
+            full.ExtractSubset(crop, new SKRectI(x, y, x + side, y + side));
+            part = ((float)x / full.Width, (float)y / full.Height, (float)side / full.Width, (float)side / full.Height);
+        }
+        using var small = (around == null ? full : crop).Resize(new SKImageInfo(size, size, SKColorType.Rgba8888, SKAlphaType.Premul),
             new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
         var rgba = small.GetPixelSpan();
         var rgb = new byte[size * size * 3];
@@ -212,7 +220,7 @@ public partial class MainWindow : Window
             rgb[o + 1] = rgba[i + 1];
             rgb[o + 2] = rgba[i + 2];
         }
-        return rgb;
+        return (rgb, part.Item1, part.Item2, part.Item3, part.Item4);
     }
 
     private void ShowFrame(byte[] pixels, int w, int h)

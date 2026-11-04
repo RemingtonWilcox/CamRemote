@@ -184,20 +184,30 @@ public partial class MainWindow : Window
         return (bmp, bmp.PixelWidth, bmp.PixelHeight);
     }
 
-    internal static byte[] ShrinkForBird(byte[] jpeg, int size)
+    internal static (byte[], float, float, float, float) ShrinkForBird(byte[] jpeg, int size, (float X, float Y, float W, float H)? around)
     {
         var bmp = new BitmapImage();
         using (var ms = new System.IO.MemoryStream(jpeg))
         {
             bmp.BeginInit();
             bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.DecodePixelWidth = bmp.DecodePixelHeight = size;
+            if (around == null) bmp.DecodePixelWidth = bmp.DecodePixelHeight = size;
             bmp.StreamSource = ms;
             bmp.EndInit();
         }
+        BitmapSource picture = bmp;
+        (float, float, float, float) part = (0, 0, 1, 1);
+        if (around is { } box)
+        {
+            int width = bmp.PixelWidth, height = bmp.PixelHeight;
+            var (x, y, side) = BirdModel.CloseLook(width, height, box);
+            double scale = (double)size / side;
+            picture = new TransformedBitmap(new CroppedBitmap(bmp, new Int32Rect(x, y, side, side)), new ScaleTransform(scale, scale));
+            part = ((float)x / width, (float)y / height, (float)side / width, (float)side / height);
+        }
         var pixels = new byte[size * size * 3];
-        new FormatConvertedBitmap(bmp, PixelFormats.Rgb24, null, 0).CopyPixels(pixels, size * 3, 0);
-        return pixels;
+        new FormatConvertedBitmap(picture, PixelFormats.Rgb24, null, 0).CopyPixels(new Int32Rect(0, 0, size, size), pixels, size * 3, 0);
+        return (pixels, part.Item1, part.Item2, part.Item3, part.Item4);
     }
 
     private void OfferToAssist(BitmapSource frame)
