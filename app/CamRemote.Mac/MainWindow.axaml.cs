@@ -385,18 +385,31 @@ public partial class MainWindow : Window
 
     private Task<bool> AskFingerprint() => ConnectWindow.AskAsync(this, "Egret", CameraConnect.FingerprintWarning, "Connect anyway", "Don't connect");
 
+    private bool _letGo; // the camera has let go, so the window can close for real
+    private bool _lettingGo;
+
     private void OnClosing(object? sender, WindowClosingEventArgs e)
     {
+        if (_letGo) return;
+        // Sony's SDK can take up to 20 s to let go while it's still trying a camera. Waiting for it here froze the
+        // window that whole time, as if it had hung, so the window goes away first and the SDK lets go behind it.
+        e.Cancel = true;
+        if (_lettingGo) return;
+        _lettingGo = true;
         SaveWindowPlace();
         _tick.Stop();
         _bird.Stop();
         _live.Stop();
         _meter.Dispose();
         _video.Stop();
-        Hide(); // closing can wait a few seconds for the camera to let go
-        _cam.Dispose();
+        Hide();
         if (OperatingSystem.IsMacOS()) MacNative.cb_awake(0);
         _ = _phone?.DisposeAsync();
+        Task.Run(_cam.Dispose).ContinueWith(_ => Dispatcher.UIThread.Post(() =>
+        {
+            _letGo = true;
+            Close();
+        }));
     }
 
     // ---- Video ----
