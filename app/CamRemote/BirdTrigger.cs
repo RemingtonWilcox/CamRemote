@@ -57,13 +57,62 @@ public sealed class BirdModel : IDisposable
         else Environment.SetEnvironmentVariable("ORT_DISABLE_TELEMETRY", "1");
     }
 
-    public BirdModel()
+    /// <summary>Whether it runs on the graphics card, which is about seven times as fast as the processor.</summary>
+    public bool OnGraphics { get; }
+
+    /// <summary>
+    /// On the graphics card through WebGPU when it can be, otherwise on the processor.
+    /// The first check on a graphics card takes seconds while it gets ready, so that happens here, on a blank picture.
+    /// </summary>
+    public BirdModel(bool graphics = true)
     {
         OrtEnv.Instance().DisableTelemetryEvents();
-        var options = new SessionOptions { IntraOpNumThreads = Math.Clamp(Environment.ProcessorCount / 2, 1, 4), InterOpNumThreads = 1 };
-        _session = new InferenceSession(FilePath, options);
+        if (graphics)
+            try
+            {
+                _session = Open(true);
+                _input = _session.InputMetadata.Keys.First();
+                using (_session.Run([NamedOnnxValue.CreateFromTensor(_input, _pixels)])) { }
+                OnGraphics = true;
+                Log.Write("The animal detector runs on the graphics card.");
+                return;
+            }
+            catch (Exception ex)
+            {
+                _session?.Dispose();
+                Log.Write("The animal detector can't use the graphics card, so it runs on the processor: " + ex.Message);
+            }
+        _session = Open(false);
         _input = _session.InputMetadata.Keys.First();
     }
+
+    private static InferenceSession Open(bool graphics)
+    {
+        var options = new SessionOptions { IntraOpNumThreads = Math.Clamp(Environment.ProcessorCount / 2, 1, 4), InterOpNumThreads = 1 };
+        if (graphics)
+        {
+#if WINDOWS
+            // On Windows WebGPU comes as a separate library, loaded once.
+            var env = OrtEnv.Instance();
+            lock (Mean)
+                if (!_webGpuLoaded)
+                {
+                    env.RegisterExecutionProviderLibrary("webgpu_ep", Microsoft.ML.OnnxRuntime.EP.WebGpu.WebGpuEp.GetLibraryPath());
+                    _webGpuLoaded = true;
+                }
+            var card = env.GetEpDevices().FirstOrDefault(d => d.EpName == Microsoft.ML.OnnxRuntime.EP.WebGpu.WebGpuEp.GetEpName())
+                ?? throw new InvalidOperationException("No graphics card that WebGPU can use.");
+            options.AppendExecutionProvider(env, [card], new Dictionary<string, string>());
+#else
+            options.AppendExecutionProvider("WebGPU", new Dictionary<string, string>());
+#endif
+        }
+        return new InferenceSession(FilePath, options);
+    }
+
+#if WINDOWS
+    private static bool _webGpuLoaded;
+#endif
 
     /// <summary>
     /// The best animal in a picture of RGB bytes, Size by Size: its score from 0 to 1 and its box as 0..1 of that picture.
@@ -232,7 +281,7 @@ public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, l
             ui.Post(() => Status?.Invoke("The animal detector couldn't start."));
             return;
         }
-        using (model)
+        try
         {
             long last = -1;
             (float X, float Y, float W, float H, DateTime At)? following = null;
@@ -266,11 +315,30 @@ public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, l
                     catch (Exception ex)
                     {
                         Log.Write("Bird check failed: " + ex.Message);
+                        if (model.OnGraphics) // a graphics card that started but then failed, after a driver update say
+                        {
+                            model.Dispose();
+                            try
+                            {
+                                model = new BirdModel(graphics: false);
+                                Log.Write("The animal detector moved to the processor.");
+                            }
+                            catch (Exception e)
+                            {
+                                Log.Write("Bird model failed to load: " + e);
+                                _run = false;
+                                ui.Post(() => Status?.Invoke("The animal detector couldn't start."));
+                            }
+                        }
                     }
                 }
                 var rest = Between - (DateTime.Now - began);
                 if (rest > TimeSpan.Zero) Thread.Sleep(rest);
             }
+        }
+        finally
+        {
+            model.Dispose();
         }
     }
 

@@ -9,7 +9,7 @@ The ready-made downloads include these parts, each under its own licence:
 - **Avalonia** (Mac): © The AvaloniaUI Project. MIT.
 - **SkiaSharp and HarfBuzzSharp** (Mac): © Microsoft and Xamarin. MIT. Skia is BSD-3-Clause; HarfBuzz is under the Old MIT licence.
 - **NAudio** (Windows): © Mark Heath and contributors. MIT.
-- **ONNX Runtime:** © Microsoft. MIT.
+- **ONNX Runtime:** © Microsoft. MIT. On Windows its WebGPU library comes with Dawn (© The Dawn Authors, BSD-3-Clause) and the DirectX Shader Compiler (© Microsoft, University of Illinois/NCSA). Their notices follow.
 - **RF-DETR Small** (the animal detector's model): © Roboflow. Apache 2.0.
 - **Microsoft Visual C++ Runtime** (Windows): © Microsoft. Redistributed under the Visual Studio licence terms.
 

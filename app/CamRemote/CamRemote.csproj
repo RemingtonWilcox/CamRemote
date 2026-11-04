@@ -34,6 +34,8 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.31.1" />
+    <!-- Lets the animal detector use the graphics card. The Mac's ONNX Runtime has WebGPU built in. -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.EP.WebGpu" Version="0.5.0" />
     <PackageReference Include="NAudio.Wasapi" Version="3.3.0" />
     <Resource Include="CamRemote.ico" />
     <EmbeddedResource Include="phone.html" LogicalName="phone.html" />
