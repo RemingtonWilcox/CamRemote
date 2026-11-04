@@ -970,9 +970,12 @@ public sealed class CameraService : IDisposable, ITriggerCamera
         bool touch = evenIfTapIsOff || Get(PropCode.RemoteTouchOperationEnableStatus)?.Value == 1 || Get(PropCode.TouchOperation)?.Value != TouchOn;
         if (touch)
         {
+            // In video the A7S III's tap is only tracking or off, so a tap made while it's off has to track.
+            long function = track || Get(PropCode.FunctionOfTouchOperation) is { Candidates: { Length: > 0 } offered }
+                && !offered.Contains(TouchFnFocus) && offered.Contains(TouchFnTracking) ? TouchFnTracking : TouchFnFocus;
             Run(() =>
             {
-                EnableTouch(track ? TouchFnTracking : TouchFnFocus);
+                EnableTouch(function);
                 int err = Native.cb_set_prop((uint)PropCode.RemoteTouchOperation, xy, TypeUInt32);
                 if (err != 0 && MoveFocusSpot(xy, IsPhotoMode)) return; // the A9 II over Wi-Fi refuses remote touch
                 if (err != 0) SayFailed(Get(PropCode.AF_Area_Position) is { Writable: false } ? SpotNeeded : "The camera couldn't focus there.", err);
