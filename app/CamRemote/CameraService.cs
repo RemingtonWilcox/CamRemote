@@ -68,6 +68,7 @@ public sealed class CameraService : IDisposable, ITriggerCamera
     private const int FocusQuietMs = 700;
     private const double RingPixelsPerStep = 12;
     private const int FrameHoldMs = 500;
+    private const int LostAfterMs = 20000; // Sony's own reconnecting gets a Wi-Fi blip back within about 10 s
 
     private readonly IUi _ui;
     private readonly BlockingCollection<Action> _queue = new();
@@ -82,6 +83,7 @@ public sealed class CameraService : IDisposable, ITriggerCamera
     private bool _refreshQueued;
     private int _controlMisses, _refreshFails;
     private bool _hadControl, _restartedLink, _triedHttpLiveView;
+    private long _reconnectingSince; // when Sony's SDK started reconnecting on its own; 0 while it isn't
 
     public Dictionary<uint, Prop> Props { get; private set; } = new();
     public LinkState State { get; private set; } = LinkState.Disconnected;
@@ -114,6 +116,8 @@ public sealed class CameraService : IDisposable, ITriggerCamera
         });
         _poll = ui.Every(TimeSpan.FromSeconds(2), () =>
         {
+            long since = Interlocked.Read(ref _reconnectingSince);
+            if (since != 0 && Environment.TickCount64 - since > LostAfterMs) DropLostCamera();
             if (!Focusing) RequestRefresh();
         });
         _quickPoll = ui.Every(TimeSpan.FromMilliseconds(300), () =>
@@ -263,6 +267,7 @@ public sealed class CameraService : IDisposable, ITriggerCamera
         switch (kind)
         {
             case Native.EvConnected:
+                Interlocked.Exchange(ref _reconnectingSince, 0);
                 SetState(LinkState.Connected);
                 Say("Connected.");
                 Run(() =>
@@ -274,6 +279,7 @@ public sealed class CameraService : IDisposable, ITriggerCamera
                 _frameWake.Set();
                 break;
             case Native.EvDisconnected:
+                Interlocked.Exchange(ref _reconnectingSince, 0);
                 _ui.Post(() => Props = new()); // stale values (like "recording") would mislead
                 SetState(LinkState.Disconnected);
                 if (a == 0) Say("Disconnected.");
@@ -297,6 +303,8 @@ public sealed class CameraService : IDisposable, ITriggerCamera
                 break;
             case Native.EvWarning:
                 if (a is 0x20009 or 0x2000A or 0x2000B or 0x2001B) _ui.Post(EndFormat);
+                if (a == 0x20002) Interlocked.CompareExchange(ref _reconnectingSince, Environment.TickCount64, 0);
+                if (a == 0x20001) Interlocked.Exchange(ref _reconnectingSince, 0);
                 if (a != _lastWarning)
                 {
                     Log.Write("Camera notice: " + Native.ErrorName((int)a));
@@ -417,6 +425,22 @@ public sealed class CameraService : IDisposable, ITriggerCamera
         });
         SetState(LinkState.Disconnected);
         return true;
+    }
+
+    /// <summary>
+    /// When a camera goes off or out of range, Sony's SDK keeps the link "connected" for over 3 minutes while it
+    /// tries to get it back, and the window shows the last picture as if nothing happened. Letting go sooner shows
+    /// the loss, and the window's own reconnecting brings the camera back once it's on again.
+    /// </summary>
+    private void DropLostCamera()
+    {
+        Interlocked.Exchange(ref _reconnectingSince, 0);
+        if (State != LinkState.Connected) return;
+        Say("Lost the camera. Egret will reconnect when it's back on.");
+        Props = new();
+        PropsChanged?.Invoke();
+        SetState(LinkState.Disconnected);
+        Run(() => Native.cb_disconnect());
     }
 
     // ---- Properties ----
