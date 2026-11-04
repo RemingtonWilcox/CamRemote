@@ -190,7 +190,7 @@ public partial class MainWindow : Window
         return ((bmp.GetPixelSpan().ToArray(), info.Width, info.Height), info.Width, info.Height);
     }
 
-    private static byte[] ShrinkForBird(byte[] jpeg, int size)
+    internal static byte[] ShrinkForBird(byte[] jpeg, int size)
     {
         using var full = SKBitmap.Decode(jpeg);
         using var small = full.Resize(new SKImageInfo(size, size, SKColorType.Rgba8888, SKAlphaType.Premul),
