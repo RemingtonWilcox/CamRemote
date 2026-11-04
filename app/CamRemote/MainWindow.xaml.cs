@@ -1402,7 +1402,7 @@ public partial class MainWindow : Window
         // Only say something when a click won't simply focus; the everyday tip waits on the picture's tooltip.
         TouchHint.Text = !connected ? ""
             : ratio > 0 ? "Zoomed in. Click the picture to move around. Off goes back to clicking to focus."
-            : _cam.Get(PropCode.FunctionOfTouchOperation)?.Value == 1 ? "Tap does is Off, so clicks do nothing."
+            : _cam.Get(PropCode.FunctionOfTouchOperation)?.Value == 1 ? _cam.TapOffHint
             : _cam.IsManualFocus ? "Click the picture to autofocus once. It stays in manual."
             : "";
         TouchHint.Visibility = TouchHint.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;

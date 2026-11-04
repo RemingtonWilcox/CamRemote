@@ -7,15 +7,16 @@ namespace CamRemote;
 
 /// <summary>
 /// Something automatic recording can look for, as the range of COCO numbers the model uses for it.
-/// They're all things the model was trained on, so each is as dependable as animals are.
+/// They're all things the model was trained on. <see cref="StartAt"/> is the score a sighting needs to start a take:
+/// the model calls seals and distant penguins people at about 0.3 to 0.4, while a real person scores far higher.
 /// </summary>
-public sealed record RecordSubject(string Name, string Plural, int First, int Last, string Tip)
+public sealed record RecordSubject(string Name, string Plural, int First, int Last, string Tip, float StartAt = 0.25f)
 {
     public static readonly RecordSubject[] All =
     [
         new("Animal", "animals", 16, 25, "Birds and a few other animals: cats, dogs, horses, sheep, cows, elephants, bears, zebras and giraffes."),
         new("Bird", "birds", 16, 16, "Birds only, so a passing cat or dog doesn't start it."),
-        new("Person", "people", 1, 1, "People. Keep yourself out of the picture, or it will record you."),
+        new("Person", "people", 1, 1, "People. Keep yourself out of the picture, or it will record you.", 0.5f),
     ];
 
     public static RecordSubject Named(string name) => All.FirstOrDefault(s => s.Name == name) ?? All[0];
@@ -292,7 +293,7 @@ public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, l
             }
             return;
         }
-        if (seen && _sightings.Count >= StartHits && now >= _restUntil
+        if (seen && score >= Subject.StartAt && _sightings.Count >= StartHits && now >= _restUntil
             && cam.Connected && !cam.IsRecording && !cam.IsFormatting && !cam.IsPhotoMode)
         {
             cam.ToggleRecord();
