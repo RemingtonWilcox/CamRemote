@@ -96,15 +96,27 @@ public partial class JoinWindow : Window
         KeyDown += OnKeyDown;
     }
 
+    /// <summary>Takes the camera from the host to hold it on this computer. Null when it worked (and this window is closed), else why not.</summary>
+    public Func<Task<string?>>? UseHere { get; init; }
+
     private async void OnOpened(object? sender, EventArgs e)
     {
         Log.Write($"Joined the camera through {_link.Address}.");
+        UseHereButton.IsVisible = UseHere != null;
         await RefreshAsync();
         _poll.Start();
         _ = Task.Run(() => _link.RunFramesAsync(OnJpeg, _stop.Token));
     }
 
     private void OnLeaveClick(object? sender, RoutedEventArgs e) => Close();
+
+    private async void OnUseHereClick(object? sender, RoutedEventArgs e)
+    {
+        UseHereButton.IsEnabled = false;
+        if (await UseHere!() is not { } problem) return;
+        ShowToast(problem);
+        UseHereButton.IsEnabled = true;
+    }
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {

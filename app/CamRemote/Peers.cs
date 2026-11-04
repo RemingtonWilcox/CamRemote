@@ -76,17 +76,24 @@ public static class Peers
     private static async Task<RemoteLink> JoinedAsync(Settings settings, RemoteLink link, FoundPeer host)
     {
         link.HostName = host.Name;
+        link.HostId = host.Id;
         if (host.Token != null) return link; // joined by access code; ConnectWindow keeps that one
         using var http = Client(TimeSpan.FromSeconds(3));
         var hello = await HelloAsync(http, host.Address, link.Token);
-        var known = settings.KnownHosts.FirstOrDefault(h => h.Id == host.Id) ?? new PeerDevice { Id = host.Id };
+        Remember(settings, host.Id, host.Name, new[] { host.Address }.Concat(hello?.Addresses ?? []));
+        return link;
+    }
+
+    /// <summary>Keeps a host's addresses, newest first, so it's found again where broadcasts don't reach.</summary>
+    public static void Remember(Settings settings, string id, string name, IEnumerable<string> addresses)
+    {
+        var known = settings.KnownHosts.FirstOrDefault(h => h.Id == id) ?? new PeerDevice { Id = id };
         settings.KnownHosts.Remove(known);
-        known.Name = host.Name;
-        known.Addresses = new[] { host.Address }.Concat(hello?.Addresses ?? []).Concat(known.Addresses).Distinct().Take(KeepAddresses).ToList();
+        known.Name = name;
+        known.Addresses = addresses.Concat(known.Addresses).Distinct().Take(KeepAddresses).ToList();
         settings.KnownHosts.Insert(0, known);
         if (settings.KnownHosts.Count > KeepHosts) settings.KnownHosts.RemoveRange(KeepHosts, settings.KnownHosts.Count - KeepHosts);
         settings.Save();
-        return link;
     }
 
     /// <summary>Every CamRemote within reach that holds a camera: by broadcast at home, and at remembered addresses.</summary>

@@ -633,7 +633,7 @@ public partial class MainWindow : Window
         bool held = _cam.HoldReconnect;
         if (_cam.State != LinkState.Disconnected) _cam.Disconnect(); // stop asking for the camera the other one has
         _cam.HoldReconnect = true;
-        var join = new JoinWindow(link, _settings);
+        var join = new JoinWindow(link, _settings) { UseHere = _settings.CameraIp.Length > 0 ? () => UseHereAsync(link) : null };
         _joined = join;
         join.Closed += (_, _) =>
         {
@@ -646,6 +646,58 @@ public partial class MainWindow : Window
         };
         join.Show();
         Hide();
+    }
+
+    /// <summary>
+    /// Takes the camera from the Egret this one joined, so the picture comes straight here instead of through
+    /// the other computer. That Egret is handed a token to join this one back. Null when it worked.
+    /// </summary>
+    private async Task<string?> UseHereAsync(RemoteLink link)
+    {
+        bool share = _phone != null && _settings.ShareWithEgrets && link.HostId.Length > 0;
+        string token = share ? _allowed!.Allow(link.HostId, link.HostName) : "";
+        if (share) ShowAllowed();
+        if (await link.HandOverAsync(token, share ? PhoneServer.JoinAddresses(_settings.PhonePort) : []) is { } problem) return problem;
+        Log.Write($"Took the camera from {link.HostName}.");
+        _joined?.Close();
+        _autoJoin = false; // the other Egret joins this one now, not the other way round
+        _cam.HoldReconnect = false;
+        _linkSince = DateTime.Now;
+        await Task.Delay(1000); // the camera takes a moment to free up
+        if (!await CameraConnect.SavedAsync(_cam, _settings, ShowMessage, AskFingerprint))
+            ShowMessage("Waiting for the camera (on, on Wi-Fi, Remote Shooting on). Trying again every 15 s…");
+        return null;
+    }
+
+    /// <summary>
+    /// A joined Egret takes the camera to hold it itself. Lets the camera go, then joins that Egret, with the
+    /// token it sent so nobody is asked. Done once the camera is let go.
+    /// </summary>
+    private async Task HandOverAsync(string id, string token, IReadOnlyList<string> addresses)
+    {
+        string name = _settings.AllowedDevices.FirstOrDefault(d => d.Id == id)?.Name ?? "Another computer";
+        if (token.Length > 0)
+        {
+            _settings.SaveSecret(Peers.HostResource, id, token);
+            Peers.Remember(_settings, id, name, addresses);
+        }
+        Log.Write($"Handed the camera to {name}.");
+        ShowMessage($"{name} took the camera. Joining it there…");
+        _cam.Disconnect(); // and holds off reconnecting, so this one doesn't take it back
+        for (int i = 0; i < 50 && _cam.State != LinkState.Disconnected; i++) await Task.Delay(100);
+        _ = JoinBackAsync(name);
+    }
+
+    private async Task JoinBackAsync(string name)
+    {
+        _autoJoin = true;
+        _asked.Clear();
+        for (int i = 0; i < 20; i++)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(3));
+            if (_joined != null || _cam.State != LinkState.Disconnected || await JoinPeerAsync()) return;
+        }
+        ShowMessage($"Couldn't join {name}. Click Connect camera to use the camera here again.");
     }
 
     /// <summary>
@@ -1857,6 +1909,7 @@ public partial class MainWindow : Window
                     ShowAllowed();
                     return token;
                 }).GetTask(),
+                HandOver = (id, token, addresses) => Dispatcher.UIThread.InvokeAsync(() => HandOverAsync(id, token, addresses)),
             };
             try
             {

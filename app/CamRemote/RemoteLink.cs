@@ -78,6 +78,7 @@ public sealed class RemoteLink : IDisposable
     private string _token;
     public string Address { get; }
     public string HostName { get; set; } = ""; // the computer's name, when it was found by itself
+    public string HostId { get; set; } = ""; // its device id, likewise
     public const string SignedOut = "Signed out: type the access code again.";
     public string CameraId { get; private set; } = "";
     public string CameraName { get; private set; } = "";
@@ -219,6 +220,9 @@ public sealed class RemoteLink : IDisposable
     public Task<string?> ModeAsync(bool photo) => Act("mode", new { photo });
     public Task<string?> ShutterAsync(bool down) => Act("shutter", new { down });
     public Task<string?> SlowQuickAsync(bool on) => Act("slowquick", new { on });
+
+    /// <summary>Asks the host to let the camera go so this computer can hold it. The token and addresses let the host join back.</summary>
+    public Task<string?> HandOverAsync(string token, IReadOnlyList<string> addresses) => Act("handover", new { token, addresses });
 
     /// <summary>Null when it worked, otherwise what to tell the person.</summary>
     private async Task<string?> Act(string what, object body)

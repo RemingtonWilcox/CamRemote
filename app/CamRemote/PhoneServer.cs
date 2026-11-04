@@ -67,6 +67,12 @@ public sealed class PhoneServer : IAsyncDisposable
     /// <summary>Lets a device (id, name) in without asking, for the person's own devices on Tailscale. Returns its token.</summary>
     public Func<string, string, Task<string>>? LetIn { get; init; }
 
+    /// <summary>
+    /// A joined Egret takes the camera to hold it itself: its device id, a token for joining it back (may be
+    /// empty) and its addresses. Done once this app has let the camera go. Any thread.
+    /// </summary>
+    public Func<string, string, IReadOnlyList<string>, Task>? HandOver { get; init; }
+
     public PhoneServer(Settings settings, IEnumerable<IRemoteCamera> cameras)
     {
         _settings = settings;
@@ -136,7 +142,7 @@ public sealed class PhoneServer : IAsyncDisposable
             id = _settings.DeviceId,
             name = Peers.ThisName,
             camera = _settings.ShareWithEgrets && HasCamera(),
-            addresses = ctx.Items["signedIn"] is true ? OwnAddresses().Select(a => $"http://{a.Ip}:{_settings.PhonePort}").ToList() : null,
+            addresses = ctx.Items["signedIn"] is true ? JoinAddresses(_settings.PhonePort) : null,
         }));
         app.MapPost("/api/pair", PairAsync);
         app.MapGet("/api/cameras", () => Results.Json(_cameras.Values.Select(c => new { id = c.Id, name = c.Name })));
@@ -150,6 +156,13 @@ public sealed class PhoneServer : IAsyncDisposable
         app.MapPost("/api/{cam}/mode", (string cam, ModeBody b) => Do(cam, c => c.Mode(b.Photo)));
         app.MapPost("/api/{cam}/slowquick", (string cam, RecordBody b) => Do(cam, c => c.SlowQuick(b.On)));
         app.MapPost("/api/{cam}/shutter", (string cam, ShutterBody b) => Do(cam, c => c.Shutter(b.Down)));
+        app.MapPost("/api/{cam}/handover", async (string cam, HandOverBody b, HttpContext ctx) =>
+        {
+            // Only another Egret let in here; a phone has no camera of its own to take it to.
+            if (HandOver == null || Find(cam) == null || Allowed?.DeviceFor(ctx.Request.Cookies[Cookie]) is not { } id) return Results.StatusCode(403);
+            await HandOver(id, b.Token ?? "", b.Addresses ?? []);
+            return Results.Ok();
+        });
 
         await app.StartAsync();
         _app = app;
@@ -307,6 +320,9 @@ public sealed class PhoneServer : IAsyncDisposable
     public static List<string> Addresses(int port) =>
         OwnAddresses().Select(a => $"{(a.Tailscale ? "Tailscale" : "Home")}: http://{a.Ip}:{port}").ToList();
 
+    /// <summary>The addresses another Egret can join this one at.</summary>
+    public static List<string> JoinAddresses(int port) => OwnAddresses().Select(a => $"http://{a.Ip}:{port}").ToList();
+
     /// <summary>This computer's home-network addresses, then its Tailscale ones.</summary>
     private static List<(bool Tailscale, IPAddress Ip)> OwnAddresses()
     {
@@ -343,4 +359,5 @@ public sealed class PhoneServer : IAsyncDisposable
     private sealed record PresetBody(int Slot, bool Save);
     private sealed record ModeBody(bool Photo);
     private sealed record ShutterBody(bool Down);
+    private sealed record HandOverBody(string? Token, string[]? Addresses);
 }
