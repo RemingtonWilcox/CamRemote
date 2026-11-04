@@ -338,7 +338,7 @@ public partial class MainWindow : Window
         var idle = DateTime.Now - _linkSince;
         bool due = _cam.State switch
         {
-            LinkState.Disconnected => first || idle > TimeSpan.FromSeconds(15),
+            LinkState.Disconnected => first || idle > TimeSpan.FromSeconds(3), // a camera that's off is found out in a second or two
             LinkState.Connecting => idle > TimeSpan.FromSeconds(45), // stuck
             _ => false,
         };
@@ -349,7 +349,7 @@ public partial class MainWindow : Window
             _linkSince = DateTime.Now;
             if (await JoinPeerAsync() || _settings.CameraIp.Length == 0) return;
             if (!await CameraConnect.SavedAsync(_cam, _settings, ShowMessage, ConnectWindow.AskFingerprint, quiet: !first))
-                ShowMessage("Waiting for the camera (on, on Wi-Fi, Remote Shooting on). Trying again every 15 s…");
+                ShowMessage("Waiting for the camera (on, on Wi-Fi, Remote Shooting on). Trying again every few seconds…");
         }
         finally
         {
@@ -610,7 +610,7 @@ public partial class MainWindow : Window
         _cam.HoldReconnect = false;
         _linkSince = DateTime.Now;
         if (!await CameraConnect.TakeOverAsync(_cam, _settings, ShowMessage, ConnectWindow.AskFingerprint))
-            ShowMessage("Waiting for the camera (on, on Wi-Fi, Remote Shooting on). Trying again every 15 s…");
+            ShowMessage("Waiting for the camera (on, on Wi-Fi, Remote Shooting on). Trying again every few seconds…");
         return null;
     }
 

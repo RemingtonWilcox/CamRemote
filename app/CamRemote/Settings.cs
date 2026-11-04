@@ -159,7 +159,7 @@ public sealed class Settings
         if (secret.Length > 0) vault.Add(new PasswordCredential(resource, account, secret));
     }
 #else
-    // Kept after the first read: each Keychain read can ask the person to allow it, and reconnecting reads it every 15 s.
+    // Kept after the first read: each Keychain read can ask the person to allow it, and reconnecting reads it every few seconds.
     private (string User, string Password)? _password;
 
     public string LoadPassword()

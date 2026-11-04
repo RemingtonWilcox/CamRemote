@@ -96,6 +96,8 @@ public static class Peers
         settings.Save();
     }
 
+    private static int _lastFound = -1;
+
     /// <summary>Every CamRemote within reach that holds a camera: by broadcast at home, and at remembered addresses.</summary>
     public static async Task<List<FoundPeer>> FindAsync(Settings settings, bool patient = false)
     {
@@ -110,12 +112,15 @@ public static class Peers
         await AskAroundAsync(settings.DeviceId, settings.PhonePort, found);
         // One found at home is enough; remembered addresses can take seconds to time out.
         if (found.IsEmpty) await others;
-        if (known.Count > 0 || !found.IsEmpty) Log.Write($"Looked for other RemoteCams in {took.Elapsed.TotalSeconds:0.0} s: found {found.Count}.");
+        // Only when the count changes, since this runs every few seconds while the camera is off.
+        if ((known.Count > 0 || !found.IsEmpty) && found.Count != _lastFound)
+            Log.Write($"Looked for other RemoteCams in {took.Elapsed.TotalSeconds:0.0} s: found {found.Count}.");
+        _lastFound = found.Count;
         // A host found by its id beats the same one joined by code before.
         return found.Values.OrderBy(p => p.Token != null).ToList();
     }
 
-    // Read once a run: a Keychain read can ask the person, and this runs every 15 s while waiting.
+    // Read once a run: a Keychain read can ask the person, and this runs every few seconds while waiting.
     private static (string Address, string Token)? _lastJoin;
 
     private static string LastJoinToken(Settings settings)
