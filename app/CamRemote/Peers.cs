@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.NetworkInformation;
@@ -9,8 +11,11 @@ using System.Text.Json;
 
 namespace CamRemote;
 
-/// <summary>Another CamRemote found holding a camera. Token is set for the one joined by access code before.</summary>
-public sealed record FoundPeer(string Id, string Name, string Address, string? Token = null);
+/// <summary>
+/// Another CamRemote found holding a camera. Token is set for the one joined by access code before.
+/// Tailnet is its Tailscale address, where asking to join lets it see this is one of the same person's devices.
+/// </summary>
+public sealed record FoundPeer(string Id, string Name, string Address, string? Token = null, string? Tailnet = null);
 
 /// <summary>
 /// Lets one CamRemote use the camera another already holds, with nothing to type. A host answers a
@@ -129,7 +134,9 @@ public static class Peers
                     if (id.Length == 0 || id == ownId || !root.GetProperty("camera").GetBoolean()) continue;
                     int hostPort = root.GetProperty("port").GetInt32();
                     if (from.IsIPv4MappedToIPv6) from = from.MapToIPv4();
-                    found.TryAdd(id, new FoundPeer(id, Clean(root.GetProperty("name").GetString()), $"http://{from}:{hostPort}"));
+                    string? tail = root.TryGetProperty("tailnet", out var t) && IPAddress.TryParse(t.GetString(), out var ip) && Tailnet.Contains(ip)
+                        ? $"http://{ip}:{hostPort}" : null;
+                    found.TryAdd(id, new FoundPeer(id, Clean(root.GetProperty("name").GetString()), $"http://{from}:{hostPort}", Tailnet: tail));
                 }
                 catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException) { /* not one of ours */ }
             }
@@ -211,19 +218,20 @@ public static class Peers
 
     /// <summary>
     /// Asks the host to let this computer in. Its person answers there, so this waits up to two minutes.
-    /// Returns the token, or why not, and whether the question is still waiting for an answer.
+    /// Returns the token, or why not, and whether the question is still waiting for an answer. Over Tailscale
+    /// when both have it, so the host can see this is one of the same person's devices and let it straight in.
     /// </summary>
     private static async Task<(string? Token, string? Problem, bool Unanswered)> AskToJoinAsync(Settings settings, FoundPeer host)
     {
         using var http = Client(TimeSpan.FromMinutes(2));
         try
         {
-            using var req = new HttpRequestMessage(HttpMethod.Post, host.Address + "/api/pair")
-            {
-                Content = new StringContent(JsonSerializer.Serialize(new { id = settings.DeviceId, name = ThisName }), Encoding.UTF8, "application/json"),
-            };
-            req.Headers.Add("X-CamRemote", "1");
-            using var r = await http.SendAsync(req);
+            HttpResponseMessage r;
+            if (host.Tailnet != null && Tailnet.OwnAddress() != null)
+                try { r = await http.SendAsync(PairRequest(settings, host.Tailnet)); }
+                catch (HttpRequestException) { r = await http.SendAsync(PairRequest(settings, host.Address)); } // Tailscale is off on one side
+            else r = await http.SendAsync(PairRequest(settings, host.Address));
+            using var _ = r;
             if (r.IsSuccessStatusCode)
             {
                 string token = JsonDocument.Parse(await r.Content.ReadAsStringAsync()).RootElement.GetProperty("token").GetString() ?? "";
@@ -245,6 +253,16 @@ public static class Peers
         {
             return (null, $"Lost touch with {host.Name} while asking to join.", false);
         }
+    }
+
+    private static HttpRequestMessage PairRequest(Settings settings, string address)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Post, address + "/api/pair")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(new { id = settings.DeviceId, name = ThisName }), Encoding.UTF8, "application/json"),
+        };
+        req.Headers.Add("X-CamRemote", "1");
+        return req;
     }
 
     private static string Waiting(FoundPeer host) => $"Still waiting for an answer on {host.Name}. This computer joins as soon as you allow it there.";
@@ -303,5 +321,77 @@ public sealed class PeerAllowList
         _settings.SaveSecret(Peers.AllowedResource, id, "");
         _settings.AllowedDevices.RemoveAll(d => d.Id == id);
         _settings.Save();
+    }
+}
+
+/// <summary>
+/// What this computer's Tailscale knows: its own address, and whether another address belongs to the same
+/// person's account. Tailscale proves who each device is, so those join without being asked about.
+/// </summary>
+public static class Tailnet
+{
+    private static readonly string[] Cli = OperatingSystem.IsWindows()
+        ? [Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Tailscale", "tailscale.exe")]
+        : ["/Applications/Tailscale.app/Contents/MacOS/Tailscale", "/opt/homebrew/bin/tailscale", "/usr/local/bin/tailscale"];
+
+    /// <summary>A Tailscale address: 100.64.0.0/10 or fd7a:115c:a1e0::/48.</summary>
+    public static bool Contains(IPAddress ip)
+    {
+        if (ip.IsIPv4MappedToIPv6) ip = ip.MapToIPv4();
+        byte[] b = ip.GetAddressBytes();
+        return ip.AddressFamily == AddressFamily.InterNetwork
+            ? b[0] == 100 && b[1] is >= 64 and <= 127
+            : b.Length == 16 && b[0] == 0xFD && b[1] == 0x7A && b[2] == 0x11 && b[3] == 0x5C && b[4] == 0xA1 && b[5] == 0xE0;
+    }
+
+    /// <summary>This computer's Tailscale address, or null when Tailscale is off.</summary>
+    public static IPAddress? OwnAddress()
+    {
+        try
+        {
+            return NetworkInterface.GetAllNetworkInterfaces().Where(n => n.OperationalStatus == OperationalStatus.Up)
+                .SelectMany(n => n.GetIPProperties().UnicastAddresses).Select(u => u.Address)
+                .FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork && Contains(a));
+        }
+        catch (NetworkInformationException) { return null; }
+    }
+
+    /// <summary>
+    /// True when <paramref name="from"/> is a device signed in to Tailscale as the same person as this one. Shared
+    /// and tagged devices, like Funnel's, belong to someone else as far as Tailscale says, so they're still asked about.
+    /// </summary>
+    public static async Task<bool> SamePersonAsync(IPAddress from)
+    {
+        if (from.IsIPv4MappedToIPv6) from = from.MapToIPv4();
+        if (!Contains(from) || Cli.FirstOrDefault(File.Exists) is not { } cli) return false;
+        using var me = await RunAsync(cli, "status", "--json", "--peers=false");
+        using var them = await RunAsync(cli, "whois", "--json", from.ToString());
+        if (me == null || them == null) return false;
+        try
+        {
+            long mine = me.RootElement.GetProperty("Self").GetProperty("UserID").GetInt64();
+            long theirs = them.RootElement.GetProperty("UserProfile").GetProperty("ID").GetInt64();
+            return mine != 0 && mine == theirs;
+        }
+        catch (Exception e) when (e is KeyNotFoundException or InvalidOperationException or FormatException) { return false; }
+    }
+
+    private static async Task<JsonDocument?> RunAsync(string cli, params string[] args)
+    {
+        var start = new ProcessStartInfo(cli) { RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
+        foreach (string a in args) start.ArgumentList.Add(a);
+        try
+        {
+            using var p = Process.Start(start);
+            if (p == null) return null;
+            using var soon = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            string json = await p.StandardOutput.ReadToEndAsync(soon.Token);
+            await p.WaitForExitAsync(soon.Token);
+            return p.ExitCode == 0 ? JsonDocument.Parse(json) : null;
+        }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or OperationCanceledException or JsonException or InvalidOperationException)
+        {
+            return null;
+        }
     }
 }

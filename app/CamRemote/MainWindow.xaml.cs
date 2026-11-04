@@ -1791,6 +1791,12 @@ public partial class MainWindow : Window
                 Allowed = _allowed,
                 HasCamera = () => _cam.State == LinkState.Connected,
                 AskToJoin = AskToJoinAsync,
+                LetIn = (id, name) => Dispatcher.InvokeAsync(() =>
+                {
+                    string token = _allowed!.Allow(id, name);
+                    ShowAllowed();
+                    return token;
+                }).Task,
             };
             try
             {

@@ -64,6 +64,9 @@ public sealed class PhoneServer : IAsyncDisposable
     /// </summary>
     public Func<string, string, string, Task<string?>>? AskToJoin { get; init; }
 
+    /// <summary>Lets a device (id, name) in without asking, for the person's own devices on Tailscale. Returns its token.</summary>
+    public Func<string, string, Task<string>>? LetIn { get; init; }
+
     public PhoneServer(Settings settings, IEnumerable<IRemoteCamera> cameras)
     {
         _settings = settings;
@@ -164,6 +167,14 @@ public sealed class PhoneServer : IAsyncDisposable
         string id = body.Id ?? "";
         if (id.Length is < 16 or > 64 || !id.All(char.IsAsciiHexDigit)) return Results.BadRequest();
         string address = Shown(ctx.Connection.RemoteIpAddress!), key = id + " " + address;
+        // Came in over Tailscale from a device signed in as the same person: theirs already, so no question.
+        if (LetIn != null && ctx.Connection.LocalIpAddress is { } here && Tailnet.Contains(here)
+            && await Tailnet.SamePersonAsync(ctx.Connection.RemoteIpAddress!))
+        {
+            string name = Peers.Clean(body.Name);
+            Log.Write($"{name} is on this person's Tailscale, so it joins without asking.");
+            return Results.Json(new { token = await LetIn(id, name) });
+        }
         Task<string?> answer;
         lock (_pairLock)
         {
@@ -226,7 +237,11 @@ public sealed class PhoneServer : IAsyncDisposable
                     var r = await udp.ReceiveAsync(stop);
                     if (!_settings.ShareWithEgrets || !HasCamera() || !IsLocalOrTailscale(r.RemoteEndPoint.Address)
                         || !r.Buffer.AsSpan().SequenceEqual(Peers.Question)) continue;
-                    byte[] answer = JsonSerializer.SerializeToUtf8Bytes(new { id = _settings.DeviceId, name = Peers.ThisName, port = _settings.PhonePort, camera = true });
+                    byte[] answer = JsonSerializer.SerializeToUtf8Bytes(new
+                    {
+                        id = _settings.DeviceId, name = Peers.ThisName, port = _settings.PhonePort, camera = true,
+                        tailnet = Tailnet.OwnAddress()?.ToString(), // where to ask to join, to be known as the person's own device
+                    });
                     await udp.SendAsync(answer, r.RemoteEndPoint, stop);
                 }
                 catch (OperationCanceledException) { return; }
