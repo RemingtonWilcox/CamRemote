@@ -27,9 +27,17 @@ public partial class JoinWindow : Window
     private int _turn; // added to the host's own rotation, for this window only
     private int _misses; // state requests in a row that got no answer
     private DateTime _recBusyUntil;
+    private DateTime? _recSince; // when this window first saw the take rolling
     private bool _polling;
+    private bool _setup; // the Setup tab is showing
     private bool _shutterHeld;
     private Task<string?> _shutterPress = Task.FromResult<string?>(null); // a release waits for its press to reach the host
+
+    // Where the host's settings go, so they sit where MainWindow puts them. The iPhone sends PTP codes, the PC and Mac SDK names.
+    private static readonly HashSet<string> RecordingIds = ["53825", "53826", "53894", "53330", "53456", "53457",
+        "Movie_File_Format", "Movie_Recording_Setting", "Movie_Recording_FrameRateSetting", "SQFrameRate", "SQRecordingFrameRateSetting", "SQRecordingSetting"];
+    private static readonly HashSet<string> DriveIds = ["20499", "DriveMode"];
+    private static readonly HashSet<string> PhotoIds = ["53843", "53842", "53763", "53777", "20491", "53467"];
 
     public JoinWindow(RemoteLink link, Settings settings)
     {
@@ -40,17 +48,13 @@ public partial class JoinWindow : Window
         _assist.Done += ShowAssist;
         HostText.Text = "Through the Egret at " + new Uri(link.Address).Host;
         CamSummary.Text = link.CameraName;
-        HistToggle.IsChecked = settings.ShowHistogram;
-        ZebraToggle.IsChecked = settings.ShowZebras;
-        PeakToggle.IsChecked = settings.ShowPeaking;
+        AboutText.Text = $"Egret {UpdateCheck.Current} · Made by Remington Wilcox";
+        HistogramChip.IsChecked = settings.ShowHistogram;
+        ZebraChip.IsChecked = settings.ShowZebras;
+        PeakingChip.IsChecked = settings.ShowPeaking;
+        GridChip.IsChecked = settings.ShowGrid;
         ApplyGuides();
-        foreach (var (text, step) in new[] { ("◀◀◀", -7), ("◀◀", -3), ("◀", -1), ("▶", 1), ("▶▶", 3), ("▶▶▶", 7) })
-        {
-            // Held down, it keeps turning
-            var b = new RepeatButton { Content = text, Delay = 200, Interval = 200, Style = (Style)FindResource("PanelButton"), Margin = new Thickness(0, 0, 3, 0), Padding = new Thickness(2, 6, 2, 6) };
-            b.Click += (_, _) => _ = Do(_link.FocusStepAsync(step), quiet: true);
-            RingButtons.Children.Add(b);
-        }
+        FocusWheel.SizeChanged += (_, _) => DrawWheel();
         MakePresetButtons();
         _poll = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Normal, async (_, _) => await RefreshAsync(), Dispatcher);
         _hideMark = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.8) };
@@ -79,10 +83,27 @@ public partial class JoinWindow : Window
 
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key != Key.F9) return;
-        if (_state?.Photo == true) _ = TakePhotoAsync();
-        else OnRecClick(this, e);
-        e.Handled = true;
+        if (e.Key == Key.F9)
+        {
+            if (_state?.Photo == true) _ = TakePhotoAsync();
+            else OnRecClick(this, e);
+            e.Handled = true;
+            return;
+        }
+        if (e.OriginalSource is TextBox || Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) return;
+        // The same letters as MainWindow
+        ToggleButton? chip = e.Key switch { Key.G => GridChip, Key.Z => ZebraChip, Key.P => PeakingChip, Key.H => HistogramChip, _ => null };
+        if (chip != null)
+        {
+            chip.IsChecked = chip.IsChecked != true;
+            OnGuideClick(chip, e);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.R)
+        {
+            Turn(Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? -90 : 90);
+            e.Handled = true;
+        }
     }
 
     // ---- Picture ----
@@ -137,21 +158,29 @@ public partial class JoinWindow : Window
         _hideMark.Start();
     }
 
-    private void OnRotateClick(object sender, RoutedEventArgs e)
+    private void OnRotateClick(object sender, RoutedEventArgs e) => Turn(int.Parse((string)((Button)sender).Tag));
+
+    private void Turn(int by)
     {
-        _turn = (_turn + 90) % 360;
+        _turn = ((_turn + by) % 360 + 360) % 360;
         ApplyRotation();
     }
 
-    private void ApplyRotation() => PictureRotation.Angle = ((_state?.Rotation ?? 0) + _turn) % 360;
+    private void ApplyRotation()
+    {
+        int angle = ((_state?.Rotation ?? 0) + _turn) % 360;
+        PictureRotation.Angle = angle;
+        RotationText.Text = angle == 0 ? "" : $"{angle}°";
+    }
 
     // ---- Guides ----
 
     private void OnGuideClick(object sender, RoutedEventArgs e)
     {
-        _settings.ShowHistogram = HistToggle.IsChecked == true;
-        _settings.ShowZebras = ZebraToggle.IsChecked == true;
-        _settings.ShowPeaking = PeakToggle.IsChecked == true;
+        _settings.ShowHistogram = HistogramChip.IsChecked == true;
+        _settings.ShowZebras = ZebraChip.IsChecked == true;
+        _settings.ShowPeaking = PeakingChip.IsChecked == true;
+        _settings.ShowGrid = GridChip.IsChecked == true;
         _settings.Save();
         ApplyGuides();
     }
@@ -159,22 +188,25 @@ public partial class JoinWindow : Window
     private void ApplyGuides()
     {
         var s = _state;
-        bool zebra = ZebraToggle.IsChecked == true, peak = PeakToggle.IsChecked == true, hist = HistToggle.IsChecked == true;
+        bool zebra = ZebraChip.IsChecked == true, peak = PeakingChip.IsChecked == true, hist = HistogramChip.IsChecked == true;
         _assist.Options = new AssistOptions(hist || zebra || peak, zebra, s?.ZebraLevel ?? _settings.ZebraLevel, peak,
             s?.PeakSensitivity ?? _settings.PeakSensitivity, s?.PeakColor ?? _settings.PeakColor);
-        Hud.Visibility = hist || s?.Meter != null ? Visibility.Visible : Visibility.Collapsed;
-        Histogram.Visibility = OverText.Visibility = hist ? Visibility.Visible : Visibility.Collapsed;
+        bool meter = s?.Connected == true && s.Meter != null;
+        Hud.Visibility = hist || meter ? Visibility.Visible : Visibility.Collapsed;
+        HistogramPart.Visibility = hist ? Visibility.Visible : Visibility.Collapsed;
+        GuideGrid.Visibility = GridChip.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         if (!zebra && !peak) { _assistBitmap = null; AssistLayer.Source = null; }
     }
 
     private void ShowAssist(AssistResult r)
     {
         int level = _state?.ZebraLevel ?? _settings.ZebraLevel;
-        if (HistToggle.IsChecked == true)
+        if (HistogramChip.IsChecked == true)
         {
             Histogram.Source = BitmapSource.Create(256, 40, 96, 96, PixelFormats.Pbgra32, null, PictureAssist.DrawHistogram(r, 40, false, level), 256 * 4);
-            OverText.Text = $"Over {level}%: {r.OverPercent:0.0}%     Under 3%: {r.UnderPercent:0.0}%";
+            OverText.Text = $"Over {level}%: {r.OverPercent:0.0}%";
             OverText.Foreground = (Brush)FindResource(r.OverPercent >= 0.5 ? "Warn" : "Dim");
+            UnderText.Text = $"Under 3%: {r.UnderPercent:0.0}%";
         }
         if (r.Overlay.Length > 0)
         {
@@ -228,23 +260,25 @@ public partial class JoinWindow : Window
         AlertText.Text = s.Alert;
         AlertBox.Visibility = s.Alert.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         RecButton.IsEnabled = ShutterButton.IsEnabled = on;
-        // The tabs and buttons follow the camera, as on the other CamRemote.
-        VideoTab.IsChecked = !s.Photo;
-        PhotoTab.IsChecked = s.Photo;
-        RecButton.Visibility = s.Photo ? Visibility.Collapsed : Visibility.Visible;
-        ShutterButton.Visibility = s.Photo ? Visibility.Visible : Visibility.Collapsed;
+        ShowPage();
         SlowQuickSwitch.Visibility = on && !s.Photo && s.OffersSlowQuick ? Visibility.Visible : Visibility.Collapsed;
         NormalSpeed.IsChecked = !s.SlowQuick;
         SlowQuick.IsChecked = s.SlowQuick;
         ShowPresets(s);
+        if (s.Recording) _recSince ??= DateTime.Now;
+        else _recSince = null;
         RecBadge.Visibility = s.Recording ? Visibility.Visible : Visibility.Collapsed;
+        RecTime.Text = _recSince is { } since ? $"● REC {DateTime.Now - since:hh\\:mm\\:ss}" : "● REC";
+        RecFrame.BorderBrush = s.Recording ? (Brush)FindResource("Rec") : Brushes.Transparent;
         RecLabel.Text = s.Recording ? "Stop" : "Record";
         RecDot.Fill = s.Recording ? Brushes.White : (Brush)FindResource("Rec");
         if (s.Recording) RecButton.Background = (Brush)FindResource("Rec");
         else RecButton.ClearValue(BackgroundProperty);
+        TimeLapseNote.Text = "A time-lapse is running on the other Egret. Stop it there.";
+        TimeLapseNote.Visibility = s.TimeLapse ? Visibility.Visible : Visibility.Collapsed;
+        ShutterLabel.Text = s.TimeLapse ? "Time-lapse running" : "Take photo";
         if (!on) NoSignal.Text = "The other Egret isn't connected to the camera";
-        MeterText.Text = on && s.Meter is double m ? $"Meter {(m > 0 ? "+" : "")}{m:0.0} EV" : "";
-        MeterText.Visibility = MeterText.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        ShowMeter();
         ApplyGuides();
 
         BaseIsoPanel.Children.Clear();
@@ -263,7 +297,7 @@ public partial class JoinWindow : Window
         foreach (var row in s.Rows)
         {
             seen.Add(row.Id);
-            var panel = row.Section switch { "exposure" => ExposureRows, "focus" => FocusRows, "audio" => AudioRows, _ => MoreRows };
+            var panel = PanelFor(row);
             if (!_rows.TryGetValue(row.Id, out var view) || !view.Fits(row, panel))
             {
                 if (view != null) ((Panel)view.Root.Parent).Children.Remove(view.Root);
@@ -278,9 +312,143 @@ public partial class JoinWindow : Window
             ((Panel)_rows[gone].Root.Parent).Children.Remove(_rows[gone].Root);
             _rows.Remove(gone);
         }
+        PhotoHead.Visibility = PhotoRows.Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         AudioHead.Visibility = AudioRows.Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         MoreHead.Visibility = MoreRows.Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    private Panel PanelFor(RemoteRow row) =>
+        RecordingIds.Contains(row.Id) ? RecordingRows
+        : DriveIds.Contains(row.Id) ? DriveRows
+        : PhotoIds.Contains(row.Id) || row.Section == "photo" ? PhotoRows
+        : row.Section switch { "exposure" => ExposureRows, "focus" => FocusRows, "audio" => AudioRows, _ => MoreRows };
+
+    /// <summary>Video, Photo or Setup. Video and Photo follow the camera, as on the other Egret.</summary>
+    private void ShowPage()
+    {
+        bool photo = _state?.Photo == true;
+        VideoTab.IsChecked = !_setup && !photo;
+        PhotoTab.IsChecked = !_setup && photo;
+        SetupTab.IsChecked = _setup;
+        ShootPage.Visibility = _setup ? Visibility.Collapsed : Visibility.Visible;
+        SetupPage.Visibility = _setup ? Visibility.Visible : Visibility.Collapsed;
+        RecButton.Visibility = VideoShoot.Visibility = photo ? Visibility.Collapsed : Visibility.Visible;
+        ShutterButton.Visibility = DriveRows.Visibility = photo ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OnSetupClick(object sender, RoutedEventArgs e)
+    {
+        _setup = true;
+        ShowPage();
+    }
+
+    // ---- The camera's meter, drawn as in MainWindow ----
+
+    private void ShowMeter()
+    {
+        var stops = _state?.Connected == true ? _state.Meter : null;
+        MeterBox.Visibility = stops == null ? Visibility.Collapsed : Visibility.Visible;
+        if (stops is not double s) return;
+        Canvas.SetLeft(ExposureNeedle, MeterX(s) - 1);
+        ExposureText.Text = Format.Meter(s);
+        ExposureNeedle.Fill = Math.Abs(s) <= 0.35 ? (Brush)FindResource("Ok") : Math.Abs(s) >= 2 ? (Brush)FindResource("Warn") : Brushes.White;
+        ExposureText.Foreground = ExposureNeedle.Fill;
+    }
+
+    // -3 to +3 stops across the meter, with room at the ends for the numbers.
+    private double MeterX(double stops) => 10 + (Math.Clamp(stops, -3.1, 3.1) + 3) * (ExposureScale.ActualWidth - 20) / 6;
+
+    private void OnExposureScaleSized(object sender, SizeChangedEventArgs e)
+    {
+        ExposureScale.Children.Clear();
+        for (int stop = -3; stop <= 3; stop++)
+        {
+            double h = stop == 0 ? 18 : 8;
+            var tick = new System.Windows.Shapes.Rectangle { Width = 1, Height = h, Fill = (Brush)FindResource("Dim") };
+            Canvas.SetLeft(tick, MeterX(stop));
+            Canvas.SetTop(tick, (18 - h) / 2);
+            var number = new TextBlock { Text = stop == 0 ? "0" : $"{stop:+0;-0}", Width = 24, TextAlignment = TextAlignment.Center, FontSize = 10, Foreground = (Brush)FindResource("Dim") };
+            Canvas.SetLeft(number, MeterX(stop) - 12);
+            Canvas.SetTop(number, 18);
+            ExposureScale.Children.Add(tick);
+            ExposureScale.Children.Add(number);
+        }
+        ExposureScale.Children.Add(ExposureNeedle);
+        ShowMeter();
+    }
+
+    // ---- Focus ring ----
+
+    private const double WheelTickGap = 14;
+    private double _wheelLastX, _wheelTurned, _wheelOwed;
+
+    private void DrawWheel()
+    {
+        WheelTicks.Children.Clear();
+        for (int i = -1; i < 40; i++)
+        {
+            bool major = i % 5 == 0;
+            var tick = new System.Windows.Shapes.Rectangle { Width = 1, Height = major ? 24 : 12, Fill = major ? Brushes.Gray : Brushes.DimGray };
+            Canvas.SetLeft(tick, i * WheelTickGap + _wheelTurned % (WheelTickGap * 5));
+            Canvas.SetTop(tick, major ? 10 : 16);
+            WheelTicks.Children.Add(tick);
+        }
+    }
+
+    /// <summary>The host turns the ring in steps, so a drag sends one for each tick it passes, bigger ones when it's quick.</summary>
+    private void TurnWheel(double pixels)
+    {
+        _wheelTurned += pixels;
+        _wheelOwed += pixels;
+        DrawWheel();
+        int ticks = (int)(_wheelOwed / WheelTickGap);
+        if (ticks == 0) return;
+        _wheelOwed -= ticks * WheelTickGap;
+        int step = Math.Abs(ticks) >= 3 ? Math.Sign(ticks) * 3 : ticks;
+        _ = Do(_link.FocusStepAsync(step), quiet: true);
+    }
+
+    private void OnWheelDown(object sender, MouseButtonEventArgs e)
+    {
+        _wheelLastX = e.GetPosition(FocusWheel).X;
+        FocusWheel.CaptureMouse();
+    }
+
+    private void OnWheelMove(object sender, MouseEventArgs e)
+    {
+        if (!FocusWheel.IsMouseCaptured) return;
+        double x = e.GetPosition(FocusWheel).X;
+        TurnWheel(x - _wheelLastX);
+        _wheelLastX = x;
+    }
+
+    private void OnWheelUp(object sender, MouseButtonEventArgs e) => FocusWheel.ReleaseMouseCapture();
+
+    private void OnWheelScroll(object sender, MouseWheelEventArgs e)
+    {
+        _wheelTurned += e.Delta > 0 ? WheelTickGap : -WheelTickGap;
+        DrawWheel();
+        _ = Do(_link.FocusStepAsync(e.Delta > 0 ? 2 : -2), quiet: true);
+        e.Handled = true;
+    }
+
+    private void OnFocusStep(object sender, RoutedEventArgs e) => _ = Do(_link.FocusStepAsync(int.Parse((string)((FrameworkElement)sender).Tag)), quiet: true);
+
+    // ---- Setup ----
+
+    private async void OnSendLogClick(object sender, RoutedEventArgs e)
+    {
+        SendLogButton.IsEnabled = false;
+        SendLogResult.Text = "Sending…";
+        var (reference, problem) = await LogSender.SendAsync(LogNote.Text);
+        SendLogResult.Text = reference != null ? $"Sent, thank you. Its reference is {reference}." : problem;
+        if (reference != null) LogNote.Text = "";
+        SendLogButton.IsEnabled = true;
+    }
+
+    private void OnHelpClick(object sender, RoutedEventArgs e) => UpdateCheck.OpenHelp();
+
+    private void OnInstagramClick(object sender, RoutedEventArgs e) => UpdateCheck.OpenInstagram();
 
     private void ShowMagnify(RemoteState s)
     {
@@ -312,8 +480,8 @@ public partial class JoinWindow : Window
     private void OnModeClick(object sender, RoutedEventArgs e)
     {
         bool photo = sender == PhotoTab;
-        VideoTab.IsChecked = _state?.Photo != true;
-        PhotoTab.IsChecked = _state?.Photo == true;
+        _setup = false;
+        ShowPage();
         if (photo != (_state?.Photo == true)) _ = Do(_link.ModeAsync(photo));
     }
 

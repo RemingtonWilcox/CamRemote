@@ -55,6 +55,7 @@ public sealed class RemoteState
     public bool OffersSlowQuick { get; set; }
     public List<RemotePreset> Presets { get; set; } = []; // only the saved ones, for the side the host is on
     public int? ActiveSlot { get; set; }
+    public bool TimeLapse { get; set; } // the iPhone app's own time-lapse is running
 
     public bool Connected => Link == "connected";
 }
