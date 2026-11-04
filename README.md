@@ -19,7 +19,7 @@ all in one clean window on your computer, with no cables.
 
 <br><br>
 
-<img src="docs/window.jpg" alt="Egret's window: a cattle egret beside a red ginger flower in the live picture, the histogram and meter in the corner, and the Video tab on the right with the Record button, four saved setups and exposure" width="860" />
+<img src="docs/window.jpg" alt="Egret recording a backyard feeder: a woodpecker on the suet with the camera's tracking box around it, REC 00:02:32 at the top left, the grid and zebras on, the histogram in the corner, and the Video tab on the right with Stop, four saved setups, exposure and focus" width="860" />
 
 </div>
 
@@ -66,6 +66,19 @@ Video, photos, bursts, brackets, S&Q slow motion, time-lapse and long exposures.
 
 Click the bird and the camera focuses there. Turn on **Peaking** and the sharp edges light up, like the egret's eye and neck here, so you can tell what's in focus from across the yard. The camera's own focus boxes show what it's locked on, and the magnifier zooms in to check.
 
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/peaking.gif" alt="Peaking switched on and off at a bird feeder in Egret: the feeder's edges light up blue where they're sharp while a woodpecker feeds inside the camera's focus box" />
+<br><sub><b>Peaking</b> on and off, live over Wi-Fi.</sub>
+</td>
+<td width="50%" valign="top">
+<img src="docs/tracking.gif" alt="Tracking in Egret: the camera's focus box follows a small bird as it moves between two feeders, shown at double speed" />
+<br><sub><b>Tracking</b> follows a bird between feeders (double speed).</sub>
 </td>
 </tr>
 </table>
@@ -133,6 +146,11 @@ The Photo tab has three ways to shoot:
 <img src="docs/photo-modes.png" alt="The Photo tab three ways: Photo with a 1-stop, 3-photo bracket, Time-lapse with one photo every 10 seconds, and Long exposure set to 30 seconds with ND filter choices" width="760" />
 </p>
 
+<p align="center">
+<img src="docs/bracket.jpg" alt="Three photos of the same forest clearing from one bracket: darker at 1/1000, normal at 1/500 and brighter at 1/250" width="860" />
+<br><sub>One press of <b>Take photo</b> with a 1-stop, 3-photo bracket, straight off the A7S III.</sub>
+</p>
+
 <br>
 
 ## It can even film wildlife for you
@@ -153,7 +171,11 @@ Here it has spotted the egret, started recording, put a green box around it and 
 
 ## Coming soon: Egret for iPhone
 
-Run the camera with no computer at all, just your phone and its hotspot. The iPhone app has the live picture, tap to focus, exposure, video, S&Q, photos, burst, time-lapse, C1 to C3 saved setups and the animal trigger, and it can hand the camera to a computer anywhere over Tailscale.
+Run the camera with no computer at all, just your phone and its hotspot. The iPhone app has the live picture, tap to focus, exposure, video, S&Q, photos, burst, time-lapse, C1 to C4 saved setups and the animal trigger, and it can hand the camera to a computer anywhere over Tailscale.
+
+<p align="center">
+<img src="docs/iphone.jpg" alt="Egret for iPhone three ways: recording 60p at a bird feeder with the C1 to C4 setups below, the time-lapse planner set to two hours at one photo every 5 seconds for a one-minute clip, and Computer control on while a computer runs the camera at 120p" width="860" />
+</p>
 
 **You can't download it yet.** It's still being tested, and it'll come to TestFlight, Apple's beta testing app, first. [More about it](#on-your-iphone).
 
@@ -291,7 +313,7 @@ If your computer asks about network access, say yes:
 
 ## On your iPhone
 
-There's also an iPhone app that runs the camera with no computer at all, just your phone's hotspot. It has the live picture, tap to focus, exposure, video, S&Q, photos, burst, time-lapse and C1 to C3 saved setups. Photos and video stay on the camera's card. Close Egret on your computer first: the camera only takes one remote at a time.
+There's also an iPhone app that runs the camera with no computer at all, just your phone's hotspot. It has the live picture, tap to focus, exposure, video, S&Q, photos, burst, time-lapse and C1 to C4 saved setups. Photos and video stay on the camera's card. Close Egret on your computer first: the camera only takes one remote at a time.
 
 It can also record when an animal shows up, with the same rules as on a computer: turn on **Automatic recording** on the Video page and leave **Record when it sees** on **Animal**. **It only works while Egret is open on the phone's screen.** iPhones stop apps that aren't on screen, so if you lock the phone or switch apps, it stops watching (and stops a take it started). While the option is on, the app keeps the screen awake, so keep the phone plugged in: a screen that's on for hours, the hotspot and the detector all use battery. The first time you turn it on, the detector takes up to a minute to get ready.
 
