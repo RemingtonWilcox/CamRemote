@@ -188,8 +188,8 @@ public interface ITriggerCamera
 /// <summary>
 /// Checks the live view twice a second, starts recording after two sightings in three seconds and stops
 /// once no animal has been seen for a while. It only ever stops a take it started itself. A confident
-/// sighting also focuses there. Sightings that keep landing on one spot without ever being sure are scenery,
-/// like splashing water. While it's following something, each check also looks closely around the last sighting,
+/// sighting also focuses there. Sightings that keep landing in one small area without being sure twice running are
+/// scenery, like splashing water. While it's following something, each check also looks closely around the last sighting,
 /// which finds small birds the whole picture misses.
 /// </summary>
 public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, long No)?> latest, BirdPicture picture,
@@ -198,10 +198,13 @@ public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, l
     private const float Bar = 0.25f;
     private static readonly TimeSpan Follow = TimeSpan.FromSeconds(3); // a sighting this recent gets the closer look
     private static readonly TimeSpan QuickCheck = TimeSpan.FromSeconds(0.4); // slower than this, there's no time for two looks
-    private const float Sure = 0.6f; // scenery never scores this high, so a spot that has is an animal
+    private const float Sure = 0.6f; // scenery can score this high once, but not twice running, so a spot that has is an animal
     private const float WorthFocus = 0.5f;
-    private const float SameSpot = 0.015f;
+    private const float SceneryArea = 0.04f; // splashing water lands on a few spots this close together, so they're one piece of scenery
     private const float SureSpot = 0.03f;
+    private const float StillSpot = 0.006f; // a rock's box comes back this close every time; a live animal's moves
+    private const int StillHits = 6;
+    private static readonly TimeSpan StillLasts = TimeSpan.FromSeconds(20); // the same box this long is a thing, even if it once looked sure
     private const float NewSpot = 0.1f;
     private const int SpotHits = 12; // this many hits on one spot within SpotTime makes it scenery
     private const int StartHits = 2;
@@ -225,9 +228,10 @@ public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, l
     private bool _rolled; // the camera has shown this take recording
     private DateTime _lastBird;
     private DateTime _restUntil;
-    private readonly Queue<(float X, float Y, float Score, DateTime At)> _recent = new();
+    private readonly Queue<(float X, float Y, float W, float H, float Score, DateTime At)> _recent = new();
     private readonly List<(float X, float Y, DateTime Until)> _scenery = [];
     private readonly List<(float X, float Y, DateTime Until)> _animals = [];
+    private (float X, float Y)? _lastSure; // the last check, if it was a confident one
     private (float X, float Y)? _focusedOn;
     private DateTime _focused;
     private DateTime _boxShown;
@@ -251,6 +255,7 @@ public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, l
         _recent.Clear();
         _scenery.Clear();
         _animals.Clear();
+        _lastSure = null;
         _focusedOn = null;
         _thread = new Thread(Loop) { IsBackground = true, Name = "BirdTrigger", Priority = ThreadPriority.BelowNormal };
         _thread.Start();
@@ -346,7 +351,7 @@ public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, l
     {
         if (!_run) return;
         var now = DateTime.Now;
-        bool seen = Counts(score, x, y, now);
+        bool seen = Counts(score, x, y, w, h, now);
         if (seen) _sightings.Enqueue(now);
         while (_sightings.TryPeek(out var old) && now - old > StartWithin) _sightings.Dequeue();
         Act(score, seen, now);
@@ -411,17 +416,29 @@ public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, l
     }
 
     /// <summary>Whether a check saw an animal, as opposed to nothing or a hit on a known piece of scenery.</summary>
-    private bool Counts(float score, float x, float y, DateTime now)
+    private bool Counts(float score, float x, float y, float w, float h, DateTime now)
     {
         while (_recent.TryPeek(out var old) && now - old.At > SpotTime) _recent.Dequeue();
-        if (score < Bar) return false;
+        if (score < Bar)
+        {
+            _lastSure = null;
+            return false;
+        }
 
-        var same = _recent.Where(s => Near(s.X, s.Y, x, y, SameSpot)).ToList();
+        var same = _recent.Where(s => Near(s.X, s.Y, x, y, SceneryArea)).ToList();
         _animals.RemoveAll(s => s.Until <= now);
-        if (score >= Sure) _animals.Add((x, y, now + SureFor));
+        if (score >= Sure)
+        {
+            if (_lastSure is { } was && Near(was.X, was.Y, x, y, SureSpot)) _animals.Add((x, y, now + SureFor));
+            _lastSure = (x, y);
+        }
+        else _lastSure = null;
+        var still = _recent.Where(s => Near(s.X, s.Y, x, y, StillSpot) && Similar(s.W, w) && Similar(s.H, h)).ToList();
+        if (still.Count >= StillHits && now - still[0].At >= StillLasts)
+            _animals.RemoveAll(s => Near(s.X, s.Y, x, y, SureSpot)); // it hasn't moved at all, so it isn't an animal, however sure it looked
         bool sure = _animals.Any(s => Near(s.X, s.Y, x, y, SureSpot));
-        _recent.Enqueue((x, y, score, now));
-        _scenery.RemoveAll(s => s.Until <= now || (sure && Near(s.X, s.Y, x, y, SureSpot)));
+        _recent.Enqueue((x, y, w, h, score, now));
+        _scenery.RemoveAll(s => s.Until <= now || (sure && Near(s.X, s.Y, x, y, SceneryArea)));
         if (same.Count >= SpotHits && now - same[0].At >= SpotLasts && !sure && !IsScenery(x, y))
         {
             _scenery.Add((x, y, now + SceneryFor));
@@ -430,9 +447,11 @@ public sealed class BirdTrigger(IUi ui, ITriggerCamera cam, Func<(byte[] Jpeg, l
         return !IsScenery(x, y);
     }
 
-    private bool IsScenery(float x, float y) => _scenery.Any(s => Near(s.X, s.Y, x, y, SameSpot));
+    private bool IsScenery(float x, float y) => _scenery.Any(s => Near(s.X, s.Y, x, y, SceneryArea));
 
     private static bool Near(float x1, float y1, float x2, float y2, float by) => Math.Abs(x1 - x2) < by && Math.Abs(y1 - y2) < by;
+
+    private static bool Similar(float a, float b) => Math.Abs(a - b) <= 0.15f * Math.Max(a, b);
 
     /// <summary>Focuses once on an animal, and again only if it has moved somewhere new.</summary>
     private void FocusOn(float x, float y, DateTime now)
