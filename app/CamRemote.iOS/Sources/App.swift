@@ -138,6 +138,7 @@ struct CamRemoteApp: App {
                 }
             }
             .preferredColorScheme(.dark)
+            .modifier(JoinQuestionAlert())
             .onAppear {
                 // This also runs each time the connect screen comes back, and Disconnect has to stay disconnected.
                 guard !launched else { return }

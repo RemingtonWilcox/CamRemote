@@ -1023,7 +1023,7 @@ struct SetupSheet: View {
                         .disabled(camera.formatting || camera.recording || camera.timeLapseRunning)
                 }
                 section("CONNECTION")
-                Text(camera.join.map { "Using the camera through the RemoteCam at \($0.address.replacingOccurrences(of: ":8787", with: "")). It keeps the camera when you leave." }
+                Text(camera.join.map { "Using the camera through \($0.name). It keeps the camera when you leave." }
                      ?? "Photos and video stay on the camera's card.")
                     .font(.footnote)
                     .foregroundColor(.dim)

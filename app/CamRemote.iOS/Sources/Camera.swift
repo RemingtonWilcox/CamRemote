@@ -928,7 +928,7 @@ final class Camera: ObservableObject {
             let held = (error as? PtpError)?.text == busy
             if !leaving {
                 problem = held
-                    ? "Another remote has the camera. If it's RemoteCam on your iPhone or computer, use the camera through it below."
+                    ? "Another remote has the camera."
                     : started ? "Lost the camera. Looking for it again." : "The camera stopped answering while opening. Trying again."
             }
             DispatchQueue.main.async { self.busyElsewhere = held && !leaving }

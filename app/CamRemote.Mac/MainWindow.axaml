@@ -314,9 +314,9 @@
                                         ToolTip.Tip="Makes a new access code. Phones already signed in will need it." />
                             </StackPanel>
 
-                            <TextBlock Text="OTHER COMPUTERS" Classes="Section" />
-                            <CheckBox x:Name="ShareEnabled" Content="Let my other computers join" Click="OnShareToggle"
-                                      ToolTip.Tip="When this RemoteCam has the camera, RemoteCam on your other computers shows it too, instead of fighting over it. Home network and Tailscale only." />
+                            <TextBlock Text="OTHER DEVICES" Classes="Section" />
+                            <CheckBox x:Name="ShareEnabled" Content="Let my other devices join" Click="OnShareToggle"
+                                      ToolTip.Tip="When this RemoteCam has the camera, RemoteCam on your iPhone, iPad or other computers can use it through this one. The first time, you're asked here." />
                             <TextBlock x:Name="AllowedHint" TextWrapping="Wrap" Classes="Small" Margin="0,6,0,0" />
                             <StackPanel x:Name="AllowedList" />
 

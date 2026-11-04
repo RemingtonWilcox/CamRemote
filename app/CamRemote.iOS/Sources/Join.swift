@@ -2,29 +2,177 @@ import Security
 import SwiftUI
 import UIKit
 
-private let unreachable = "Can't reach the other RemoteCam. Check it's open on screen with Allow control from a computer or iPad on, and that this device is on the same hotspot or Wi-Fi."
+private let joinPort = 8787 // the same on every RemoteCam
+private let unreachable = "Can't reach the other device. Check RemoteCam is open on it, on the same Wi-Fi or hotspot as this one."
 
-/// What another CamRemote handed this one after its access code was typed, kept in the Keychain by its address.
+/// This device as other RemoteCams know it. The id is made once and kept, so an "Allow" there lasts.
+enum ThisDevice {
+    static let id: String = {
+        if let saved = UserDefaults.standard.string(forKey: "deviceId"), saved.count == 32 { return saved }
+        var bytes = [UInt8](repeating: 0, count: 16)
+        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        let made = bytes.map { String(format: "%02x", $0) }.joined()
+        UserDefaults.standard.set(made, forKey: "deviceId")
+        return made
+    }()
+
+    static var kind: String { AppDelegate.pad ? "iPad" : "iPhone" }
+}
+
+/// What other RemoteCams handed this one when they let it in, kept in the Keychain. Newer ones are by the other
+/// device's id; older ones, from when an access code was typed, by its address.
 enum JoinTokens {
-    private static func query(_ address: String) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "CamRemote join", kSecAttrAccount as String: address]
+    private static func query(_ service: String, _ account: String) -> [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
     }
 
-    static func read(_ address: String) -> String {
-        var search = query(address)
+    private static func read(_ service: String, _ account: String) -> String {
+        var search = query(service, account)
         search[kSecReturnData as String] = true
         var result: AnyObject?
         guard SecItemCopyMatching(search as CFDictionary, &result) == errSecSuccess, let data = result as? Data else { return "" }
         return String(decoding: data, as: UTF8.self)
     }
 
-    static func write(_ address: String, _ token: String) {
-        SecItemDelete(query(address) as CFDictionary)
+    private static func write(_ service: String, _ account: String, _ token: String) {
+        SecItemDelete(query(service, account) as CFDictionary)
         guard !token.isEmpty else { return }
-        var item = query(address)
+        var item = query(service, account)
         item[kSecValueData as String] = Data(token.utf8)
         item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         SecItemAdd(item as CFDictionary, nil)
+    }
+
+    static func read(host id: String) -> String { read("CamRemote host", id) }
+    static func write(host id: String, _ token: String) { write("CamRemote host", id, token) }
+    static func read(address: String) -> String { read("CamRemote join", address) }
+    static func forget(address: String) { write("CamRemote join", address, "") }
+}
+
+/// Another RemoteCam nearby that has the camera.
+struct OtherRemoteCam: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let address: String // like 10.0.0.12:8787
+
+    var icon: String {
+        name.localizedCaseInsensitiveContains("iPhone") ? "iphone"
+            : name.localizedCaseInsensitiveContains("iPad") ? "ipad" : "desktopcomputer"
+    }
+}
+
+/// Finds other RemoteCams by asking every address on this Wi-Fi or hotspot who it is, and the addresses of ones
+/// joined before, which can include Tailscale ones for when this device is away from home. Nothing to type.
+enum Nearby {
+    private static let hostsKey = "joinHosts" // [id: [address]], for the ones that let this device in
+
+    private static func session(_ wait: TimeInterval) -> URLSession {
+        let config = URLSessionConfiguration.ephemeral
+        config.httpShouldSetCookies = false
+        config.timeoutIntervalForRequest = wait
+        config.httpMaximumConnectionsPerHost = 2
+        return URLSession(configuration: config)
+    }
+
+    static var saved: [String: [String]] {
+        UserDefaults.standard.dictionary(forKey: hostsKey) as? [String: [String]] ?? [:]
+    }
+
+    static func remember(_ id: String, _ addresses: [String]) {
+        var all = saved
+        var kept: [String] = []
+        for address in addresses.map(JoinLink.normalize) where !address.isEmpty && !kept.contains(address) { kept.append(address) }
+        all[id] = Array(kept.prefix(6))
+        UserDefaults.standard.set(all, forKey: hostsKey)
+    }
+
+    /// Every other address on this device's Wi-Fi or hotspot. A big network is cut to the 254 addresses around this one.
+    static func neighbours() -> [String] {
+        var found: [String] = []
+        var list: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&list) == 0, let first = list else { return [] }
+        defer { freeifaddrs(list) }
+        for entry in sequence(first: first, next: { $0.pointee.ifa_next }) {
+            guard let address = entry.pointee.ifa_addr, address.pointee.sa_family == UInt8(AF_INET), let mask = entry.pointee.ifa_netmask,
+                  entry.pointee.ifa_flags & UInt32(IFF_UP) != 0, String(cString: entry.pointee.ifa_name).hasPrefix("en") else { continue }
+            let ip = address.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { UInt32(bigEndian: $0.pointee.sin_addr.s_addr) }
+            var net = mask.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { UInt32(bigEndian: $0.pointee.sin_addr.s_addr) }
+            guard ip >> 16 != 0xA9FE else { continue } // 169.254, no network yet
+            if net < 0xFFFF_FF00 { net = 0xFFFF_FF00 }
+            let base = ip & net
+            for host in 1..<(~net) where base | host != ip {
+                let a = base | host
+                found.append("\(a >> 24).\(a >> 16 & 0xFF).\(a >> 8 & 0xFF).\(a & 0xFF):\(joinPort)")
+            }
+        }
+        return found
+    }
+
+    /// The RemoteCams that answer and have a camera, nearest first. Learns the addresses of ones this device may join.
+    static func find() async -> [OtherRemoteCam] {
+        let known = saved
+        var tokens: [String: String] = [:]
+        for (id, addresses) in known {
+            let token = JoinTokens.read(host: id)
+            if !token.isEmpty { for address in addresses { tokens[address] = token } }
+        }
+        let tokenAt = tokens
+        let targets = Set(neighbours()).union(known.values.joined())
+        let session = session(2)
+        defer { session.finishTasksAndInvalidate() }
+        var answers: [(OtherRemoteCam, [String])] = []
+        await withTaskGroup(of: (OtherRemoteCam, [String])?.self) { group in
+            for target in targets { group.addTask { await hello(target, token: tokenAt[target], session: session) } }
+            for await answer in group { if let answer { answers.append(answer) } }
+        }
+        var byId: [String: OtherRemoteCam] = [:]
+        for (other, addresses) in answers {
+            if !addresses.isEmpty, !JoinTokens.read(host: other.id).isEmpty { remember(other.id, [other.address] + addresses) }
+            // The home network beats Tailscale, which only carries it when away.
+            if let had = byId[other.id], !had.address.hasPrefix("100.") { continue }
+            byId[other.id] = other
+        }
+        return byId.values.sorted { $0.name < $1.name }
+    }
+
+    private static func hello(_ address: String, token: String?, session: URLSession) async -> (OtherRemoteCam, [String])? {
+        guard let url = URL(string: "http://\(address)/api/hello") else { return nil }
+        var request = URLRequest(url: url)
+        if let token { request.setValue("camremote=\(token)", forHTTPHeaderField: "Cookie") } // so it says its other addresses
+        guard let (data, response) = try? await session.data(for: request), (response as? HTTPURLResponse)?.statusCode == 200,
+              let reply = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              reply["app"] as? String == "egret", reply["camera"] as? Bool == true, // "egret": how every version knows another
+              let id = reply["id"] as? String, id != ThisDevice.id else { return nil }
+        let name = (reply["name"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return (OtherRemoteCam(id: id, name: name.isEmpty ? "Another device" : String(name.prefix(40)), address: address),
+                reply["addresses"] as? [String] ?? [])
+    }
+
+    /// Asks the other device to let this one in. Its person answers there, so this waits for them.
+    static func askToJoin(_ other: OtherRemoteCam) async -> (token: String?, problem: String) {
+        guard let url = URL(string: "http://\(other.address)/api/pair") else { return (nil, unreachable) }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("1", forHTTPHeaderField: "X-CamRemote")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["id": ThisDevice.id, "name": UIDevice.current.name])
+        let session = session(130)
+        defer { session.finishTasksAndInvalidate() }
+        for _ in 0..<5 {
+            guard let (data, response) = try? await session.data(for: request), let http = response as? HTTPURLResponse else {
+                return (nil, unreachable)
+            }
+            switch http.statusCode {
+            case 200:
+                let token = ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["token"] as? String ?? ""
+                return token.isEmpty ? (nil, "\(other.name) couldn't let this \(ThisDevice.kind) in.") : (token, "")
+            case 408: continue // nobody has answered yet; the question is still up
+            case 409: return (nil, "\(other.name) is asking about another device. Answer that first, then try again.")
+            case 429: return (nil, "\(other.name) said no a moment ago. Try again in a few minutes.")
+            default: return (nil, "\(other.name) didn't let this \(ThisDevice.kind) in. If nothing came up there, turn on Let my other devices join in its Setup.")
+            }
+        }
+        return (nil, "Nobody answered on \(other.name).")
     }
 }
 
@@ -32,12 +180,14 @@ enum JoinTokens {
 /// a computer uses, so this device runs the camera through it instead of taking the camera over.
 final class JoinLink {
     let address: String // like 172.20.10.1:8787
+    let name: String // the other device, as it calls itself
     private let token: String
     private let session: URLSession
     private var tasks: [Task<Void, Never>] = []
 
-    init(address: String, token: String) {
+    init(address: String, name: String, token: String) {
         self.address = address
+        self.name = name
         self.token = token
         session = Self.session()
     }
@@ -57,26 +207,6 @@ final class JoinLink {
         while text.hasSuffix("/") { text.removeLast() }
         if !text.isEmpty, !text.contains(":") { text += ":8787" }
         return text
-    }
-
-    /// The code goes once. What comes back is kept, so next time there's nothing to type.
-    static func signIn(address: String, code: String) async -> (token: String?, problem: String) {
-        guard let url = URL(string: "http://\(address)/api/login") else { return (nil, "That address isn't right.") }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("1", forHTTPHeaderField: "X-CamRemote")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: ["code": code.trimmingCharacters(in: .whitespaces).uppercased()])
-        guard let (_, response) = try? await session().data(for: request), let http = response as? HTTPURLResponse else {
-            return (nil, unreachable)
-        }
-        if http.statusCode == 401 { return (nil, "That access code wasn't right. It's in RemoteCam on the other device, under Allow control from a computer or iPad.") }
-        let cookie = http.value(forHTTPHeaderField: "Set-Cookie") ?? ""
-        let pair = cookie.split(separator: ";").first?.split(separator: "=", maxSplits: 1) ?? []
-        guard pair.count == 2, pair[0].trimmingCharacters(in: .whitespaces) == "camremote" else {
-            return (nil, "Something answered there, but it isn't RemoteCam.")
-        }
-        return (String(pair[1]), "")
     }
 
     private func request(_ path: String) -> URLRequest {
@@ -161,36 +291,39 @@ final class JoinLink {
 }
 
 extension Camera {
-    /// Uses the camera through another CamRemote. The code is only needed the first time.
-    func joinOther(address typed: String, code: String) {
-        let address = JoinLink.normalize(typed)
-        guard !address.isEmpty, join == nil, link != .on else { return }
+    /// Uses the camera through another RemoteCam. The first time, the person there taps Allow; after that it just joins.
+    func joinOther(_ host: OtherRemoteCam) {
+        guard join == nil, link != .on else { return }
         stopTrying()
         link = .connecting
-        stage = "Reaching the other RemoteCam…"
+        stage = "Connecting to \(host.name)…"
         Task { @MainActor in
-            var token = JoinTokens.read(address)
-            if !code.isEmpty {
-                let signed = await JoinLink.signIn(address: address, code: code)
-                guard let fresh = signed.token else { return failJoin(signed.problem) }
+            var token = JoinTokens.read(host: host.id)
+            if token.isEmpty { token = JoinTokens.read(address: host.address) } // let in with an access code, before
+            var other = JoinLink(address: host.address, name: host.name, token: token)
+            var answer = token.isEmpty ? nil : await other.state()
+            if !token.isEmpty, answer == nil { return failJoin(unreachable) }
+            if answer?.status != 200 {
+                JoinTokens.write(host: host.id, "")
+                JoinTokens.forget(address: host.address)
+                stage = "Tap Allow on \(host.name) to let this \(ThisDevice.kind) in."
+                let asked = await Nearby.askToJoin(host)
+                guard let fresh = asked.token else { return failJoin(asked.problem) }
                 token = fresh
+                other = JoinLink(address: host.address, name: host.name, token: token)
+                answer = await other.state()
             }
-            guard !token.isEmpty else { return failJoin("Type the access code once. It's in RemoteCam on the other device, under Allow control from a computer or iPad.") }
-            let other = JoinLink(address: address, token: token)
-            guard let (status, state) = await other.state() else { return failJoin(unreachable) }
-            guard status == 200 else {
-                JoinTokens.write(address, "")
-                return failJoin("The other RemoteCam has a new access code. Type it once.")
-            }
-            JoinTokens.write(address, token)
-            UserDefaults.standard.set(address, forKey: "joinAddress")
+            guard let (status, state) = answer else { return failJoin(unreachable) }
+            guard status == 200 else { return failJoin("\(host.name) didn't let this \(ThisDevice.kind) in. Try again.") }
+            JoinTokens.write(host: host.id, token)
+            if Nearby.saved[host.id] == nil { Nearby.remember(host.id, [host.address]) }
             join = other
             busyElsewhere = false
             problem = ""
             stage = ""
             applyJoined(state)
             link = .on
-            message = "Using the camera through the RemoteCam at \(address.replacingOccurrences(of: ":8787", with: ""))"
+            message = "Using the camera through \(host.name)."
             other.run(camera: self)
         }
     }
@@ -252,53 +385,65 @@ extension Camera {
     }
 }
 
-/// For when another CamRemote already has the camera: this device runs it through that one.
+/// For when another RemoteCam already has the camera: this device finds it and runs the camera through it.
 struct JoinSection: View {
     @ObservedObject var camera: Camera
-    @State private var address = UserDefaults.standard.string(forKey: "joinAddress") ?? (AppDelegate.pad ? "172.20.10.1" : "")
-    @State private var code = ""
-    @State private var open = AppDelegate.pad
+    @State private var found: [OtherRemoteCam] = []
+    @State private var looking = false
+    @State private var looked = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Button { withAnimation { open.toggle() } } label: {
-                HStack {
-                    Text(AppDelegate.pad ? "Is your iPhone already using the camera?" : "Is another iPhone, iPad or computer using the camera?")
-                        .font(.callout.weight(.semibold))
-                        .multilineTextAlignment(.leading)
-                    Spacer()
-                    Image(systemName: open ? "chevron.up" : "chevron.down").foregroundColor(.dim)
+        VStack(alignment: .leading, spacing: 12) {
+            Text(AppDelegate.pad ? "Using your iPhone's camera?" : "The camera is in use on another device")
+                .font(.callout.weight(.semibold))
+            ForEach(found) { other in
+                Button { camera.joinOther(other) } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: other.icon).font(.title3).frame(width: 28)
+                        Text(other.name).font(.body.weight(.semibold)).lineLimit(1)
+                        Spacer()
+                        Text(camera.link == .connecting ? "Connecting…" : "Use it here").font(.callout).foregroundColor(.good)
+                    }
+                    .padding(14)
+                    .background(Color.page, in: RoundedRectangle(cornerRadius: 10))
                 }
+                .foregroundColor(.white)
+                .disabled(camera.link == .connecting)
             }
-            .foregroundColor(.white)
-            if open || camera.busyElsewhere {
-                Text("Open RemoteCam there and turn on Allow control from a computer or iPad. Its address and access code are shown under it. Your iPhone's is 172.20.10.1 when this device is on its hotspot.")
+            if looking {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text("Looking nearby…").font(.footnote).foregroundColor(.dim)
+                }
+            } else if found.isEmpty, looked {
+                Text(AppDelegate.pad
+                     ? "Your iPhone isn't showing up. Open RemoteCam on it and turn on Let my other devices join, in Setup."
+                     : "Nothing nearby has it. Open RemoteCam on the other device, on the same Wi-Fi as this one.")
                     .font(.footnote)
                     .foregroundColor(.dim)
-                field("Address", text: $address).keyboardType(.numbersAndPunctuation)
-                field("Access code (only the first time)", text: $code)
-                Button(camera.link == .connecting ? "Connecting…" : "Use it through that RemoteCam") {
-                    camera.joinOther(address: address, code: code)
-                    code = ""
-                }
-                .buttonStyle(Big(color: .panel))
-                .disabled(address.isEmpty || camera.link == .connecting)
+                Button("Look again") { look() }.font(.footnote.weight(.semibold))
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(Color.panel.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
-        // Reopening the app tries the camera first; if the iPhone still has it, this goes back through the iPhone by itself.
-        .onChange(of: camera.busyElsewhere) { busy in
-            let saved = JoinLink.normalize(address)
-            if busy, !saved.isEmpty, !JoinTokens.read(saved).isEmpty { camera.joinOther(address: saved, code: "") }
-        }
+        .onAppear { look() }
+        .onChange(of: camera.busyElsewhere) { busy in if busy { look() } }
     }
 
-    private func field(_ title: String, text: Binding<String>) -> some View {
-        TextField(title, text: text)
-            .autocorrectionDisabled()
-            .textInputAutocapitalization(.never)
-            .padding(12)
-            .background(Color.page, in: RoundedRectangle(cornerRadius: 10))
+    /// One that has let this device in before is joined straight away, as long as the camera is busy here.
+    private func look() {
+        guard !looking else { return }
+        looking = true
+        Task { @MainActor in
+            let nearby = await Nearby.find()
+            found = nearby
+            looking = false
+            looked = true
+            if camera.busyElsewhere, camera.join == nil, camera.link != .on, camera.link != .connecting,
+               let known = nearby.first(where: { !JoinTokens.read(host: $0.id).isEmpty || !JoinTokens.read(address: $0.address).isEmpty }) {
+                camera.joinOther(known)
+            }
+        }
     }
 }

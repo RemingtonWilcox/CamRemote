@@ -1964,7 +1964,7 @@ public partial class MainWindow : Window
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
         bool yes = await ConnectWindow.AskAsync(this, "RemoteCam",
-            $"{name} wants to join this camera (from {address}).\n\nAllow it? You won't be asked again for {name}. You can remove it in Setup.",
+            $"{name} wants to use the camera.\n\nAllow it? You won't be asked again for {name}. You can remove it in Setup.",
             "Allow", "Don't allow");
         if (!yes)
         {
@@ -1996,7 +1996,7 @@ public partial class MainWindow : Window
             AllowedList.Children.Add(row);
         }
         AllowedHint.Text = _settings.AllowedDevices.Count == 0
-            ? "The first time another computer joins, you're asked here."
+            ? "The first time another device joins, you're asked here."
             : "Allowed to join:";
     }
 
