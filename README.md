@@ -19,7 +19,7 @@ all in one clean window on your computer, with no cables.
 
 <br><br>
 
-<img src="docs/window.jpg" alt="Egret recording a backyard feeder: a woodpecker on the suet with the camera's tracking box around it, REC 00:02:32 at the top left, the grid and zebras on, the histogram in the corner, and the Video tab on the right with Stop, four saved setups, exposure and focus" width="860" />
+<img src="docs/window.jpg" alt="Egret's window: a cattle egret beside a red ginger flower in the live picture, the histogram and meter in the corner, and the Video tab on the right with the Record button, four saved setups and exposure" width="860" />
 
 </div>
 
@@ -66,19 +66,6 @@ Video, photos, bursts, brackets, S&Q slow motion, time-lapse and long exposures.
 
 Click the bird and the camera focuses there. Turn on **Peaking** and the sharp edges light up, like the egret's eye and neck here, so you can tell what's in focus from across the yard. The camera's own focus boxes show what it's locked on, and the magnifier zooms in to check.
 
-</td>
-</tr>
-</table>
-
-<table>
-<tr>
-<td width="50%" valign="top">
-<img src="docs/peaking.gif" alt="Peaking switched on and off at a bird feeder in Egret: the feeder's edges light up blue where they're sharp while a woodpecker feeds inside the camera's focus box" />
-<br><sub><b>Peaking</b> on and off, live over Wi-Fi.</sub>
-</td>
-<td width="50%" valign="top">
-<img src="docs/tracking.gif" alt="Tracking in Egret: the camera's focus box follows a small bird as it moves between two feeders, shown at double speed" />
-<br><sub><b>Tracking</b> follows a bird between feeders (double speed).</sub>
 </td>
 </tr>
 </table>
@@ -144,11 +131,6 @@ The Photo tab has three ways to shoot:
 
 <p align="center">
 <img src="docs/photo-modes.png" alt="The Photo tab three ways: Photo with a 1-stop, 3-photo bracket, Time-lapse with one photo every 10 seconds, and Long exposure set to 30 seconds with ND filter choices" width="760" />
-</p>
-
-<p align="center">
-<img src="docs/bracket.jpg" alt="Three photos of the same forest clearing from one bracket: darker at 1/1000, normal at 1/500 and brighter at 1/250" width="860" />
-<br><sub>One press of <b>Take photo</b> with a 1-stop, 3-photo bracket, straight off the A7S III.</sub>
 </p>
 
 <br>
