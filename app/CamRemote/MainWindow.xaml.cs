@@ -348,8 +348,9 @@ public partial class MainWindow : Window
         {
             _linkSince = DateTime.Now;
             if (await JoinPeerAsync() || _settings.CameraIp.Length == 0) return;
-            if (!await CameraConnect.SavedAsync(_cam, _settings, ShowMessage, ConnectWindow.AskFingerprint, quiet: !first))
-                ShowMessage("Waiting for the camera (on, on Wi-Fi, Remote Shooting on). Trying again every few seconds…");
+            if (!await CameraConnect.SavedAsync(_cam, _settings, ShowMessage, ConnectWindow.AskFingerprint, quiet: !first)
+                && _cam.State != LinkState.Connected) // connected some other way meanwhile, such as over USB
+                ShowMessage(Waiting);
         }
         finally
         {
@@ -614,7 +615,7 @@ public partial class MainWindow : Window
         _cam.HoldReconnect = false;
         _linkSince = DateTime.Now;
         if (!await CameraConnect.TakeOverAsync(_cam, _settings, ShowMessage, ConnectWindow.AskFingerprint))
-            ShowMessage("Waiting for the camera (on, on Wi-Fi, Remote Shooting on). Trying again every few seconds…");
+            ShowMessage(Waiting);
         return null;
     }
 
@@ -1080,7 +1081,11 @@ public partial class MainWindow : Window
     private void OnLinkChanged()
     {
         _linkSince = DateTime.Now;
-        if (_cam.State == LinkState.Connected) _wasConnected = true;
+        if (_cam.State == LinkState.Connected)
+        {
+            _wasConnected = true;
+            if (MessageText.Text == Waiting) ShowMessage("");
+        }
         KeepAwake();
         ShowCameraModel();
         var (color, text, button) = _cam.State switch
@@ -1268,6 +1273,7 @@ public partial class MainWindow : Window
         MessageText.ToolTip = format.Length == 0 ? null : $"Picture: {format}, {frames} fps shown";
     }
 
+    private const string Waiting = "Waiting for the camera (on, on Wi-Fi, Remote Shooting on). Trying again every few seconds…";
     private void ShowMessage(string msg) => MessageText.Text = msg;
 
     // ---- Settings ----
