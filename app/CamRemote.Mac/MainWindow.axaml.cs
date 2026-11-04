@@ -61,10 +61,10 @@ public partial class MainWindow : Window
     private bool _wasConnected; // connected at some point this run, so a drop is worth a banner
     private PhoneServer? _phone;
     private PeerAllowList? _allowed; // read from the Keychain when sharing first starts
-    private Window? _joined; // the camera through another Egret, while it's open
+    private Window? _joined; // the camera through another RemoteCam, while it's open
     private bool _autoJoin = true; // off once the person leaves a joined camera, until they click Connect camera…
-    private bool _joining; // looking for, or asking, another Egret
-    private readonly HashSet<string> _asked = []; // other Egrets already asked this run, so a "no" stays a no
+    private bool _joining; // looking for, or asking, another RemoteCam
+    private readonly HashSet<string> _asked = []; // other RemoteCams already asked this run, so a "no" stays a no
     private readonly BirdTrigger _bird;
     private bool _setup; // the Setup tab is showing
     private bool _phoneWatching; // a phone wants the live view, even if this window shows a capture card
@@ -72,7 +72,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        AboutText.Text = $"Egret {UpdateCheck.Current} · Made by Remington Wilcox";
+        AboutText.Text = $"RemoteCam {UpdateCheck.Current} · Made by Remington Wilcox";
         PlaceWindow();
         var ui = new AvaloniaUi();
         _ui = ui;
@@ -362,7 +362,7 @@ public partial class MainWindow : Window
     private async Task ShowUpdateAsync()
     {
         if (await UpdateCheck.NewerVersionAsync() is not { } version) return;
-        UpdateButton.Content = $"Egret {version} is out. Click to download";
+        UpdateButton.Content = $"RemoteCam {version} is out. Click to download";
         UpdateButton.IsVisible = true;
     }
 
@@ -393,7 +393,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private Task<bool> AskFingerprint() => ConnectWindow.AskAsync(this, "Egret", CameraConnect.FingerprintWarning, "Connect anyway", "Don't connect");
+    private Task<bool> AskFingerprint() => ConnectWindow.AskAsync(this, "RemoteCam", CameraConnect.FingerprintWarning, "Connect anyway", "Don't connect");
 
     private bool _letGo; // the camera has let go, so the window can close for real
     private bool _lettingGo;
@@ -612,7 +612,7 @@ public partial class MainWindow : Window
         }
         var dlg = new ConnectWindow(_cam, _settings);
         if (!await dlg.ShowDialog<bool>(this)) return;
-        _autoJoin = true; // if another Egret has the camera after all, join it
+        _autoJoin = true; // if another RemoteCam has the camera after all, join it
         _asked.Clear();
         if (dlg.Joined is { } link)
         {
@@ -649,8 +649,8 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Takes the camera from the Egret this one joined, so the picture comes straight here instead of through
-    /// the other computer. That Egret is handed a token to join this one back. Null when it worked.
+    /// Takes the camera from the RemoteCam this one joined, so the picture comes straight here instead of through
+    /// the other computer. That RemoteCam is handed a token to join this one back. Null when it worked.
     /// </summary>
     private async Task<string?> UseHereAsync(RemoteLink link)
     {
@@ -660,7 +660,7 @@ public partial class MainWindow : Window
         if (await link.HandOverAsync(token, share ? PhoneServer.JoinAddresses(_settings.PhonePort) : []) is { } problem) return problem;
         Log.Write($"Took the camera from {link.HostName}.");
         _joined?.Close();
-        _autoJoin = false; // the other Egret joins this one now, not the other way round
+        _autoJoin = false; // the other RemoteCam joins this one now, not the other way round
         _cam.HoldReconnect = false;
         _linkSince = DateTime.Now;
         if (!await CameraConnect.TakeOverAsync(_cam, _settings, ShowMessage, AskFingerprint))
@@ -669,7 +669,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// A joined Egret takes the camera to hold it itself. Lets the camera go, then joins that Egret, with the
+    /// A joined RemoteCam takes the camera to hold it itself. Lets the camera go, then joins that RemoteCam, with the
     /// token it sent so nobody is asked. Done once the camera is let go.
     /// </summary>
     private async Task HandOverAsync(string id, string token, IReadOnlyList<string> addresses)
@@ -700,7 +700,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Uses the camera through another Egret that already holds it, if one is in reach: at startup, before
+    /// Uses the camera through another RemoteCam that already holds it, if one is in reach: at startup, before
     /// each try at the camera, and when the camera says it's busy. True when joined.
     /// </summary>
     private async Task<bool> JoinPeerAsync(bool patient = false)
@@ -1109,7 +1109,7 @@ public partial class MainWindow : Window
     private void ShowCameraModel()
     {
         bool connected = _cam.State == LinkState.Connected;
-        Title = connected ? $"Egret — {CameraModels.Label(_settings.CameraModel)}" : "Egret";
+        Title = connected ? $"RemoteCam — {CameraModels.Label(_settings.CameraModel)}" : "RemoteCam";
         var model = connected ? CameraModels.Find(_settings.CameraModel) : null;
         BaseIsoButtons.IsVisible = model is { HasBaseIso: true };
         if (model is not { HasBaseIso: true }) return;
@@ -1877,7 +1877,7 @@ public partial class MainWindow : Window
         await SetPhoneAsync();
     }
 
-    /// <summary>Serves the camera while phone control or sharing with other Egrets is on.</summary>
+    /// <summary>Serves the camera while phone control or sharing with other RemoteCams is on.</summary>
     private async Task SetPhoneAsync()
     {
         PhoneEnabled.IsChecked = _settings.PhoneEnabled;
@@ -1930,13 +1930,13 @@ public partial class MainWindow : Window
 
     // ---- Other computers ----
 
-    /// <summary>Another Egret asks to use this camera for the first time. A yes lasts until it's removed in Setup.</summary>
+    /// <summary>Another RemoteCam asks to use this camera for the first time. A yes lasts until it's removed in Setup.</summary>
     private Task<string?> AskToJoinAsync(string id, string name, string address) => Dispatcher.UIThread.InvokeAsync(async () =>
     {
         if (!IsVisible) return null;
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
-        bool yes = await ConnectWindow.AskAsync(this, "Egret",
+        bool yes = await ConnectWindow.AskAsync(this, "RemoteCam",
             $"{name} wants to join this camera (from {address}).\n\nAllow it? You won't be asked again for {name}. You can remove it in Setup.",
             "Allow", "Don't allow");
         if (!yes)

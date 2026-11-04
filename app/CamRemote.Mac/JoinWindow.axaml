@@ -1,9 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="CamRemote.JoinWindow"
-        Title="Egret" Width="1400" Height="860" MinWidth="980" MinHeight="600"
+        Title="RemoteCam" Width="1400" Height="860" MinWidth="980" MinHeight="600"
         WindowStartupLocation="CenterScreen" Background="#16181B">
-    <!-- Laid out like MainWindow, so the camera looks the same whether this Mac holds it or another Egret does. -->
+    <!-- Laid out like MainWindow, so the camera looks the same whether this Mac holds it or another RemoteCam does. -->
     <Grid ColumnDefinitions="*,340" RowDefinitions="Auto,*,Auto">
 
         <!-- Status strip over the picture -->
@@ -99,13 +99,13 @@
                 <StackPanel DockPanel.Dock="Top" Margin="16,10,16,0">
                     <DockPanel>
                         <Button Content="Leave" Click="OnLeaveClick" Padding="10,3" DockPanel.Dock="Right"
-                                ToolTip.Tip="Stop using the camera through the other Egret" />
+                                ToolTip.Tip="Stop using the camera through the other RemoteCam" />
                         <Ellipse x:Name="LinkDot" Width="10" Height="10" Fill="#666" Margin="0,0,8,0" DockPanel.Dock="Left" />
                         <TextBlock x:Name="LinkText" Text="Joining…" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                     </DockPanel>
                     <Button x:Name="UseHereButton" Content="Use the camera here" Click="OnUseHereClick" Margin="0,8,0,0" Padding="10,4"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" IsVisible="False"
-                            ToolTip.Tip="Connect this computer to the camera itself, so the picture doesn't pass through the other computer. The other Egret joins this one instead." />
+                            ToolTip.Tip="Connect this computer to the camera itself, so the picture doesn't pass through the other computer. The other RemoteCam joins this one instead." />
                     <UniformGrid Rows="1" Margin="0,12,0,0">
                         <ToggleButton x:Name="VideoTab" Content="Video" Classes="PageTab" Click="OnModeClick" IsChecked="True"
                                       ToolTip.Tip="Switches the camera to movie mode." />
@@ -129,7 +129,7 @@
                             </Button>
                             <StackPanel x:Name="BirdBox">
                                 <CheckBox x:Name="BirdWatch" Margin="0,10,0,0" Content="Automatic recording" Click="OnBirdWatchClick"
-                                          ToolTip.Tip="Starts recording by itself when the camera sees what you pick below. Checks the picture twice a second, on this Mac, and records through the other Egret." />
+                                          ToolTip.Tip="Starts recording by itself when the camera sees what you pick below. Checks the picture twice a second, on this Mac, and records through the other RemoteCam." />
                                 <StackPanel x:Name="RecordSubjectPanel" Margin="0,6,0,0" IsVisible="False">
                                     <TextBlock Text="Record when it sees" FontSize="12" Foreground="Gray" Margin="0,0,0,3" />
                                     <UniformGrid x:Name="RecordSubjectButtons" Rows="1" Margin="-2,0,-2,0" />
@@ -150,7 +150,7 @@
                                 <ToggleButton x:Name="StillMode" Content="Photo" Margin="2" Padding="2,5" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                               Click="OnPhotoModeClick" IsChecked="True" ToolTip.Tip="A photo per press, or a burst while held." />
                                 <ToggleButton x:Name="TimeLapseMode" Content="Time-lapse" Margin="2" Padding="2,5" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                              Click="OnPhotoModeClick" ToolTip.Tip="This Mac takes a photo every so often through the other Egret." />
+                                              Click="OnPhotoModeClick" ToolTip.Tip="This Mac takes a photo every so often through the other RemoteCam." />
                             </UniformGrid>
                             <StackPanel x:Name="TimeLapseBox" Margin="0,4,0,0" IsVisible="False">
                                 <TextBlock Text="One photo every" FontSize="12" Foreground="Gray" Margin="0,4,0,3" />
@@ -161,7 +161,7 @@
                             </StackPanel>
                             <TextBlock x:Name="TimeLapseNote" Classes="Small" TextWrapping="Wrap" Margin="0,6,0,0" IsVisible="False" />
                             <StackPanel x:Name="DriveRows" Margin="0,4,0,0" />
-                            <!-- C1 to C4: the other Egret's own presets, for the side its camera is on. One per row. -->
+                            <!-- C1 to C4: the other RemoteCam's own presets, for the side its camera is on. One per row. -->
                             <StackPanel x:Name="PresetButtons" Margin="0,8,0,0" />
 
                             <TextBlock Text="EXPOSURE" Classes="Section" />
@@ -228,7 +228,7 @@
 
                             <TextBlock Text="CONNECTION" Classes="Section" />
                             <TextBlock Classes="Small" TextWrapping="Wrap"
-                                       Text="The camera is held by the other Egret, which passes the picture and your changes on. Where photos are saved is set there." />
+                                       Text="The camera is held by the other RemoteCam, which passes the picture and your changes on. Where photos are saved is set there." />
 
                             <TextBlock Text="SOMETHING NOT WORKING?" Classes="Section" />
                             <TextBlock Text="What happened? (optional)" Classes="Small" Margin="0,0,0,4" />

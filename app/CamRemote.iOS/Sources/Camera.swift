@@ -886,7 +886,7 @@ final class Camera: ObservableObject {
         guard let login = typed ?? Logins.login(for: key) else {
             log("A camera with no saved login")
             cam_ssh_close()
-            finish("This camera is new to Egret.", newCamera: true)
+            finish("This camera is new to RemoteCam.", newCamera: true)
             return
         }
         let opened = cam_ssh_login(login.user, login.password)
@@ -928,7 +928,7 @@ final class Camera: ObservableObject {
             let held = (error as? PtpError)?.text == busy
             if !leaving {
                 problem = held
-                    ? "Another remote has the camera. If it's Egret on your iPhone or computer, use the camera through it below."
+                    ? "Another remote has the camera. If it's RemoteCam on your iPhone or computer, use the camera through it below."
                     : started ? "Lost the camera. Looking for it again." : "The camera stopped answering while opening. Trying again."
             }
             DispatchQueue.main.async { self.busyElsewhere = held && !leaving }

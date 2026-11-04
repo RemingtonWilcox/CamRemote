@@ -57,9 +57,9 @@ public partial class JoinWindow : Window
         var ui = new AvaloniaUi();
         _assist = new PictureAssist(ui);
         _assist.Done += ShowAssist;
-        HostText.Text = link.HostName.Length > 0 ? "Through the Egret on " + link.HostName : "Through the Egret at " + new Uri(link.Address).Host;
+        HostText.Text = link.HostName.Length > 0 ? "Through the RemoteCam on " + link.HostName : "Through the RemoteCam at " + new Uri(link.Address).Host;
         CamSummary.Text = link.CameraName;
-        AboutText.Text = $"Egret {UpdateCheck.Current} · Made by Remington Wilcox";
+        AboutText.Text = $"RemoteCam {UpdateCheck.Current} · Made by Remington Wilcox";
         HistogramChip.IsChecked = settings.ShowHistogram;
         ZebraChip.IsChecked = settings.ShowZebras;
         PeakingChip.IsChecked = settings.ShowPeaking;
@@ -291,9 +291,9 @@ public partial class JoinWindow : Window
                 if (++_misses >= 3)
                 {
                     LinkDot.Fill = Brush("Rec");
-                    LinkText.Text = "Can't reach the other Egret";
+                    LinkText.Text = "Can't reach the other RemoteCam";
                     RecButton.IsEnabled = ShutterButton.IsEnabled = false;
-                    ShowNoPicture("Can't reach the other Egret. This picks up again by itself when it's back.");
+                    ShowNoPicture("Can't reach the other RemoteCam. This picks up again by itself when it's back.");
                 }
                 return;
             }
@@ -313,8 +313,8 @@ public partial class JoinWindow : Window
         if (turned) ApplyRotation();
         bool on = s.Connected;
         LinkDot.Fill = on ? Brush("Ok") : s.Link == "connecting" ? Brush("Warn") : new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66));
-        LinkText.Text = on ? "Connected" : s.Link == "connecting" ? "The other Egret is connecting…" : "The other Egret has no camera";
-        BatteryText.Text = s.Battery.Length == 0 || s.Battery.StartsWith("Battery") ? s.Battery : "Battery " + s.Battery; // an Egret host already sends "Battery 80%"
+        LinkText.Text = on ? "Connected" : s.Link == "connecting" ? "The other RemoteCam is connecting…" : "The other RemoteCam has no camera";
+        BatteryText.Text = s.Battery.Length == 0 || s.Battery.StartsWith("Battery") ? s.Battery : "Battery " + s.Battery; // an RemoteCam host already sends "Battery 80%"
         CardText.Text = s.Card;
         AlertText.Text = s.Alert;
         AlertBox.IsVisible = s.Alert.Length > 0;
@@ -333,11 +333,11 @@ public partial class JoinWindow : Window
         RecDot.Fill = s.Recording ? Brushes.White : Brush("Rec");
         if (s.Recording) RecButton.Background = Brush("Rec");
         else RecButton.ClearValue(BackgroundProperty);
-        TimeLapseNote.Text = "A time-lapse is running on the other Egret. Stop it there.";
+        TimeLapseNote.Text = "A time-lapse is running on the other RemoteCam. Stop it there.";
         TimeLapseNote.IsVisible = s.TimeLapse;
         ShowTimeLapse();
-        if (!on) ShowNoPicture(s.Link == "connecting" ? "The other Egret is connecting to the camera…"
-            : "The other Egret isn't connected to the camera. The picture comes back when it is.");
+        if (!on) ShowNoPicture(s.Link == "connecting" ? "The other RemoteCam is connecting to the camera…"
+            : "The other RemoteCam isn't connected to the camera. The picture comes back when it is.");
         else if (Picture.Source != null && DateTime.Now - _lastFrameAt > FrameGap) ShowNoPicture("The picture stopped coming. Waiting for it…");
         ShowMeter();
         ApplyGuides();
@@ -384,7 +384,7 @@ public partial class JoinWindow : Window
         : PhotoIds.Contains(row.Id) || row.Section == "photo" ? PhotoRows
         : row.Section switch { "exposure" => ExposureRows, "focus" => FocusRows, "audio" => AudioRows, _ => MoreRows };
 
-    /// <summary>Video, Photo or Setup. Video and Photo follow the camera, as on the other Egret.</summary>
+    /// <summary>Video, Photo or Setup. Video and Photo follow the camera, as on the other RemoteCam.</summary>
     private void ShowPage()
     {
         bool photo = _state?.Photo == true;
@@ -477,7 +477,7 @@ public partial class JoinWindow : Window
         _lapseTaken = _lapseFails = 0;
         _lapseNext = DateTime.Now; // the first one straight away
         _lapse.Start();
-        Log.Write($"Time-lapse through the other Egret: {(_lapseShots > 0 ? _lapseShots.ToString() : "unlimited")} photos, one every {_lapseEvery} s.");
+        Log.Write($"Time-lapse through the other RemoteCam: {(_lapseShots > 0 ? _lapseShots.ToString() : "unlimited")} photos, one every {_lapseEvery} s.");
         ShowTimeLapse();
     }
 
@@ -663,7 +663,7 @@ public partial class JoinWindow : Window
     }
 
     // ---- Automatic recording ----
-    // The animal detector runs here on the picture the other Egret sends, and starts and stops the take through it.
+    // The animal detector runs here on the picture the other RemoteCam sends, and starts and stops the take through it.
 
     private readonly BirdTrigger _bird = null!;
     private volatile Tuple<byte[], long>? _latestFrame;
@@ -674,7 +674,7 @@ public partial class JoinWindow : Window
 
     private int Rotation => ((_state?.Rotation ?? 0) + _turn) % 360;
 
-    /// <summary>The other Egret's camera as the trigger sees it.</summary>
+    /// <summary>The other RemoteCam's camera as the trigger sees it.</summary>
     private sealed class JoinedCamera(JoinWindow w) : ITriggerCamera
     {
         public bool Connected => w.Live;

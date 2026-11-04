@@ -32,7 +32,7 @@ public sealed class VideoFeed(IUi ui)
         return result switch
         {
             0 => null,
-            1 => "Egret isn't allowed to use the camera input. Turn it on in System Settings › Privacy & Security › Camera.",
+            1 => "RemoteCam isn't allowed to use the camera input. Turn it on in System Settings › Privacy & Security › Camera.",
             2 => "That device has gone.",
             _ => "It wouldn't start.",
         };
@@ -81,7 +81,7 @@ public sealed class AudioMeter : IDisposable
         return result switch
         {
             0 => null,
-            1 => "Egret isn't allowed to use the microphone input. Turn it on in System Settings › Privacy & Security › Microphone.",
+            1 => "RemoteCam isn't allowed to use the microphone input. Turn it on in System Settings › Privacy & Security › Microphone.",
             2 => $"Couldn't find an audio input for {match}.",
             _ => "Couldn't open the capture card's audio.",
         };

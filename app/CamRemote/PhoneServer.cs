@@ -68,7 +68,7 @@ public sealed class PhoneServer : IAsyncDisposable
     public Func<string, string, Task<string>>? LetIn { get; init; }
 
     /// <summary>
-    /// A joined Egret takes the camera to hold it itself: its device id, a token for joining it back (may be
+    /// A joined RemoteCam takes the camera to hold it itself: its device id, a token for joining it back (may be
     /// empty) and its addresses. Done once this app has let the camera go. Any thread.
     /// </summary>
     public Func<string, string, IReadOnlyList<string>, Task>? HandOver { get; init; }
@@ -116,7 +116,7 @@ public sealed class PhoneServer : IAsyncDisposable
         app.MapGet("/icon.png", () => Results.Bytes(Embedded("phone-icon.png"), "image/png"));
         app.MapGet("/manifest.webmanifest", () => Results.Json(new
         {
-            name = "Egret", short_name = "Egret", start_url = "/", display = "standalone",
+            name = "RemoteCam", short_name = "RemoteCam", start_url = "/", display = "standalone",
             background_color = "#101214", theme_color = "#101214",
             icons = new[] { new { src = "/icon.png", sizes = "180x180", type = "image/png" } },
         }));
@@ -138,7 +138,7 @@ public sealed class PhoneServer : IAsyncDisposable
 
         app.MapGet("/api/hello", (HttpContext ctx) => Results.Json(new
         {
-            app = "egret",
+            app = "egret", // how copies find each other; from when the app was called Egret, kept so all versions match
             id = _settings.DeviceId,
             name = Peers.ThisName,
             camera = _settings.ShareWithEgrets && HasCamera(),
@@ -158,7 +158,7 @@ public sealed class PhoneServer : IAsyncDisposable
         app.MapPost("/api/{cam}/shutter", (string cam, ShutterBody b) => Do(cam, c => c.Shutter(b.Down)));
         app.MapPost("/api/{cam}/handover", async (string cam, HandOverBody b, HttpContext ctx) =>
         {
-            // Only another Egret let in here; a phone has no camera of its own to take it to.
+            // Only another RemoteCam let in here; a phone has no camera of its own to take it to.
             if (HandOver == null || Find(cam) == null || Allowed?.DeviceFor(ctx.Request.Cookies[Cookie]) is not { } id) return Results.StatusCode(403);
             await HandOver(id, b.Token ?? "", b.Addresses ?? []);
             return Results.Ok();
@@ -236,7 +236,7 @@ public sealed class PhoneServer : IAsyncDisposable
         try { _udp = new UdpClient(new IPEndPoint(IPAddress.Any, _settings.PhonePort)); }
         catch (SocketException ex)
         {
-            Log.Write($"Other Egrets can't find this one by themselves: {ex.SocketErrorCode}");
+            Log.Write($"Other RemoteCams can't find this one by themselves: {ex.SocketErrorCode}");
             return;
         }
         var udp = _udp;
@@ -320,7 +320,7 @@ public sealed class PhoneServer : IAsyncDisposable
     public static List<string> Addresses(int port) =>
         OwnAddresses().Select(a => $"{(a.Tailscale ? "Tailscale" : "Home")}: http://{a.Ip}:{port}").ToList();
 
-    /// <summary>The addresses another Egret can join this one at.</summary>
+    /// <summary>The addresses another RemoteCam can join this one at.</summary>
     public static List<string> JoinAddresses(int port) => OwnAddresses().Select(a => $"http://{a.Ip}:{port}").ToList();
 
     /// <summary>This computer's home-network addresses, then its Tailscale ones.</summary>

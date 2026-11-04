@@ -29,7 +29,7 @@ public partial class ConnectWindow : Window
     {
         if (RemoteLink.Normalize(JoinAddressBox.Text) is not { } address)
         {
-            JoinStatus.Text = "Type the address the other Egret shows, like 100.101.102.103:8787.";
+            JoinStatus.Text = "Type the address the other RemoteCam shows, like 100.101.102.103:8787.";
             return;
         }
         JoinButton.IsEnabled = false;
@@ -38,7 +38,7 @@ public partial class ConnectWindow : Window
         string saved = address == _settings.JoinAddress ? _settings.LoadJoinToken() : "";
         var (link, problem) = code.Length == 0 && saved.Length > 0
             ? await RemoteLink.ResumeAsync(address, saved)
-            : code.Length > 0 ? await RemoteLink.SignInAsync(address, code) : (null, "Type the access code the other Egret shows.");
+            : code.Length > 0 ? await RemoteLink.SignInAsync(address, code) : (null, "Type the access code the other RemoteCam shows.");
         JoinButton.IsEnabled = true;
         if (link == null)
         {
@@ -104,5 +104,5 @@ public partial class ConnectWindow : Window
 
     /// <summary>Asks before trusting a camera whose fingerprint has changed.</summary>
     public static Task<bool> AskFingerprint() => Task.FromResult(MessageBox.Show(CameraConnect.FingerprintWarning,
-        "Egret", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes);
+        "RemoteCam", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes);
 }

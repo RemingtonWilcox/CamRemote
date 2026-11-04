@@ -57,7 +57,7 @@ public static class Peers
                 settings.SaveSecret(HostResource, host.Id, ""); // that host no longer lets this one in
             }
             if (host.Token != null || !asked.Add(host.Id)) continue;
-            say($"The Egret on {host.Name} has the camera. Asking it to let this computer join: answer on {host.Name}.");
+            say($"The RemoteCam on {host.Name} has the camera. Asking it to let this computer join: answer on {host.Name}.");
             var (given, why, unanswered) = await AskToJoinAsync(settings, host);
             if (unanswered) asked.Remove(host.Id); // the question is still up there, so the next try waits on it again
             if (given == null)
@@ -110,7 +110,7 @@ public static class Peers
         await AskAroundAsync(settings.DeviceId, settings.PhonePort, found);
         // One found at home is enough; remembered addresses can take seconds to time out.
         if (found.IsEmpty) await others;
-        if (known.Count > 0 || !found.IsEmpty) Log.Write($"Looked for other Egrets in {took.Elapsed.TotalSeconds:0.0} s: found {found.Count}.");
+        if (known.Count > 0 || !found.IsEmpty) Log.Write($"Looked for other RemoteCams in {took.Elapsed.TotalSeconds:0.0} s: found {found.Count}.");
         // A host found by its id beats the same one joined by code before.
         return found.Values.OrderBy(p => p.Token != null).ToList();
     }
@@ -157,7 +157,7 @@ public static class Peers
             }
         }
         catch (OperationCanceledException) { }
-        catch (SocketException ex) { Log.Write("Couldn't look for other Egrets on the network: " + ex.SocketErrorCode); }
+        catch (SocketException ex) { Log.Write("Couldn't look for other RemoteCams on the network: " + ex.SocketErrorCode); }
     }
 
     /// <summary>The whole-network address, plus each home network's own, since Windows sends the first on one network only.</summary>
@@ -218,7 +218,7 @@ public static class Peers
             using var r = await http.SendAsync(Get(address + "/api/hello", token));
             if (!r.IsSuccessStatusCode) return null;
             var root = JsonDocument.Parse(await r.Content.ReadAsStringAsync()).RootElement;
-            if (root.GetProperty("app").GetString() != "egret") return null;
+            if (root.GetProperty("app").GetString() != "egret") return null; // the tag every copy answers with (see PhoneServer)
             var addresses = root.TryGetProperty("addresses", out var a) && a.ValueKind == JsonValueKind.Array
                 ? a.EnumerateArray().Select(x => RemoteLink.Normalize(x.GetString() ?? "")).OfType<string>().ToList()
                 : [];
@@ -259,7 +259,7 @@ public static class Peers
                 408 => Waiting(host),
                 409 => $"{host.Name} is asking about another device. To try again, click Connect camera… here.",
                 429 => $"{host.Name} said no a moment ago. Try again in a few minutes.",
-                404 => $"The Egret on {host.Name} is older and can't let this computer in by itself. Update it, or join with its access code.",
+                404 => $"The RemoteCam on {host.Name} is older and can't let this computer in by itself. Update it, or join with its access code.",
                 _ => $"{host.Name} couldn't take this computer ({status}).",
             }, status == 408);
         }

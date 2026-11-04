@@ -664,7 +664,7 @@ struct AnimalSwitch: View {
             if animals.on, !animals.status.isEmpty {
                 Text(animals.status).font(.caption).foregroundColor(.white)
             }
-            Text("Checks the picture twice a second, on this \(AppDelegate.pad ? "iPad" : "phone") only. It only works while Egret is open on screen, so keep it unlocked and plugged in.")
+            Text("Checks the picture twice a second, on this \(AppDelegate.pad ? "iPad" : "phone") only. It only works while RemoteCam is open on screen, so keep it unlocked and plugged in.")
                 .font(.caption)
                 .foregroundColor(.dim)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1023,7 +1023,7 @@ struct SetupSheet: View {
                         .disabled(camera.formatting || camera.recording || camera.timeLapseRunning)
                 }
                 section("CONNECTION")
-                Text(camera.join.map { "Using the camera through the Egret at \($0.address.replacingOccurrences(of: ":8787", with: "")). It keeps the camera when you leave." }
+                Text(camera.join.map { "Using the camera through the RemoteCam at \($0.address.replacingOccurrences(of: ":8787", with: "")). It keeps the camera when you leave." }
                      ?? "Photos and video stay on the camera's card.")
                     .font(.footnote)
                     .foregroundColor(.dim)
@@ -1033,13 +1033,13 @@ struct SetupSheet: View {
                 }
                 .buttonStyle(Big(color: .panel))
                 SendLogSection(camera: camera)
-                Text("Egret \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") · Made by Remington Wilcox")
+                Text("RemoteCam \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") · Made by Remington Wilcox")
                     .font(.caption2)
                     .foregroundColor(.dim)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 12)
                 HStack(spacing: 12) {
-                    Link("Help", destination: URL(string: "https://github.com/RemingtonWilcox/Egret#something-not-working")!)
+                    Link("Help", destination: URL(string: "https://github.com/RemingtonWilcox/RemoteCam#something-not-working")!)
                     Link("Instagram", destination: URL(string: "https://www.instagram.com/remingtonwilcox/")!)
                     Button("Credits") { showCredits = true }
                 }

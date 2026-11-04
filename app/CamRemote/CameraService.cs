@@ -181,7 +181,7 @@ public sealed class CameraService : IDisposable, ITriggerCamera
     private static string Explain(int err) => Math.Abs((long)err) switch
     {
         0x8202 => "Couldn't reach the camera. It may be off, or another app like Imaging Edge or Monitor & Control may be using it.",
-        0x820B or 0x8210 => "Another app is using the camera, maybe Egret on another device, Imaging Edge or Monitor & Control. Close it, then Egret can connect.",
+        0x820B or 0x8210 => "Another app is using the camera, maybe RemoteCam on another device, Imaging Edge or Monitor & Control. Close it, then RemoteCam can connect.",
         0x820A => "The camera refused the connection. Check that Remote Shooting is on.",
         0x8207 or 0x8208 or 0x8209 => "Lost contact with the camera. Check that it's on and on the same Wi-Fi.",
         0x8212 or 0x8213 or 0x8214 or 0x8215 => "Couldn't make a secure connection to the camera. Turn it off and on, then try again.",

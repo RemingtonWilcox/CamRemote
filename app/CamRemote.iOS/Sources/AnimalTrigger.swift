@@ -124,12 +124,12 @@ final class AnimalTrigger: ObservableObject {
         guard on else { return }
         if took != nil {
             camera.stopRecording()
-            camera.log("Animal trigger stopped its take because Egret left the screen.")
+            camera.log("Animal trigger stopped its take because RemoteCam left the screen.")
         }
         took = nil
         sightings = []
         box = nil
-        status = "Paused. Egret only watches while it's open on screen."
+        status = "Paused. RemoteCam only watches while it's open on screen."
     }
 
     func resume() {

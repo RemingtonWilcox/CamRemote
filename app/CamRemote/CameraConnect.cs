@@ -44,7 +44,7 @@ public static class CameraConnect
     }
 
     /// <summary>
-    /// Connects to the saved camera just after another Egret let it go: tries again each second for a few
+    /// Connects to the saved camera just after another RemoteCam let it go: tries again each second for a few
     /// seconds while the camera frees up, rather than every 15 s. True once connected.
     /// </summary>
     public static async Task<bool> TakeOverAsync(CameraService cam, Settings settings, Action<string> say, Func<Task<bool>> askFingerprint)

@@ -1,6 +1,6 @@
 # Third-party notices
 
-Egret is MIT licensed (see `LICENSE`). It isn't made, endorsed or supported by Sony.
+RemoteCam is MIT licensed (see `LICENSE`). It isn't made, endorsed or supported by Sony.
 
 The ready-made downloads include these parts, each under its own licence:
 

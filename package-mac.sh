@@ -18,13 +18,13 @@ for target in "osx-arm64 AppleSilicon" "osx-x64 Intel"; do
     stage=build/dmg
     rm -rf "$stage"
     mkdir -p "$stage"
-    cp -R dist/Egret.app "$stage/"
+    cp -R dist/RemoteCam.app "$stage/"
     ln -s /Applications "$stage/Applications"
     cp build/THIRD-PARTY-NOTICES.txt "$stage/"
 
     dmg="dist/CamRemote-Mac-$2.dmg"
     rm -f "$dmg"
-    hdiutil create -quiet -volname Egret -srcfolder "$stage" -format UDZO "$dmg"
+    hdiutil create -quiet -volname RemoteCam -srcfolder "$stage" -format UDZO "$dmg"
     codesign --force --sign "$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application:.*\)".*/\1/p' | head -1)" --timestamp "$dmg"
     xcrun notarytool submit "$dmg" --keychain-profile camremote-notary --wait
     xcrun stapler staple "$dmg"

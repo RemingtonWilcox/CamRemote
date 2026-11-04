@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Icon="CamRemote.ico"
-        Title="Egret" Width="1500" Height="900" MinWidth="980" MinHeight="600" Background="#16181B"
+        Title="RemoteCam" Width="1500" Height="900" MinWidth="980" MinHeight="600" Background="#16181B"
         Loaded="OnLoaded" Closing="OnClosing" KeyDown="OnKeyDown">
     <Grid>
         <Grid.ColumnDefinitions>
@@ -364,7 +364,7 @@
 
                             <TextBlock Text="OTHER COMPUTERS" Style="{StaticResource Section}" />
                             <CheckBox x:Name="ShareEnabled" Content="Let my other computers join" Click="OnShareToggle"
-                                      ToolTip="When this Egret has the camera, Egret on your other computers shows it too, instead of fighting over it. Home network and Tailscale only." />
+                                      ToolTip="When this RemoteCam has the camera, RemoteCam on your other computers shows it too, instead of fighting over it. Home network and Tailscale only." />
                             <TextBlock x:Name="AllowedHint" TextWrapping="Wrap" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,6,0,0" />
                             <StackPanel x:Name="AllowedList" />
 

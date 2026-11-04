@@ -106,7 +106,7 @@ public sealed class BirdModel : IDisposable
     public void Dispose() => _session.Dispose();
 }
 
-/// <summary>What the trigger needs from a camera: this app's own connection, or another Egret's camera used through it.</summary>
+/// <summary>What the trigger needs from a camera: this app's own connection, or another RemoteCam's camera used through it.</summary>
 public interface ITriggerCamera
 {
     bool Connected { get; }

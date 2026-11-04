@@ -2,7 +2,7 @@ import Security
 import SwiftUI
 import UIKit
 
-private let unreachable = "Can't reach the other Egret. Check it's open on screen with Allow control from a computer or iPad on, and that this device is on the same hotspot or Wi-Fi."
+private let unreachable = "Can't reach the other RemoteCam. Check it's open on screen with Allow control from a computer or iPad on, and that this device is on the same hotspot or Wi-Fi."
 
 /// What another CamRemote handed this one after its access code was typed, kept in the Keychain by its address.
 enum JoinTokens {
@@ -70,11 +70,11 @@ final class JoinLink {
         guard let (_, response) = try? await session().data(for: request), let http = response as? HTTPURLResponse else {
             return (nil, unreachable)
         }
-        if http.statusCode == 401 { return (nil, "That access code wasn't right. It's in Egret on the other device, under Allow control from a computer or iPad.") }
+        if http.statusCode == 401 { return (nil, "That access code wasn't right. It's in RemoteCam on the other device, under Allow control from a computer or iPad.") }
         let cookie = http.value(forHTTPHeaderField: "Set-Cookie") ?? ""
         let pair = cookie.split(separator: ";").first?.split(separator: "=", maxSplits: 1) ?? []
         guard pair.count == 2, pair[0].trimmingCharacters(in: .whitespaces) == "camremote" else {
-            return (nil, "Something answered there, but it isn't Egret.")
+            return (nil, "Something answered there, but it isn't RemoteCam.")
         }
         return (String(pair[1]), "")
     }
@@ -106,10 +106,10 @@ final class JoinLink {
                 return
             }
             if http.statusCode == 404 {
-                camera.message = "The other Egret is an older version without that. Update it first."
+                camera.message = "The other RemoteCam is an older version without that. Update it first."
             } else if http.statusCode != 200 {
                 let reply = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-                camera.message = reply?["message"] as? String ?? "The other Egret refused that."
+                camera.message = reply?["message"] as? String ?? "The other RemoteCam refused that."
             } else if let done {
                 camera.message = done
             }
@@ -167,7 +167,7 @@ extension Camera {
         guard !address.isEmpty, join == nil, link != .on else { return }
         stopTrying()
         link = .connecting
-        stage = "Reaching the other Egret…"
+        stage = "Reaching the other RemoteCam…"
         Task { @MainActor in
             var token = JoinTokens.read(address)
             if !code.isEmpty {
@@ -175,12 +175,12 @@ extension Camera {
                 guard let fresh = signed.token else { return failJoin(signed.problem) }
                 token = fresh
             }
-            guard !token.isEmpty else { return failJoin("Type the access code once. It's in Egret on the other device, under Allow control from a computer or iPad.") }
+            guard !token.isEmpty else { return failJoin("Type the access code once. It's in RemoteCam on the other device, under Allow control from a computer or iPad.") }
             let other = JoinLink(address: address, token: token)
             guard let (status, state) = await other.state() else { return failJoin(unreachable) }
             guard status == 200 else {
                 JoinTokens.write(address, "")
-                return failJoin("The other Egret has a new access code. Type it once.")
+                return failJoin("The other RemoteCam has a new access code. Type it once.")
             }
             JoinTokens.write(address, token)
             UserDefaults.standard.set(address, forKey: "joinAddress")
@@ -190,7 +190,7 @@ extension Camera {
             stage = ""
             applyJoined(state)
             link = .on
-            message = "Using the camera through the Egret at \(address.replacingOccurrences(of: ":8787", with: ""))"
+            message = "Using the camera through the RemoteCam at \(address.replacingOccurrences(of: ":8787", with: ""))"
             other.run(camera: self)
         }
     }
@@ -217,7 +217,7 @@ extension Camera {
 
     /// The other app's settings, in the same shape it sends a computer. Its rows carry this app's own codes.
     func applyJoined(_ state: [String: Any]) {
-        let lost = "The other Egret has lost the camera. It's looking for it."
+        let lost = "The other RemoteCam has lost the camera. It's looking for it."
         if state["link"] as? String != "connected", message != lost { message = lost }
         var shown: [UInt16: Row] = [:]
         for case let item as [String: Any] in state["rows"] as? [Any] ?? [] {
@@ -272,12 +272,12 @@ struct JoinSection: View {
             }
             .foregroundColor(.white)
             if open || camera.busyElsewhere {
-                Text("Open Egret there and turn on Allow control from a computer or iPad. Its address and access code are shown under it. Your iPhone's is 172.20.10.1 when this device is on its hotspot.")
+                Text("Open RemoteCam there and turn on Allow control from a computer or iPad. Its address and access code are shown under it. Your iPhone's is 172.20.10.1 when this device is on its hotspot.")
                     .font(.footnote)
                     .foregroundColor(.dim)
                 field("Address", text: $address).keyboardType(.numbersAndPunctuation)
                 field("Access code (only the first time)", text: $code)
-                Button(camera.link == .connecting ? "Connecting…" : "Use it through that Egret") {
+                Button(camera.link == .connecting ? "Connecting…" : "Use it through that RemoteCam") {
                     camera.joinOther(address: address, code: code)
                     code = ""
                 }

@@ -1,15 +1,15 @@
 # Instructions for AI agents
 
-You're helping someone set up Egret, an app for Windows and Mac that controls Sony cameras over Wi-Fi. It's tested on the A7S III. Most people here are photographers, not developers, and they may only be chatting with you, with no access to their computer. Use plain language, give one step at a time, and wait for them to confirm each step.
+You're helping someone set up RemoteCam, an app for Windows and Mac that controls Sony cameras over Wi-Fi. It's tested on the A7S III. Most people here are photographers, not developers, and they may only be chatting with you, with no access to their computer. Use plain language, give one step at a time, and wait for them to confirm each step.
 
-Egret used to be called CamRemote. The folders, the exe, the bundle IDs, the settings folder and the saved-password names still use the old name, so updates keep people's settings. Keep them that way, and use "Egret" for anything people see.
+RemoteCam used to be called CamRemote, and briefly Egret. The folders, the exe, the bundle IDs, the settings folder and the saved-password names still use the old name, so updates keep people's settings. Keep them that way, and use "RemoteCam" for anything people see.
 
 ## Help someone set it up
 
 Follow the three steps in README.md: install the app, set up the camera, connect. **Don't build anything.** The ready-made downloads need no tools, accounts or Sony SDK.
 
 1. **Ask what they have.** Which camera? Check it against "Which cameras work?" in README.md. If it isn't on the list, say so plainly and stop. If it's listed but isn't the A7S III, tell them it should work but hasn't been tested, and its menus may differ a little. Windows or Mac? On a Mac, is it Apple or Intel (Apple menu › About This Mac)? Windows 11 x64 and macOS 14.1 or newer are supported. Windows on ARM and Linux aren't: say so plainly.
-2. **Install.** Send them the matching download link from the top of README.md. Windows may show a blue **Windows protected your PC** box: **More info**, then **Run anyway**. On a Mac, they drag Egret to Applications.
+2. **Install.** Send them the matching download link from the top of README.md. Windows may show a blue **Windows protected your PC** box: **More info**, then **Run anyway**. On a Mac, they drag RemoteCam to Applications.
 3. **The camera menus.** Go through the table in README.md section 2, one row at a time. They press the buttons themselves. Ask them to close Sony's Monitor & Control app first.
 4. **Connect.** Follow README.md section 3. On a Mac, **Local Network** must be allowed or the camera won't be found. If something fails, use the "Something not working?" section.
 
@@ -24,7 +24,7 @@ Only when someone asks to build it or change the code.
 3. **The Sony SDK can't be downloaded by you:** it sits behind Sony's licence agreement. Send the person to https://support.d-imaging.sony.co.jp/app/sdk/en/index.html for the **Windows** or **Mac** zip and wait for them.
 4. It belongs in `vendor\CrSDK\` so that `vendor\CrSDK\RemoteCli.zip` (or an unpacked `vendor\CrSDK\RemoteCli\`) exists. If it was unzipped into a nested folder, move the contents up one level.
 5. **The animal detector's model** is optional for a build: without it the app works, but the option doesn't appear. README.md's "Build it yourself" has the one line that fetches it into `vendor\BirdModel\`. The download scripts refuse to run without it.
-6. **Build.** On Windows, `powershell -ExecutionPolicy Bypass -File .\build.ps1` ends with `Built dist\CamRemote.exe`. On a Mac, `./build-mac.sh` ends with `Built dist/Egret.app`.
+6. **Build.** On Windows, `powershell -ExecutionPolicy Bypass -File .\build.ps1` ends with `Built dist\CamRemote.exe`. On a Mac, `./build-mac.sh` ends with `Built dist/RemoteCam.app`.
 
 Common failures:
 

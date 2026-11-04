@@ -115,12 +115,12 @@ public sealed class RemoteLink : IDisposable
         {
             using var r = await link._http.PostAsync("/api/login", Body(new { code = code.Trim().ToUpperInvariant() }));
             if (r.StatusCode == HttpStatusCode.Unauthorized) { link.Dispose(); return (null, "That access code isn't right."); }
-            if (r.StatusCode == HttpStatusCode.Forbidden) { link.Dispose(); return (null, "Phone control is off on the other Egret, so its access code doesn't work. It can let this computer in by itself: click Connect camera… and answer there."); }
-            if (!r.IsSuccessStatusCode) { link.Dispose(); return (null, $"The other Egret said no ({(int)r.StatusCode})."); }
+            if (r.StatusCode == HttpStatusCode.Forbidden) { link.Dispose(); return (null, "Phone control is off on the other RemoteCam, so its access code doesn't work. It can let this computer in by itself: click Connect camera… and answer there."); }
+            if (!r.IsSuccessStatusCode) { link.Dispose(); return (null, $"The other RemoteCam said no ({(int)r.StatusCode})."); }
             string? token = r.Headers.TryGetValues("Set-Cookie", out var cookies)
                 ? cookies.Select(c => c.Split(';')[0]).Where(c => c.StartsWith(Cookie + "=")).Select(c => c[(Cookie.Length + 1)..]).FirstOrDefault()
                 : null;
-            if (string.IsNullOrEmpty(token)) { link.Dispose(); return (null, "The other Egret didn't sign this computer in."); }
+            if (string.IsNullOrEmpty(token)) { link.Dispose(); return (null, "The other RemoteCam didn't sign this computer in."); }
             link._token = token;
             return await link.FindCameraAsync();
         }
@@ -152,7 +152,7 @@ public sealed class RemoteLink : IDisposable
         r.EnsureSuccessStatusCode();
         using var doc = JsonDocument.Parse(await r.Content.ReadAsStringAsync());
         var first = doc.RootElement.EnumerateArray().FirstOrDefault();
-        if (first.ValueKind != JsonValueKind.Object) { Dispose(); return (null, "The other Egret has no camera to share."); }
+        if (first.ValueKind != JsonValueKind.Object) { Dispose(); return (null, "The other RemoteCam has no camera to share."); }
         CameraId = first.GetProperty("id").GetString() ?? "";
         CameraName = first.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
         return (this, null);
@@ -161,7 +161,7 @@ public sealed class RemoteLink : IDisposable
     private static string Unreachable(Exception ex) => ex switch
     {
         TaskCanceledException or HttpRequestException =>
-            "Can't reach the other Egret. Check it's open, its phone or computer control is on, and both are on Tailscale or the same Wi-Fi. " +
+            "Can't reach the other RemoteCam. Check it's open, its phone or computer control is on, and both are on Tailscale or the same Wi-Fi. " +
             "If Tailscale says Connected but nothing gets through, switch Tailscale off and on there.",
         _ => ex.Message,
     };
@@ -198,7 +198,7 @@ public sealed class RemoteLink : IDisposable
         {
             try
             {
-                // Without "after" until there's a frame number: an empty one is refused by Egret 1.0.12 and older.
+                // Without "after" until there's a frame number: an empty one is refused by RemoteCam 1.0.12 and older.
                 using var r = await Send(HttpMethod.Get, after.Length > 0 ? $"/api/{CameraId}/frame?after={after}" : $"/api/{CameraId}/frame", ct: ct);
                 if (r.StatusCode == HttpStatusCode.OK)
                 {
@@ -236,7 +236,7 @@ public sealed class RemoteLink : IDisposable
                 using var doc = JsonDocument.Parse(await r.Content.ReadAsStringAsync());
                 return doc.RootElement.TryGetProperty("message", out var m) ? m.GetString() : "The camera didn't take that.";
             }
-            return r.StatusCode == HttpStatusCode.Unauthorized ? SignedOut : $"The other Egret refused that ({(int)r.StatusCode}).";
+            return r.StatusCode == HttpStatusCode.Unauthorized ? SignedOut : $"The other RemoteCam refused that ({(int)r.StatusCode}).";
         }
         catch (Exception ex) { return Unreachable(ex); }
     }

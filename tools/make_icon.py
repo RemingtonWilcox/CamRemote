@@ -1,12 +1,10 @@
-"""Draws the app icon (an egret in a viewfinder, with a red record light) into
+"""Draws the app icon (a viewfinder with a red record light in the middle) into
 app/CamRemote/CamRemote.ico, app/CamRemote/phone-icon.png and the iOS AppIcon.
 
 Usage: python -I tools/make_icon.py   (needs Pillow)
 The icon is laid out on a 1024 grid. Each size is drawn larger and scaled down, so edges stay clean.
-At 64 px and below a heavier drawing is used: a thicker frame and legs, and a bigger record light.
+At 64 px and below a heavier drawing is used: a thicker frame and a bigger record light.
 """
-import math
-import re
 from pathlib import Path
 from PIL import Image, ImageDraw
 
@@ -18,39 +16,6 @@ IOS = ROOT / "app" / "CamRemote.iOS" / "Sources" / "Assets.xcassets" / "AppIcon.
 TILE = (16, 18, 20)  # the app's page colour, #101214
 WHITE = (245, 246, 244)
 REC = (229, 50, 45)  # same red as the app's record button
-
-# Bill, head, neck, body and tail as one outline, facing right.
-BIRD = ("M792 298 L632 274 C608 270 588 262 576 278 C566 288 560 304 552 322 "
-        "C536 356 536 398 556 432 C572 458 574 478 556 492 "
-        "C520 520 420 530 330 604 C290 638 258 676 222 726 "
-        "C282 692 322 668 362 652 C424 632 520 614 578 582 "
-        "C622 556 642 520 630 486 C620 452 600 430 588 410 "
-        "C576 388 574 362 584 340 C590 326 596 318 608 312 C616 308 624 306 636 306 Z")
-LEGS = [[(482, 612), (474, 824)], [(530, 600), (582, 694), (540, 744)]]
-
-
-def outline(d, steps=24):
-    """Points along an SVG path made of M, L, C and Z."""
-    t = re.findall(r"[A-Za-z]|-?\d+(?:\.\d+)?", d)
-    pts, i, cmd = [], 0, None
-    while i < len(t):
-        if t[i].isalpha():
-            cmd = t[i]
-            i += 1
-            continue
-        if cmd in "ML":
-            pts.append((float(t[i]), float(t[i + 1])))
-            i += 2
-        elif cmd == "C":
-            p0 = pts[-1]
-            p1, p2, p3 = [(float(t[i + k]), float(t[i + k + 1])) for k in (0, 2, 4)]
-            for n in range(1, steps + 1):
-                s = n / steps
-                u = 1 - s
-                pts.append(tuple(u ** 3 * a + 3 * u * u * s * b + 3 * u * s * s * c + s ** 3 * e
-                                 for a, b, c, e in zip(p0, p1, p2, p3)))
-            i += 6
-    return pts
 
 
 def stroke(d, points, width, k, fill):
@@ -75,30 +40,15 @@ def draw(size, tile=True):
         d.rectangle([0, 0, s, s], fill=TILE)
 
     # Viewfinder corners.
-    m, arm, w = (160, 140, 52) if small else (176, 112, 26)
+    m, arm, w = (196, 168, 76) if small else (232, 150, 50)
     for sx, sy in [(1, 1), (-1, 1), (1, -1), (-1, -1)]:
         x = m if sx == 1 else 1024 - m
         y = m if sy == 1 else 1024 - m
         stroke(d, [(x, y + sy * arm), (x, y), (x + sx * arm, y)], w, k, WHITE)
 
-    # The egret, nudged left of centre (and enlarged a little for small sizes).
-    dx, dy, scale = (-16, 4, 1.1) if small else (-22, 0, 1.0)
-
-    def place(p):
-        return [((x - 512) * scale + 512 + dx, (y - 540) * scale + 540 + dy) for x, y in p]
-
-    d.polygon([(x * k, y * k) for x, y in place(outline(BIRD))], fill=WHITE)
-    a = math.radians(10)  # the head: a slightly tilted oval
-    head = [(596 + 33 * math.cos(t) * math.cos(a) - 26 * math.sin(t) * math.sin(a),
-             288 + 33 * math.cos(t) * math.sin(a) + 26 * math.sin(t) * math.cos(a))
-            for t in (2 * math.pi * n / 64 for n in range(64))]
-    d.polygon([(x * k, y * k) for x, y in place(head)], fill=WHITE)
-    for leg in LEGS:
-        stroke(d, place(leg), (30 if small else 13) * scale, k, WHITE)
-
-    # Record light.
-    cx, r = (774, 40) if small else (778, 24)
-    d.ellipse([(cx - r) * k, (cx - r) * k, (cx + r) * k, (cx + r) * k], fill=REC)
+    # Record light, in the middle of the frame.
+    r = 150 if small else 112
+    d.ellipse([(512 - r) * k, (512 - r) * k, (512 + r) * k, (512 + r) * k], fill=REC)
     return img.resize((size, size), Image.LANCZOS)
 
 

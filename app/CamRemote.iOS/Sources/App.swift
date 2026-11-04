@@ -202,7 +202,7 @@ struct ConnectView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
-                Text("Egret").font(.largeTitle.weight(.semibold)).padding(.top, 72)
+                Text("RemoteCam").font(.largeTitle.weight(.semibold)).padding(.top, 72)
                 BridgeBadge()
                 status.padding(.top, 12)
                 if AppDelegate.pad || camera.busyElsewhere { JoinSection(camera: camera) }
@@ -264,7 +264,7 @@ struct ConnectView: View {
 
     private var loginForm: some View {
         VStack(spacing: 12) {
-            Text(camera.newCamera ? "This camera is new to Egret. Type its login once and it's saved. It's on the camera's Access Authen. Info screen."
+            Text(camera.newCamera ? "This camera is new to RemoteCam. Type its login once and it's saved. It's on the camera's Access Authen. Info screen."
                                   : "Type these once for each camera. They're on its Access Authen. Info screen.")
                 .foregroundColor(.dim)
                 .multilineTextAlignment(.center)
