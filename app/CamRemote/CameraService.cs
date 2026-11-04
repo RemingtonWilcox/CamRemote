@@ -436,7 +436,7 @@ public sealed class CameraService : IDisposable, ITriggerCamera
     {
         Interlocked.Exchange(ref _reconnectingSince, 0);
         if (State != LinkState.Connected) return;
-        Say("Lost the camera. Egret will reconnect when it's back on.");
+        Say("Lost the camera. RemoteCam will reconnect when it's back on.");
         Props = new();
         PropsChanged?.Invoke();
         SetState(LinkState.Disconnected);

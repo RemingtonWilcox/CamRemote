@@ -207,7 +207,7 @@ public sealed class RemoteLink : IDisposable
         {
             try
             {
-                // Without "after" until there's a frame number: an empty one is refused by RemoteCam 1.0.12 and older.
+                // Without "after" until there's a frame number: an empty one is refused by RemoteCam 1.0.11 and older.
                 using var r = await Send(HttpMethod.Get, after.Length > 0 ? $"/api/{CameraId}/frame?after={after}" : $"/api/{CameraId}/frame", ct: ct);
                 if (r.StatusCode == HttpStatusCode.OK)
                 {
