@@ -596,15 +596,19 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Takes the camera from the RemoteCam this one joined, so the picture comes straight here instead of through
-    /// the other computer. That RemoteCam is handed a token to join this one back. Null when it worked.
+    /// the other computer. That RemoteCam is handed a token to join this one back. When it's gone (closed, or out
+    /// of reach), there's nothing to hand over, so this connects straight away. Null when it worked.
     /// </summary>
     private async Task<string?> UseHereAsync(RemoteLink link)
     {
         bool share = _phone != null && _settings.ShareWithEgrets && link.HostId.Length > 0;
-        string token = share ? _allowed!.Allow(link.HostId, link.HostName) : "";
-        if (share) ShowAllowed();
-        if (await link.HandOverAsync(token, share ? PhoneServer.JoinAddresses(_settings.PhonePort) : []) is { } problem) return problem;
-        Log.Write($"Took the camera from {link.HostName}.");
+        if (link.Reachable)
+        {
+            string token = share ? _allowed!.Allow(link.HostId, link.HostName) : "";
+            if (share) ShowAllowed();
+            if (await link.HandOverAsync(token, share ? PhoneServer.JoinAddresses(_settings.PhonePort) : []) is { } problem && link.Reachable) return problem;
+        }
+        Log.Write(link.Reachable ? $"Took the camera from {link.HostName}." : $"{link.HostName} can't be reached, so connecting to the camera here.");
         _joined?.Close();
         _autoJoin = false; // the other RemoteCam joins this one now, not the other way round
         _cam.HoldReconnect = false;

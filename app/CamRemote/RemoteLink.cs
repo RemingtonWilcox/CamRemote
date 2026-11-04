@@ -145,6 +145,9 @@ public sealed class RemoteLink : IDisposable
 
     public string Token => _token;
 
+    /// <summary>Whether the host answered the last time it was asked anything.</summary>
+    public bool Reachable { get; private set; } = true;
+
     private async Task<(RemoteLink?, string?)> FindCameraAsync()
     {
         using var r = await Send(HttpMethod.Get, "/api/cameras");
@@ -184,8 +187,14 @@ public sealed class RemoteLink : IDisposable
         try
         {
             using var r = await Send(HttpMethod.Get, $"/api/{CameraId}/state");
+            Reachable = true;
             if (!r.IsSuccessStatusCode) return null;
             return JsonSerializer.Deserialize<RemoteState>(await r.Content.ReadAsStringAsync(), Json);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            Reachable = false;
+            return null;
         }
         catch { return null; }
     }
@@ -230,6 +239,7 @@ public sealed class RemoteLink : IDisposable
         try
         {
             using var r = await Send(HttpMethod.Post, $"/api/{CameraId}/{what}", body);
+            Reachable = true;
             if (r.IsSuccessStatusCode) return null;
             if (r.StatusCode == HttpStatusCode.Conflict)
             {
@@ -238,7 +248,11 @@ public sealed class RemoteLink : IDisposable
             }
             return r.StatusCode == HttpStatusCode.Unauthorized ? SignedOut : $"The other RemoteCam refused that ({(int)r.StatusCode}).";
         }
-        catch (Exception ex) { return Unreachable(ex); }
+        catch (Exception ex)
+        {
+            if (ex is HttpRequestException or TaskCanceledException) Reachable = false;
+            return Unreachable(ex);
+        }
     }
 
     public void Dispose() => _http.Dispose();
