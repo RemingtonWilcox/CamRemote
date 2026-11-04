@@ -838,11 +838,7 @@ public sealed class CameraService : IDisposable, ITriggerCamera
         bool halfPress = _halfPressed;
         Run(() =>
         {
-            if (halfPress)
-            {
-                Native.cb_set_prop((uint)PropCode.S1, S1Locked, TypeUInt16Array);
-                Thread.Sleep(FocusWaitMs);
-            }
+            if (halfPress) PressHalfway(FocusWaitMs);
             int err = Native.cb_command(CmdRelease, ParamDown);
             if (err != 0) SayFailed("The camera didn't take the picture.", err);
         });
@@ -1034,9 +1030,35 @@ public sealed class CameraService : IDisposable, ITriggerCamera
     /// <summary>Runs on the camera thread.</summary>
     private void HalfPress()
     {
-        Native.cb_set_prop((uint)PropCode.S1, S1Locked, TypeUInt16Array);
-        Thread.Sleep(FocusHoldMs);
+        PressHalfway(FocusHoldMs);
         Native.cb_set_prop((uint)PropCode.S1, S1Unlocked, TypeUInt16Array);
+    }
+
+    private const long FocusedAfS = 0x102, FocusedAfC = 0x103, TrackingAfC = 0x303; // CrFocusIndicator
+    private static bool Focused(long indication) => indication is FocusedAfS or FocusedAfC or TrackingAfC;
+
+    /// <summary>
+    /// Runs on the camera thread. Half-presses the shutter and waits until the camera says it has focused, or for
+    /// <paramref name="longestMs"/>. It only stops early on a change it saw: in AF-C the camera can already say it's
+    /// focused on what it was looking at before, so a focused reading before the press counts for nothing.
+    /// </summary>
+    private void PressHalfway(int longestMs)
+    {
+        var took = System.Diagnostics.Stopwatch.StartNew();
+        // From the last refresh, so the press isn't held up by a read.
+        bool stale = Get(PropCode.FocusIndication) is { } before && Focused(before.Value);
+        Native.cb_set_prop((uint)PropCode.S1, S1Locked, TypeUInt16Array);
+        while (took.ElapsedMilliseconds < longestMs)
+        {
+            Thread.Sleep(40);
+            long now = ReadAll()?.GetValueOrDefault((uint)PropCode.FocusIndication)?.Value ?? 0;
+            if (!Focused(now)) stale = false;
+            else if (!stale)
+            {
+                Log.Write($"Focused {took.ElapsedMilliseconds} ms after the half-press.");
+                return;
+            }
+        }
     }
 
     private static uint TouchPoint(double fx, double fy)
@@ -1049,11 +1071,19 @@ public sealed class CameraService : IDisposable, ITriggerCamera
     /// <summary>Runs on the camera thread. Turns touch on with the given function, if it isn't already.</summary>
     private void EnableTouch(long function)
     {
-        if (Get(PropCode.TouchOperation)?.Value != TouchOn) SetNow(PropCode.TouchOperation, TouchOn);
+        bool changed = false;
+        if (Get(PropCode.TouchOperation)?.Value != TouchOn)
+        {
+            SetNow(PropCode.TouchOperation, TouchOn);
+            changed = true;
+        }
         // Only a function the camera offers: asking for Focus where it has none only gets a refusal.
         if (Get(PropCode.FunctionOfTouchOperation) is { } now && now.Value != function && (now.Candidates.Length == 0 || now.Candidates.Contains(function)))
+        {
             SetNow(PropCode.FunctionOfTouchOperation, function);
-        Thread.Sleep(150);
+            changed = true;
+        }
+        if (changed) Thread.Sleep(150); // the camera takes a moment to switch
     }
 
     private void SetNow(PropCode code, long value)
