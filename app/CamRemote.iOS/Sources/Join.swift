@@ -298,6 +298,7 @@ final class JoinLink {
                     continue
                 }
                 after = http.value(forHTTPHeaderField: "X-Frame") ?? ""
+                camera.joinedBox = JoinedAuto.box(http.value(forHTTPHeaderField: "X-Animal"))
                 camera.frame = image
                 camera.frameTime = Date()
                 camera.readGuides(image)
@@ -367,6 +368,8 @@ extension Camera {
         recording = false
         timeLapseRunning = false
         joinedPresets = [:]
+        joinedAuto = nil
+        joinedBox = nil
         activeSlot = nil
         problem = text
         link = .off
@@ -407,7 +410,56 @@ extension Camera {
         }
         joinedPresets = lines
         activeSlot = state["activeSlot"] as? Int
+        if Date() >= autoSentAt + 2 { joinedAuto = JoinedAuto(state["auto"]) } // a change just sent shows until the other app has it
         cameraKey = ""
+    }
+}
+
+/// Automatic recording on the RemoteCam that holds the camera. While using its camera, this device shows and changes
+/// that one instead of running its own detector, so only one of them decides when to record.
+struct JoinedAuto: Equatable {
+    var available: Bool
+    var on: Bool
+    var subject: String
+    var subjects: [String]
+    var stopAfter: Int
+    var stops: [Int]
+    var status: String
+
+    /// Nil from a RemoteCam too old to share it.
+    init?(_ any: Any?) {
+        guard let a = any as? [String: Any] else { return nil }
+        available = a["available"] as? Bool ?? false
+        on = a["on"] as? Bool ?? false
+        subject = a["subject"] as? String ?? ""
+        subjects = a["subjects"] as? [String] ?? []
+        stopAfter = a["stopAfter"] as? Int ?? 0
+        stops = a["stops"] as? [Int] ?? []
+        status = a["status"] as? String ?? ""
+    }
+
+    /// "x,y,w,h" as centre and size, from the X-Animal header.
+    static func box(_ text: String?) -> CGRect? {
+        let n = (text ?? "").split(separator: ",").compactMap { Double($0) }
+        guard n.count == 4 else { return nil }
+        return CGRect(x: n[0] - n[2] / 2, y: n[1] - n[3] / 2, width: n[2], height: n[3])
+    }
+}
+
+extension Camera {
+    /// Changes the other RemoteCam's automatic recording: "auto", "autoSubject" or "autoStop". It shows here straight away.
+    func setJoinedAuto(_ id: String, _ value: String) {
+        guard let join, var auto = joinedAuto else { return }
+        switch id {
+        case "auto": auto.on = value == "1"
+        case "autoSubject": auto.subject = value
+        case "autoStop": auto.stopAfter = Int(value) ?? auto.stopAfter
+        default: break
+        }
+        if !auto.on { joinedBox = nil }
+        joinedAuto = auto
+        autoSentAt = Date()
+        join.post("set", ["id": id, "value": value], camera: self)
     }
 }
 

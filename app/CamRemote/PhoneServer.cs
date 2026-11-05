@@ -30,6 +30,8 @@ public interface IRemoteCamera
     string? Mode(bool photo);
     string? SlowQuick(bool on);
     string? Shutter(bool down);
+    /// <summary>Where automatic recording sees its subject now, as "x,y,w,h" (centre and size, 0..1 of the picture), or null.</summary>
+    string? AnimalBox() => null;
 }
 
 /// <summary>
@@ -298,6 +300,7 @@ public sealed class PhoneServer : IAsyncDisposable
             if (camera.LatestFrame() is { } frame && frame.No != seen)
             {
                 ctx.Response.Headers["X-Frame"] = frame.No.ToString();
+                if (camera.AnimalBox() is { } box) ctx.Response.Headers["X-Animal"] = box; // so a phone draws it on this very frame
                 ctx.Response.Headers.CacheControl = "no-store";
                 return Results.Bytes(frame.Jpeg, "image/jpeg");
             }

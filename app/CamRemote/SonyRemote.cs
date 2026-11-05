@@ -1,8 +1,14 @@
 namespace CamRemote;
 
-/// <summary>The Sony camera as the phone page sees it. Every camera call hops to the UI thread, where CameraService lives.</summary>
+/// <summary>
+/// The Sony camera as the phone page sees it. Every camera call hops to the UI thread, where CameraService lives.
+/// A phone using the camera through this app sees and changes this app's automatic recording, rather than running its own:
+/// <paramref name="auto"/> describes it, <paramref name="setAuto"/> changes it (on the UI thread) and <paramref name="box"/> says
+/// where it sees its subject (any thread).
+/// </summary>
 public sealed class SonyRemote(IUi ui, CameraService cam, Func<(byte[] Jpeg, long No)?> latest, Settings settings, IReadOnlyList<IPropRow> rows,
-    Func<(string Battery, string Card, string Alert)> status) : IRemoteCamera
+    Func<(string Battery, string Card, string Alert)> status, Func<object>? auto = null, Func<string, string, string?>? setAuto = null,
+    Func<string?>? box = null) : IRemoteCamera
 {
     public string Id => "sony";
     public string Name => CameraModels.Label(settings.CameraModel);
@@ -39,6 +45,7 @@ public sealed class SonyRemote(IUi ui, CameraService cam, Func<(byte[] Jpeg, lon
             offersSlowQuick = cam.OffersSlowQuick,
             presets = presets.Select(p => new { slot = p.slot, lines = Lines(p.preset!, photo) }).ToList(),
             activeSlot = active,
+            auto = auto?.Invoke(),
         };
     });
 
@@ -51,8 +58,12 @@ public sealed class SonyRemote(IUi ui, CameraService cam, Func<(byte[] Jpeg, lon
 
     public (byte[] Jpeg, long No)? LatestFrame() => latest();
 
+    public string? AnimalBox() => box?.Invoke();
+
     public string? Set(string id, string value) => ui.Invoke<string?>(() =>
     {
+        // Automatic recording runs in this app, camera or not: "auto", "autoSubject", "autoStop" and "autoFocus".
+        if (id.StartsWith("auto", StringComparison.Ordinal)) return setAuto == null ? "This RemoteCam can't change automatic recording from here." : setAuto(id, value);
         if (cam.State != LinkState.Connected) return "The camera isn't connected.";
         if (!long.TryParse(value, out long v)) return "That value isn't valid.";
         if (id == "baseiso") return cam.SetBaseIso(v);

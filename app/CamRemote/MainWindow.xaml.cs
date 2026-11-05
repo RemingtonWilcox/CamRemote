@@ -57,6 +57,7 @@ public partial class MainWindow : Window
     private bool _joining; // looking for, or asking, another RemoteCam
     private readonly HashSet<string> _asked = []; // other RemoteCams already asked this run, so a "no" stays a no
     private readonly BirdTrigger _bird;
+    private volatile string? _boxForPhone; // where automatic recording sees its subject, for a phone using the camera through this app
     private bool _setup; // the Setup tab is showing
     private bool _phoneWatching; // a phone wants the live view, even if this window shows a capture card
 
@@ -93,6 +94,7 @@ public partial class MainWindow : Window
         _bird = new BirdTrigger(ui, _cam, () => _live.Latest, ShrinkForBird, FocusOnAnimal, () => _settings.Rotation);
         _bird.Status += text => BirdStatus.Text = text;
         _bird.Spotted += ShowAnimal;
+        _bird.Spotted += box => _boxForPhone = box is { } b ? FormattableString.Invariant($"{b.X:0.####},{b.Y:0.####},{b.W:0.####},{b.H:0.####}") : null;
         BirdWatch.Visibility = BirdTrigger.Available ? Visibility.Visible : Visibility.Collapsed;
         _cam.Message += ShowMessage;
         _cam.Failed += err =>
@@ -995,6 +997,55 @@ public partial class MainWindow : Window
         AnimalLabel.Text = _bird.Subject.Name.ToLowerInvariant();
     }
 
+    /// <summary>Automatic recording as a phone using the camera through this app shows it. UI thread.</summary>
+    private object AutoForPhone() => new
+    {
+        available = BirdTrigger.Available,
+        on = _bird.On,
+        subject = _bird.Subject.Name,
+        subjects = RecordSubject.All.Select(s => s.Name).ToArray(),
+        stopAfter = (int)_bird.QuietStop.TotalSeconds,
+        stops = RecordStopChoices,
+        focus = _bird.FocusOnIt,
+        status = _bird.On ? BirdStatus.Text : "",
+    };
+
+    /// <summary>A phone using the camera through this app changes automatic recording here, as if clicked. UI thread.</summary>
+    private string? SetAutoFromPhone(string id, string value)
+    {
+        if (!BirdTrigger.Available) return "This computer doesn't have the animal detector.";
+        switch (id)
+        {
+            case "auto":
+                bool on = value == "1";
+                if (BirdWatch.IsChecked != on) BirdWatch.IsChecked = on; // runs OnBirdWatchClick
+                Log.Write($"A phone turned automatic recording {(on ? "on" : "off")}.");
+                return null;
+            case "autoSubject":
+                if (RecordSubject.All.FirstOrDefault(s => s.Name == value) is not { } subject) return "That isn't something automatic recording looks for.";
+                _bird.Subject = subject;
+                _settings.RecordSubject = subject.Name;
+                AnimalLabel.Text = subject.Name.ToLowerInvariant();
+                Log.Write($"A phone set automatic recording to look for {subject.Plural}.");
+                break;
+            case "autoStop":
+                if (!int.TryParse(value, out int seconds) || !RecordStopChoices.Contains(seconds)) return "That isn't one of the choices.";
+                _bird.QuietStop = TimeSpan.FromSeconds(seconds);
+                _settings.RecordStopAfter = seconds;
+                break;
+            case "autoFocus":
+                _bird.FocusOnIt = _settings.RecordFocus = value == "1";
+                RecordFocus.IsChecked = _bird.FocusOnIt;
+                break;
+            default:
+                return "This RemoteCam doesn't know that setting.";
+        }
+        _settings.Save();
+        foreach (var row in new Panel[] { RecordSubjectButtons, RecordStopButtons })
+            foreach (var b in row.Children.OfType<ToggleButton>()) b.IsChecked = ((Func<bool>)b.Tag)();
+        return null;
+    }
+
     private void OnRecordFocusClick(object sender, RoutedEventArgs e)
     {
         _bird.FocusOnIt = _settings.RecordFocus = RecordFocus.IsChecked == true;
@@ -1865,7 +1916,8 @@ public partial class MainWindow : Window
             }
             _allowed ??= new PeerAllowList(_settings);
             var sony = new SonyRemote(_ui, _cam, () => _live.Latest, _settings, _rows, () =>
-                (BatteryText.Text, CardText.Text, AlertBanner.Visibility == Visibility.Visible ? AlertText.Text : ""));
+                (BatteryText.Text, CardText.Text, AlertBanner.Visibility == Visibility.Visible ? AlertText.Text : ""),
+                AutoForPhone, SetAutoFromPhone, () => _boxForPhone);
             var server = new PhoneServer(_settings, [sony])
             {
                 Allowed = _allowed,

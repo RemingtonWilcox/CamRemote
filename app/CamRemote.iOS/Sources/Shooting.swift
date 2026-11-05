@@ -163,7 +163,11 @@ struct ShootingView: View {
                 ZStack { Text(" ").hidden(); captureNote }.frame(maxWidth: .infinity)
             }
             ScrollView {
-                if !camera.photoMode, AnimalTrigger.available { AnimalSwitch(animals: animals) }
+                if !camera.photoMode, camera.join != nil, let auto = camera.joinedAuto {
+                    JoinedAutoSwitch(camera: camera, auto: auto, animals: animals)
+                } else if !camera.photoMode, AnimalTrigger.available {
+                    AnimalSwitch(animals: animals)
+                }
                 ChipGrid(columns: columns) {
                     ForEach(1...4, id: \.self) { slot in // C4 as on the computer, often slow motion
                         PresetChip(camera: camera, slot: slot)
@@ -354,7 +358,8 @@ struct ShootingView: View {
     // MARK: Parts of both
 
     private var liveView: some View {
-        LiveView(camera: camera, turn: pictureTurn, grid: showGrid, blink: blink, animal: animals.box)
+        LiveView(camera: camera, turn: pictureTurn, grid: showGrid, blink: blink,
+                 animal: camera.join != nil && camera.joinedAuto != nil ? camera.joinedBox : animals.box)
     }
 
     private func tileRow(background: Color) -> some View {
@@ -672,6 +677,63 @@ struct AnimalSwitch: View {
         }
         .padding(10)
         .background(Color.panel, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// Automatic recording on the RemoteCam this device is using the camera through. Changing it here changes it there, and
+/// this device's own detector stays off, so the two never fight over the record button.
+struct JoinedAutoSwitch: View {
+    @ObservedObject var camera: Camera
+    let auto: JoinedAuto
+    @ObservedObject var animals: AnimalTrigger
+
+    var body: some View {
+        let host = camera.join?.name ?? "the other RemoteCam"
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("Automatic recording", isOn: Binding(get: { auto.on }, set: { camera.setJoinedAuto("auto", $0 ? "1" : "0") }))
+                .font(.footnote.weight(.semibold))
+                .tint(.good)
+                .disabled(!auto.available)
+            if auto.on {
+                Text("Record when it sees").font(.caption2).foregroundColor(.dim)
+                ChipGrid {
+                    ForEach(auto.subjects, id: \.self) { name in
+                        chip(name, picked: name == auto.subject) { camera.setJoinedAuto("autoSubject", name) }
+                    }
+                }
+                if !auto.stops.isEmpty {
+                    Text("Stop once it's been gone for").font(.caption2).foregroundColor(.dim)
+                    ChipGrid {
+                        ForEach(auto.stops, id: \.self) { seconds in
+                            chip(seconds < 60 ? "\(seconds) s" : "\(seconds / 60) min", picked: seconds == auto.stopAfter) {
+                                camera.setJoinedAuto("autoStop", String(seconds))
+                            }
+                        }
+                    }
+                }
+                if !auto.status.isEmpty { Text(auto.status).font(.caption).foregroundColor(.white) }
+            }
+            Text(auto.available ? "Runs on \(host), which has the camera. Changing it here changes it there."
+                                : "\(host) doesn't have the animal detector, so automatic recording isn't available.")
+                .font(.caption)
+                .foregroundColor(.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(10)
+        .background(Color.panel, in: RoundedRectangle(cornerRadius: 8))
+        .onAppear { if animals.on { animals.stop() } } // only one detector decides when to record
+    }
+
+    private func chip(_ text: String, picked: Bool, tap: @escaping () -> Void) -> some View {
+        Button(action: tap) {
+            Text(text)
+                .font(.footnote.weight(.semibold))
+                .foregroundColor(picked ? .good : .white)
+                .frame(maxWidth: .infinity, minHeight: 32)
+                .background(Color.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(picked ? Color.good : Color.clear, lineWidth: 2))
+        }
+        .buttonStyle(Press())
     }
 }
 

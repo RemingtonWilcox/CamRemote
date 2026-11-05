@@ -256,9 +256,12 @@ final class Camera: ObservableObject {
     @Published var overPercent = 0.0
     @Published var busyElsewhere = false // the last try found another remote holding the camera
     @Published var joinedPresets: [Int: [String]] = [:] // the other CamRemote's C1 to C4, while using its camera
+    @Published var joinedAuto: JoinedAuto? // the other RemoteCam's automatic recording, when it shares it
+    @Published var joinedBox: CGRect? // where it sees its subject on the latest picture, 0..1, the camera's own way up
     @Published var formatting = false
 
     var join: JoinLink? // main thread only: set while this app uses a camera another CamRemote holds
+    var autoSentAt = Date.distantPast // main thread only: when this device last changed the other one's automatic recording
     var frameJpeg: Data? // main thread only: the camera's own picture, passed on as it is to an iPad on the hotspot
     private var refused: [UInt16: Set<Int64>] = [:] // values the camera listed but wouldn't take in this mode
     private var refusedIn: [Int64] = []
