@@ -361,7 +361,7 @@ final class Camera: ObservableObject {
     }
 
     func set(_ code: UInt16, _ value: Int64) {
-        if let join { return join.post("set", ["id": String(code), "value": String(value)], camera: self) }
+        if let join { return join.post("set", ["id": join.ids[code] ?? String(code), "value": String(value)], camera: self) }
         queue { _ = try self.change(code, value) }
     }
 

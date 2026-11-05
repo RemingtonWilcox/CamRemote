@@ -4,6 +4,17 @@ import SwiftUI
 import UIKit
 
 private let joinPort = 8787 // the same on every RemoteCam
+
+/// RemoteCam on a computer names each setting as Sony's SDK does, where this app uses the camera's own codes. The values match.
+private let computerNames: [String: UInt16] = [
+    "ShutterSpeed": Code.shutter, "FNumber": Code.aperture, "IsoSensitivity": Code.iso, "ExposureBiasCompensation": Code.exposure,
+    "ExposureProgramMode": Code.mode, "WhiteBalance": Code.whiteBalance, "Colortemp": Code.colorTemp, "FocusMode": Code.focusMode,
+    "FocusArea": Code.focusArea, "Movie_File_Format": Code.movieFormat, "Movie_Recording_Setting": Code.recordSetting,
+    "Movie_Recording_FrameRateSetting": Code.frameRate, "SQFrameRate": Code.sqFrameRate, "SQRecordingFrameRateSetting": Code.sqPlayRate,
+    "SQRecordingSetting": Code.sqRecordSetting, "DriveMode": Code.drive, "MeteringMode": Code.metering, "FileType": Code.fileFormat,
+    "StillImageQuality": Code.jpegQuality, "JpegQuality": Code.jpegQuality, "ImageSize": Code.imageSize, "AspectRatio": Code.aspectRatio,
+    "SilentMode": Code.silent,
+]
 private let unreachable = "Can't reach the other device. Check RemoteCam is open on it, on the same Wi-Fi or hotspot as this one."
 
 /// This device as other RemoteCams know it. The id is made once and kept, so an "Allow" there lasts.
@@ -191,6 +202,7 @@ enum Nearby {
 final class JoinLink {
     let address: String // like 172.20.10.1:8787
     let name: String // the other device, as it calls itself
+    var ids: [UInt16: String] = [:] // main thread: what the other device calls each setting, for changing it there
     private let token: String
     private let session: URLSession
     private var tasks: [Task<Void, Never>] = []
@@ -366,7 +378,9 @@ extension Camera {
         if state["link"] as? String != "connected", message != lost { message = lost }
         var shown: [UInt16: Row] = [:]
         for case let item as [String: Any] in state["rows"] as? [Any] ?? [] {
-            guard let code = UInt16(item["id"] as? String ?? "") else { continue }
+            let id = item["id"] as? String ?? ""
+            guard let code = UInt16(id) ?? computerNames[id] else { continue }
+            join?.ids[code] = id
             let choices = (item["choices"] as? [[String: Any]] ?? []).compactMap { choice -> Choice? in
                 guard let value = Int64(choice["value"] as? String ?? "") else { return nil }
                 return Choice(value: value, text: choice["text"] as? String ?? "", group: Format.group(code, value))
