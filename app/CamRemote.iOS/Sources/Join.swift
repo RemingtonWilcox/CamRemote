@@ -1,3 +1,4 @@
+import CryptoKit
 import Security
 import SwiftUI
 import UIKit
@@ -65,6 +66,7 @@ struct OtherRemoteCam: Identifiable, Equatable {
 /// joined before, which can include Tailscale ones for when this device is away from home. Nothing to type.
 enum Nearby {
     private static let hostsKey = "joinHosts" // [id: [address]], for the ones that let this device in
+    static var joining = false // main thread: one join at a time
 
     private static func session(_ wait: TimeInterval) -> URLSession {
         let config = URLSessionConfiguration.ephemeral
@@ -148,6 +150,12 @@ enum Nearby {
                 reply["addresses"] as? [String] ?? [])
     }
 
+    /// The camera's password through HMAC-SHA256 over both devices' ids, as RemoteCam on a computer checks it.
+    static func proof(_ password: String, joiner: String, host: String) -> String {
+        let code = HMAC<SHA256>.authenticationCode(for: Data("camremote join \(joiner) \(host)".utf8), using: SymmetricKey(data: Data(password.utf8)))
+        return code.map { String(format: "%02x", $0) }.joined()
+    }
+
     /// Asks the other device to let this one in. Its person answers there, so this waits for them.
     static func askToJoin(_ other: OtherRemoteCam) async -> (token: String?, problem: String) {
         guard let url = URL(string: "http://\(other.address)/api/pair") else { return (nil, unreachable) }
@@ -155,7 +163,9 @@ enum Nearby {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("1", forHTTPHeaderField: "X-CamRemote")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: ["id": ThisDevice.id, "name": UIDevice.current.name])
+        // Knowing the camera's password lets it in without anyone tapping Allow there. The password itself isn't sent.
+        let proof = Logins.all().prefix(8).map { Nearby.proof($0.login.password, joiner: ThisDevice.id, host: other.id) }
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["id": ThisDevice.id, "name": UIDevice.current.name, "proof": proof])
         let session = session(130)
         defer { session.finishTasksAndInvalidate() }
         for _ in 0..<5 {
@@ -293,11 +303,13 @@ final class JoinLink {
 extension Camera {
     /// Uses the camera through another RemoteCam. The first time, the person there taps Allow; after that it just joins.
     func joinOther(_ host: OtherRemoteCam) {
-        guard join == nil, link != .on else { return }
+        guard join == nil, link != .on, !Nearby.joining else { return }
+        Nearby.joining = true
         stopTrying()
         link = .connecting
         stage = "Connecting to \(host.name)…"
         Task { @MainActor in
+            defer { Nearby.joining = false }
             var token = JoinTokens.read(host: host.id)
             if token.isEmpty { token = JoinTokens.read(address: host.address) } // let in with an access code, before
             var other = JoinLink(address: host.address, name: host.name, token: token)
@@ -385,16 +397,31 @@ extension Camera {
     }
 }
 
-/// For when another RemoteCam already has the camera: this device finds it and runs the camera through it.
+/// For when another RemoteCam already has the camera: this device finds it and runs the camera through it. It keeps
+/// looking nearby while this device looks for the camera, since a camera on home Wi-Fi with a computer is never seen
+/// from the hotspot, and only shows itself on an iPhone once it finds something.
 struct JoinSection: View {
     @ObservedObject var camera: Camera
     @State private var found: [OtherRemoteCam] = []
     @State private var looking = false
     @State private var looked = false
 
+    private var shown: Bool { AppDelegate.pad || camera.busyElsewhere || !found.isEmpty }
+
     var body: some View {
+        Group {
+            if shown { card } else { Color.clear.frame(height: 0) }
+        }
+        .onAppear { look() }
+        .onChange(of: camera.busyElsewhere) { busy in if busy { look() } }
+        .onReceive(Timer.publish(every: 8, on: .main, in: .common).autoconnect()) { _ in
+            if camera.link != .on, camera.join == nil { look() }
+        }
+    }
+
+    private var card: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(AppDelegate.pad ? "Using your iPhone's camera?" : "The camera is in use on another device")
+            Text(AppDelegate.pad && found.isEmpty ? "Using your iPhone's camera?" : "The camera is in use on another device")
                 .font(.callout.weight(.semibold))
             ForEach(found) { other in
                 Button { camera.joinOther(other) } label: {
@@ -402,36 +429,34 @@ struct JoinSection: View {
                         Image(systemName: other.icon).font(.title3).frame(width: 28)
                         Text(other.name).font(.body.weight(.semibold)).lineLimit(1)
                         Spacer()
-                        Text(camera.link == .connecting ? "Connecting…" : "Use it here").font(.callout).foregroundColor(.good)
+                        Text(camera.link == .connecting && camera.join == nil && !camera.stage.isEmpty ? "Connecting…" : "Use it here")
+                            .font(.callout)
+                            .foregroundColor(.good)
                     }
                     .padding(14)
                     .background(Color.page, in: RoundedRectangle(cornerRadius: 10))
                 }
                 .foregroundColor(.white)
-                .disabled(camera.link == .connecting)
             }
-            if looking {
+            if found.isEmpty, !looked || looking {
                 HStack(spacing: 10) {
                     ProgressView()
                     Text("Looking nearby…").font(.footnote).foregroundColor(.dim)
                 }
-            } else if found.isEmpty, looked {
+            } else if found.isEmpty {
                 Text(AppDelegate.pad
                      ? "Your iPhone isn't showing up. Open RemoteCam on it and turn on Let my other devices join, in Setup."
                      : "Nothing nearby has it. Open RemoteCam on the other device, on the same Wi-Fi as this one.")
                     .font(.footnote)
                     .foregroundColor(.dim)
-                Button("Look again") { look() }.font(.footnote.weight(.semibold))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(Color.panel.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
-        .onAppear { look() }
-        .onChange(of: camera.busyElsewhere) { busy in if busy { look() } }
     }
 
-    /// One that has let this device in before is joined straight away, as long as the camera is busy here.
+    /// One that has let this device in before is joined straight away.
     private func look() {
         guard !looking else { return }
         looking = true
@@ -440,7 +465,7 @@ struct JoinSection: View {
             found = nearby
             looking = false
             looked = true
-            if camera.busyElsewhere, camera.join == nil, camera.link != .on, camera.link != .connecting,
+            if camera.join == nil, camera.link != .on,
                let known = nearby.first(where: { !JoinTokens.read(host: $0.id).isEmpty || !JoinTokens.read(address: $0.address).isEmpty }) {
                 camera.joinOther(known)
             }

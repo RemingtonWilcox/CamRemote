@@ -206,7 +206,7 @@ struct ConnectView: View {
                 Text("RemoteCam").font(.largeTitle.weight(.semibold)).padding(.top, 72)
                 BridgeBadge()
                 status.padding(.top, 12)
-                if AppDelegate.pad || camera.busyElsewhere { JoinSection(camera: camera) }
+                JoinSection(camera: camera) // shows itself once it finds another device with the camera
                 if askForLogin { loginForm } else { waiting }
             }
             .frame(maxWidth: 480) // an iPad's width would stretch the fields

@@ -188,6 +188,13 @@ public sealed class PhoneServer : IAsyncDisposable
             Log.Write($"{name} is on this person's Tailscale, so it joins without asking.");
             return Results.Json(new { token = await LetIn(id, name) });
         }
+        // It knows this camera's password, so it could take the camera anyway: no need to walk over and allow it.
+        if (LetIn != null && KnowsCamera(id, body.Proof))
+        {
+            string name = Peers.Clean(body.Name);
+            Log.Write($"{name} knows the camera's password, so it joins without asking.");
+            return Results.Json(new { token = await LetIn(id, name) });
+        }
         Task<string?> answer;
         lock (_pairLock)
         {
@@ -226,6 +233,21 @@ public sealed class PhoneServer : IAsyncDisposable
             }
         }
         return token;
+    }
+
+    /// <summary>
+    /// Whether one of the proofs is the camera's password run through HMAC-SHA256 over the joiner's id and this
+    /// app's id, which shows the joiner has the password without sending it.
+    /// </summary>
+    private bool KnowsCamera(string id, string[]? proofs)
+    {
+        if (proofs is not { Length: > 0 and <= 8 }) return false;
+        string password;
+        try { password = _settings.LoadPassword(); } catch { return false; }
+        if (password.Length == 0) return false;
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(password));
+        string expected = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes($"camremote join {id} {_settings.DeviceId}"))).ToLowerInvariant();
+        return proofs.Any(p => SameSecret(p?.ToLowerInvariant(), expected));
     }
 
     private static string Shown(IPAddress ip) => (ip.IsIPv4MappedToIPv6 ? ip.MapToIPv4() : ip).ToString();
@@ -351,7 +373,7 @@ public sealed class PhoneServer : IAsyncDisposable
     }
 
     private sealed record LoginBody(string? Code);
-    private sealed record PairBody(string? Id, string? Name);
+    private sealed record PairBody(string? Id, string? Name, string[]? Proof);
     private sealed record SetBody(string Id, string Value);
     private sealed record RecordBody(bool On);
     private sealed record FocusBody(double X, double Y);

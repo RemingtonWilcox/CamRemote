@@ -528,7 +528,7 @@ final class Bridge: ObservableObject {
             reply(.json(["app": "egret", "id": ThisDevice.id, "name": name, "camera": has,
                          "addresses": signedIn ? Self.findAddresses().map { JoinLink.normalize($0) } as Any : NSNull()]))
         case ("POST", "/api/pair"):
-            pair(id: body["id"] as? String ?? "", name: body["name"] as? String ?? "", reply: reply)
+            pair(id: body["id"] as? String ?? "", name: body["name"] as? String ?? "", proof: body["proof"] as? [String] ?? [], reply: reply)
         case ("GET", "/api/cameras"):
             reply(.json([["id": cameraId, "name": "Camera"]]))
         case ("GET", "/api/\(cameraId)/state"):
@@ -594,8 +594,18 @@ final class Bridge: ObservableObject {
 
     /// Runs on `queue`. A device asking to join for the first time waits while the person here is asked. Only one is
     /// asked about at a time, and a device told no isn't asked about again for five minutes.
-    private func pair(id: String, name typed: String, reply: @escaping (Response) -> Void) {
+    private func pair(id: String, name typed: String, proof: [String], reply: @escaping (Response) -> Void) {
         guard (16...64).contains(id.count), id.allSatisfy(\.isHexDigit) else { return reply(Response(status: 400)) }
+        let clean = String(typed.filter { !$0.isNewline }.trimmingCharacters(in: .whitespaces).prefix(40))
+        let name = clean.isEmpty ? "Another device" : clean
+        // It knows a camera's password saved here, so it could take the camera anyway: no need to ask.
+        let given = Set(proof.prefix(8).map { $0.lowercased() })
+        if !given.isEmpty, Logins.all().contains(where: { given.contains(Nearby.proof($0.login.password, joiner: id, host: ThisDevice.id)) }) {
+            return DispatchQueue.main.async {
+                let token = self.allow(id: id, name: name)
+                self.queue.async { reply(.json(["token": token])) }
+            }
+        }
         if let yes = lateYes.removeValue(forKey: id), yes.until > Date() { return reply(.json(["token": yes.token])) }
         if let until = refusedUntil[id], until > Date() { return reply(Response(status: 429)) }
         let key = UUID()
@@ -604,8 +614,6 @@ final class Bridge: ObservableObject {
             now.replies[key] = reply
             waiting = now
         } else {
-            let clean = String(typed.filter { !$0.isNewline }.trimmingCharacters(in: .whitespaces).prefix(40))
-            let name = clean.isEmpty ? "Another device" : clean
             waiting = (id, [key: reply])
             DispatchQueue.main.async { self.question = JoinQuestion(id: id, name: name) }
         }
@@ -620,16 +628,8 @@ final class Bridge: ObservableObject {
     func answer(allow: Bool) {
         guard let asked = question else { return }
         question = nil
-        var granted: String?
-        if allow {
-            let token = Secrets.random(32).map { String(format: "%02X", $0) }.joined()
-            allowedDevices = allowedDevices.filter { $0.id != asked.id } + [AllowedDevice(id: asked.id, name: asked.name, token: token)]
-            Secrets.save(allowedDevices)
-            granted = token
-        }
-        let tokens = allowedTokenMap()
+        let granted = allow ? self.allow(id: asked.id, name: asked.name) : nil
         queue.async {
-            self.allowedTokens = tokens
             var replies: [(Response) -> Void] = []
             if let now = self.waiting, now.id == asked.id {
                 replies = Array(now.replies.values)
@@ -643,6 +643,16 @@ final class Bridge: ObservableObject {
                 replies.forEach { $0(Response(status: 403)) }
             }
         }
+    }
+
+    /// Lets a device in and hands back its token. Main thread.
+    private func allow(id: String, name: String) -> String {
+        let token = Secrets.random(32).map { String(format: "%02X", $0) }.joined()
+        allowedDevices = allowedDevices.filter { $0.id != id } + [AllowedDevice(id: id, name: name, token: token)]
+        Secrets.save(allowedDevices)
+        let tokens = allowedTokenMap()
+        queue.async { self.allowedTokens = tokens } // never sync: the queue waits on the main thread for the camera
+        return token
     }
 
     /// It has to ask again to join.
