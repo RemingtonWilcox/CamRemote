@@ -11,7 +11,7 @@ targets:
       # The animal detector's model, once README's "Build it yourself" has fetched it. Without it the option doesn't appear.
       - path: ../../vendor/BirdModel
         optional: true
-        includes: [rfdetr_nano.onnx]
+        includes: [rfdetr_small.onnx]
         buildPhase: resources
       # The page CamRemote on a computer serves to phones. Served again from here to a computer.
       - path: ../CamRemote/phone.html

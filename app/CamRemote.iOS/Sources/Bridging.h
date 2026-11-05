@@ -22,8 +22,8 @@ void cam_ssh_close(void);
 // `bins` holds 256 brightness counts. `overlay` is RGBA the same size as the picture, and is filled only for zebra or peaking.
 void cam_guides(const uint8_t *rgba, int w, int h, int zebra, int peaking, int level, int *bins, uint8_t *overlay);
 
-// The animal detector: RF-DETR Nano through ONNX Runtime, on the phone only. Call these one at a time.
-#define ANIMAL_SIZE 384
+// The animal detector: RF-DETR Small through ONNX Runtime, on the phone only. Call these one at a time.
+#define ANIMAL_SIZE 512
 // `cache` is where Core ML keeps the model it builds, or NULL. `core_ml` 0 runs it on the processor alone.
 int animal_open(const char *model, const char *cache, int core_ml, char *error, int cap);
 // `rgba` is ANIMAL_SIZE square, the camera's way up. `first_class` to `last_class` are the COCO numbers to look for: 16 to 25 for

@@ -498,16 +498,10 @@ If you'd use one of these, [open an issue](https://github.com/RemingtonWilcox/Re
 
 You'll need Sony's Camera Remote SDK from [their site](https://support.d-imaging.sony.co.jp/app/sdk/en/index.html). Unzip the version for your system into `vendor/CrSDK` so `vendor/CrSDK/RemoteCli.zip` exists. Never commit anything under `vendor/`.
 
-The animal detector needs one more file, which the app can be built without (the option just won't appear). Save it as `vendor/BirdModel/rfdetr_small.onnx`. It adds about 115 MB to the app:
+The animal detector needs one more file, which the app can be built without (the option just won't appear). Save it as `vendor/BirdModel/rfdetr_small.onnx`. It adds about 115 MB to the app, and the iPhone app uses the same file:
 
 ```bash
 curl -L --create-dirs -o vendor/BirdModel/rfdetr_small.onnx https://huggingface.co/onnx-community/rfdetr_small-ONNX/resolve/main/onnx/model.onnx
-```
-
-The iPhone app uses the smaller RF-DETR Nano instead. It adds about 110 MB to that app:
-
-```bash
-curl -L --create-dirs -o vendor/BirdModel/rfdetr_nano.onnx https://huggingface.co/onnx-community/rfdetr_nano-ONNX/resolve/main/onnx/model.onnx
 ```
 
 **Windows:** install Git, CMake, the .NET 10 SDK, Python and Visual Studio's C++ tools, then:
@@ -522,7 +516,7 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 ./build-mac.sh
 ```
 
-<a id="build-the-iphone-app"></a>**iPhone:** it doesn't use Sony's SDK. The only thing it takes from `vendor/` is the animal detector's `rfdetr_nano.onnx`, and it builds without it. On a Mac with Xcode, install CMake and XcodeGen, then:
+<a id="build-the-iphone-app"></a>**iPhone:** it doesn't use Sony's SDK. The only thing it takes from `vendor/` is the animal detector's `rfdetr_small.onnx`, and it builds without it. On a Mac with Xcode, install CMake and XcodeGen, then:
 
 ```bash
 cd app/CamRemote.iOS
