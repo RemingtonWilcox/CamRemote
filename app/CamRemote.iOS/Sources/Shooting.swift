@@ -640,9 +640,6 @@ struct LiveView: View {
 struct AnimalSwitch: View {
     @ObservedObject var animals: AnimalTrigger
 
-    /// What automatic recording can look for. Only animals for now: a new subject needs its own detector, and a tap to pick it.
-    private static let subjects = ["Animal"]
-
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Toggle("Automatic recording", isOn: Binding(get: { animals.on }, set: { $0 ? animals.start() : animals.stop() }))
@@ -651,13 +648,17 @@ struct AnimalSwitch: View {
             if animals.on {
                 Text("Record when it sees").font(.caption2).foregroundColor(.dim)
                 ChipGrid {
-                    ForEach(Self.subjects, id: \.self) { subject in
-                        Text(subject)
-                            .font(.footnote.weight(.semibold))
-                            .foregroundColor(.good)
-                            .frame(maxWidth: .infinity, minHeight: 32)
-                            .background(Color.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.good, lineWidth: 2))
+                    ForEach(RecordSubject.all, id: \.name) { subject in
+                        let picked = subject == animals.subject
+                        Button { animals.choose(subject) } label: {
+                            Text(subject.name)
+                                .font(.footnote.weight(.semibold))
+                                .foregroundColor(picked ? .good : .white)
+                                .frame(maxWidth: .infinity, minHeight: 32)
+                                .background(Color.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(picked ? Color.good : Color.clear, lineWidth: 2))
+                        }
+                        .buttonStyle(Press())
                     }
                 }
             }

@@ -25,6 +25,25 @@ private let refusedRest = 30.0
 private let focusGap = 5.0
 private let coreMLMemory = 1_500_000_000 // Core ML needs about 900 MB while it gets the model ready
 
+/// Something automatic recording can look for, as the COCO numbers the model uses. The same three as on a computer
+/// (`RecordSubject` in BirdTrigger.cs). `startAt` is the score a sighting needs to start a take: the model calls seals
+/// and distant penguins people at about 0.3 to 0.4, while a real person scores far higher.
+struct RecordSubject: Equatable {
+    let name: String
+    let plural: String
+    let first: Int32
+    let last: Int32
+    var startAt: Float = bar
+
+    static let all = [
+        RecordSubject(name: "Animal", plural: "animals", first: 16, last: 25),
+        RecordSubject(name: "Bird", plural: "birds", first: 16, last: 16),
+        RecordSubject(name: "Person", plural: "people", first: 1, last: 1, startAt: 0.5),
+    ]
+
+    static func named(_ name: String?) -> RecordSubject { all.first { $0.name == name } ?? all[0] }
+}
+
 /// The same rules as BirdTrigger.cs on a computer. Checks the live view twice a second, starts recording after two
 /// sightings in three seconds and stops once no animal has been seen for a while. It only ever stops a take it started
 /// itself. A confident sighting also focuses there. Sightings that keep landing on one spot without ever being sure
@@ -35,6 +54,7 @@ final class AnimalTrigger: ObservableObject {
     @Published private(set) var on = false
     @Published private(set) var status = ""
     @Published private(set) var box: CGRect? // as 0..1 of the camera's picture, its own way up
+    @Published private(set) var subject = RecordSubject.named(UserDefaults.standard.string(forKey: "recordSubject"))
 
     static let model = Bundle.main.path(forResource: "rfdetr_nano", ofType: "onnx")
     static var available: Bool { model != nil }
@@ -60,6 +80,21 @@ final class AnimalTrigger: ObservableObject {
 
     init(camera: Camera) {
         self.camera = camera
+    }
+
+    private var watching: String { "Watching for \(subject.plural)." }
+
+    /// What to look for. A take already running carries on; what counted as scenery starts over.
+    func choose(_ new: RecordSubject) {
+        guard new != subject else { return }
+        subject = new
+        UserDefaults.standard.set(new.name, forKey: "recordSubject")
+        sightings = []
+        recent = []
+        scenery = []
+        animals = []
+        camera.log("Automatic recording now looks for \(new.plural).")
+        if on, ready, took == nil { status = watching }
     }
 
     func start() {
@@ -91,7 +126,7 @@ final class AnimalTrigger: ObservableObject {
                 guard this == self.round, self.on else { return }
                 if opened {
                     self.ready = true
-                    self.status = "Watching for animals."
+                    self.status = self.watching
                 } else {
                     self.stop()
                     self.status = "The animal detector couldn't start."
@@ -133,7 +168,7 @@ final class AnimalTrigger: ObservableObject {
     }
 
     func resume() {
-        if on, ready { status = "Watching for animals." }
+        if on, ready { status = watching }
     }
 
     private static func cacheFolder() -> String {
@@ -147,9 +182,9 @@ final class AnimalTrigger: ObservableObject {
         lastFrame = camera.frameTime
         busy = true
         let turn = UserDefaults.standard.integer(forKey: "pictureTurn")
-        let this = round
+        let this = round, subject = subject
         work.async {
-            let found = autoreleasepool { Self.look(frame, turn) }
+            let found = autoreleasepool { Self.look(frame, turn, subject) }
             DispatchQueue.main.async {
                 self.busy = false
                 guard this == self.round, let found else { return }
@@ -158,8 +193,8 @@ final class AnimalTrigger: ObservableObject {
         }
     }
 
-    /// The best animal in the picture: its score, then its box as centre and size.
-    private static func look(_ image: UIImage, _ turn: Int) -> [Float]? {
+    /// The best match for the subject in the picture: its score, then its box as centre and size.
+    private static func look(_ image: UIImage, _ turn: Int, _ subject: RecordSubject) -> [Float]? {
         guard let picture = image.cgImage else { return nil }
         let size = Int(ANIMAL_SIZE)
         var rgba = [UInt8](repeating: 0, count: size * size * 4)
@@ -171,7 +206,7 @@ final class AnimalTrigger: ObservableObject {
             return true
         }
         var found = [Float](repeating: 0, count: 5)
-        guard drawn, animal_look(rgba, Int32(turn), &found) == 0 else { return nil }
+        guard drawn, animal_look(rgba, Int32(turn), subject.first, subject.last, &found) == 0 else { return nil }
         return found
     }
 
@@ -198,7 +233,7 @@ final class AnimalTrigger: ObservableObject {
                 took = nil // stopped by hand, or the camera never started
                 sightings = []
                 if rolled {
-                    status = "Watching for animals."
+                    status = watching
                 } else {
                     restUntil = now + refusedRest
                     camera.log("The camera didn't start recording for the animal trigger.")
@@ -212,21 +247,21 @@ final class AnimalTrigger: ObservableObject {
                 restUntil = now + rest
                 focusedOn = nil
                 camera.log(String(format: "Animal trigger stopped recording; last sighting %.0f s ago.", now.timeIntervalSince(lastAnimal)))
-                status = "Stopped. Watching for animals."
+                status = "Stopped. " + watching
             } else {
                 let left = Int((quietStop - now.timeIntervalSince(lastAnimal)).rounded(.up))
-                status = seen ? "Animal seen. Recording." : "Recording. Stops in \(left) s if nothing shows up."
+                status = seen ? "\(subject.name) seen. Recording." : "Recording. Stops in \(left) s if nothing shows up."
             }
             return
         }
-        if seen, sightings.count >= startHits, now >= restUntil, camera.link == .on, !camera.recording, !camera.recordBusy,
+        if seen, score >= subject.startAt, sightings.count >= startHits, now >= restUntil, camera.link == .on, !camera.recording, !camera.recordBusy,
            !camera.photoMode, !camera.timeLapseRunning {
             camera.toggleRecord()
             took = now
             lastAnimal = now
             rolled = false
-            camera.log(String(format: "Animal trigger started recording at score %.2f.", score))
-            status = "Animal seen. Recording."
+            camera.log(String(format: "Animal trigger started recording for %@ at score %.2f.", subject.name, score))
+            status = "\(subject.name) seen. Recording."
         }
     }
 
