@@ -2,7 +2,7 @@
 ; AppId stays CamRemote, the old name, so Setup updates an existing install instead of adding a second one.
 AppId=CamRemote
 AppName=RemoteCam
-AppVersion=1.0.12
+AppVersion=1.0.13
 AppPublisher=Remington Wilcox
 DefaultDirName={autopf}\CamRemote
 DefaultGroupName=RemoteCam
