@@ -932,7 +932,17 @@ public sealed class CameraService : IDisposable, ITriggerCamera
             return null;
         }
         if (!evenIfTapIsOff && Get(PropCode.FunctionOfTouchOperation)?.Value == TouchFnOff)
-            return TapOffHint;
+        {
+            if (!TouchLockedOff) return TapOffHint;
+            // The camera switched touch off itself (the A7S III does while HDMI Info. Display has its screen off), but its
+            // focus area can still move: put a spot there and the camera focuses, or tracks with a Tracking spot.
+            if (Get(PropCode.AF_Area_Position) is not { Writable: true }) return TapOffHint;
+            uint spot = TouchPoint(fx, fy);
+            Log.Write($"Tap at {fx:0.00}, {fy:0.00} with touch locked off: moving the focus area there.");
+            bool photo = IsPhotoMode;
+            Run(() => MoveFocusSpot(spot, photo));
+            return null;
+        }
         uint xy = TouchPoint(fx, fy);
         Log.Write($"Tap at {fx:0.00}, {fy:0.00}: focus mode {Get(PropCode.FocusMode)?.Value}, tap function {Get(PropCode.FunctionOfTouchOperation)?.Value}, " +
                   $"touch allowed {Get(PropCode.RemoteTouchOperationEnableStatus)?.Value}, spot movable {Get(PropCode.AF_Area_Position)?.Writable}");
@@ -1003,11 +1013,18 @@ public sealed class CameraService : IDisposable, ITriggerCamera
                "or set Focus Area to a Spot type.";
     }
 
+    /// <summary>Tap does is Off in autofocus and the camera offers nothing else, so it isn't the person's choice.</summary>
+    public bool TouchLockedOff => !IsManualFocus && Get(PropCode.FunctionOfTouchOperation) is { Value: TouchFnOff } f
+                                  && (!f.Writable || f.Candidates.All(c => c == TouchFnOff));
+
     /// <summary>What to say when Tap does is Off. It names only the choices the camera offers: the A7S III in movie mode has no Focus.</summary>
     public string TapOffHint
     {
         get
         {
+            if (TouchLockedOff)
+                return "The camera has switched touch off, as it does while HDMI Info. Display is on. " +
+                       "Set Focus area to a Spot or Tracking spot and clicks move it there.";
             var offered = Get(PropCode.FunctionOfTouchOperation)?.Candidates ?? [];
             bool focus = offered.Contains(TouchFnFocus), tracking = offered.Contains(TouchFnTracking);
             return "Tap does is Off, so clicks do nothing." +
