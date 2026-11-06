@@ -509,13 +509,17 @@
 
       <!-- Real results for the chosen mode -->
       <div class="photo-real">
-        <figure class="shot" data-mode="0">
-          <img src="assets/bracket.jpg" width="1816" height="400" loading="lazy" alt="Three photos of the same forest clearing from one bracket: darker at 1/1000, normal at 1/500 and brighter at 1/250.">
-          <figcaption>One press of <b>Take photo</b> with a 1-stop, 3-photo bracket, straight off the A7S III.</figcaption>
+        <figure class="shot shot-pic" data-mode="0">
+          <img src="assets/photo-zion.jpg" width="1000" height="1498" loading="lazy" alt="The Watchman in Zion lit orange by the last sun, under a pale sky with pink clouds.">
+          <figcaption><b>Photo</b>The Watchman in Zion at sunset, on the A7S III.</figcaption>
         </figure>
-        <figure class="shot shot-tl" data-mode="1" hidden>
-          <video class="loop" src="assets/timelapse.mp4" poster="assets/timelapse-poster.jpg" width="1280" height="856" muted loop playsinline preload="none" aria-label="A time-lapse of autumn leaves over a lake valley, 36 photos taken one every 2 seconds."></video>
-          <figcaption>A real time-lapse from the app: 36 photos, one every 2 seconds.</figcaption>
+        <figure class="shot shot-pic" data-mode="1" hidden>
+          <video class="loop" src="assets/timelapse-zion.mp4" poster="assets/timelapse-zion.jpg" width="720" height="1078" muted loop playsinline preload="none" aria-label="A time-lapse of The Watchman in Zion going from dusk to a sky full of stars, with clouds drifting past."></video>
+          <figcaption><b>Time-lapse</b>The Watchman from dusk to stars: one photo every 10 seconds for two hours, with the A7S III's own interval shooting, the same one the app sets up.</figcaption>
+        </figure>
+        <figure class="shot shot-pic" data-mode="2" hidden>
+          <img src="assets/longexp-milkyway.jpg" width="1600" height="1592" loading="lazy" alt="The Milky Way rising over a converted school bus parked on a dark hill.">
+          <figcaption><b>Long exposure</b>30 seconds at night on the A7S III: the Milky Way over the bus.</figcaption>
         </figure>
       </div>
     </div>
@@ -566,21 +570,43 @@
       <div class="card flat reveal"><svg class="ic"><use href="#i-shield"/></svg><p><b>Learns to ignore</b> a spot that keeps setting it off, like splashing water, for 10 minutes.</p></div>
     </div>
 
-    <div class="moments reveal">
-      <figure class="moment">
-        <img src="assets/auto-animal.jpg" width="324" height="360" loading="lazy" alt="The app recording by itself with Animal picked: REC 00:00:10, a box on an animal by the feeder, and Stop lit on the Video tab.">
-        <figcaption><b>Animal</b>Started by itself, 10 s in</figcaption>
+    <div class="takes reveal" id="takes">
+      <div class="takes-top">
+        <h3>What it caught by itself</h3>
+        <div class="seg" role="tablist" aria-label="Automatic recording mode">
+          <button type="button" role="tab" data-take="animal" aria-selected="true">Animal</button>
+          <button type="button" role="tab" data-take="bird" aria-selected="false">Bird</button>
+          <button type="button" role="tab" data-take="person" aria-selected="false">Person</button>
+        </div>
+      </div>
+      <figure class="take">
+        <div class="take-pic">
+          <video class="loop" id="takeVid" src="assets/auto-animal.mp4" poster="assets/auto-animal.jpg" width="1280" height="720" autoplay muted loop playsinline preload="metadata" aria-label="Two Steller's jays squabbling over a tray feeder."></video>
+          <div class="take-osd" aria-hidden="true"><span class="take-rec">REC</span><span id="takeTag">Animal · 0.92</span></div>
+        </div>
+        <figcaption id="takeCap">Two Steller's jays squabbling over the tray. It saw an animal (0.92 sure) and started recording on its own.</figcaption>
       </figure>
-      <figure class="moment">
-        <img src="assets/auto-bird.jpg" width="324" height="360" loading="lazy" alt="The app recording by itself with Bird picked: REC 00:01:09 and a box on a small bird at the feeder.">
-        <figcaption><b>Bird</b>Still rolling, a minute in</figcaption>
-      </figure>
-      <figure class="moment">
-        <img src="assets/auto-person.jpg" width="324" height="360" loading="lazy" alt="The app recording by itself with Person picked: a person walks up to the camera, with a green box around them and REC 00:00:05.">
-        <figcaption><b>Person</b>Walks in, recording starts</figcaption>
+      <p class="fine">Real takes from the A7S III at the feeder on Nov 4, each started by the app. Cropped from 4K and colour-corrected for the web.</p>
+    </div>
+
+    <!-- The detector: how the model was picked -->
+    <div class="detect reveal" id="detector">
+      <div class="det-copy">
+        <h3>Picking the model that spots them</h3>
+        <p>Every candidate looked at the same 486 frames with an animal in them and 763 without. RemoteCam uses the one that finds the most without false alarms and still runs on an ordinary computer.</p>
+        <ul class="det-bars">
+          <li><span class="det-name">Nano<small>earlier versions</small></span><span class="det-bar"><i style="--v:.358"></i></span><b>174</b><em class="bad">96 false</em></li>
+          <li><span class="det-name">Small</span><span class="det-bar"><i style="--v:.463"></i></span><b>225</b><em>2 false</em></li>
+          <li class="det-now"><span class="det-name">Small + a closer look<small>in RemoteCam now</small></span><span class="det-bar"><i style="--v:.611"></i></span><b>297</b><em>2 false</em></li>
+          <li class="det-lab"><span class="det-name">XLarge on a graphics card<small>an experiment</small></span><span class="det-bar"><i style="--v:.949"></i></span><b>461</b><em>0 false</em></li>
+        </ul>
+        <p class="fine">Animals found out of 486, and false alarms out of 763 empty frames. All RF-DETR models. The closer look checks a crop around the last sighting again.</p>
+      </div>
+      <figure class="det-vid">
+        <video class="loop" src="assets/detector-gopro.mp4" poster="assets/detector-gopro.jpg" width="1280" height="720" muted loop playsinline preload="none" aria-label="A GoPro view inside a feeder: a Steller's jay eats seeds with a green box labelled Steller's jay 100%."></video>
+        <figcaption>The experiment, on Nov 5: XLarge on a graphics card, watching a GoPro inside the feeder. It names the species too. It isn't in RemoteCam yet.</figcaption>
       </figure>
     </div>
-    <p class="center fine reveal">Real takes from one morning at the feeder, each started and stopped by the app. The camera is on its side here, so the picture stands upright.</p>
   </div>
 </section>
 
@@ -617,19 +643,17 @@
     </div>
 
     <div class="journey reveal" id="journey">
-      <div class="dist" aria-hidden="true">
-        <div class="dist-track"><div class="dist-fill" id="distFill"></div></div>
-        <div class="dist-cam"><svg class="ic"><use href="#i-camera"/></svg></div>
-        <div class="dist-you" id="distYou"><span id="distLabel">20 m</span></div>
-      </div>
+      <svg class="rings" viewBox="60 -10 680 330" aria-hidden="true">
+        <path class="ring-arc" data-step="0" d="M 322 300 A 78 78 0 0 1 478 300"/><text class="ring-txt" data-step="0" x="400" y="210">NEXT TO IT</text><path class="ring-arc" data-step="1" d="M 252 300 A 148 148 0 0 1 548 300"/><text class="ring-txt" data-step="1" x="400" y="140">IN THE HOUSE</text><path class="ring-arc" data-step="2" d="M 182 300 A 218 218 0 0 1 618 300"/><text class="ring-txt" data-step="2" x="400" y="70">ACROSS TOWN</text><path class="ring-arc" data-step="3" d="M 112 300 A 288 288 0 0 1 688 300"/><text class="ring-txt" data-step="3" x="400" y="0">NOT EVEN THERE</text>
+        <circle class="ring-cam" cx="400" cy="300" r="26"/>
+        <use href="#i-camera" class="ring-cam-ic" x="386" y="286" width="28" height="28"/>
+      </svg>
 
       <div class="steps" role="tablist" aria-label="How far away">
-        <button type="button" role="tab" data-step="0" aria-selected="true"><b>1</b>20 m</button>
-        <button type="button" role="tab" data-step="1" aria-selected="false"><b>2</b>The porch</button>
-        <button type="button" role="tab" data-step="2" aria-selected="false"><b>3</b>Inside</button>
-        <button type="button" role="tab" data-step="3" aria-selected="false"><b>4</b>At the desk</button>
-        <button type="button" role="tab" data-step="4" aria-selected="false"><b>5</b>Across town</button>
-        <button type="button" role="tab" data-step="5" aria-selected="false"><b>6</b>Not even there</button>
+        <button type="button" role="tab" data-step="0" aria-selected="true"><b>1</b>Next to it</button>
+        <button type="button" role="tab" data-step="1" aria-selected="false"><b>2</b>In the house</button>
+        <button type="button" role="tab" data-step="2" aria-selected="false"><b>3</b>Across town</button>
+        <button type="button" role="tab" data-step="3" aria-selected="false"><b>4</b>Not even there</button>
       </div>
 
       <div class="chain" id="chain" aria-live="polite"></div>

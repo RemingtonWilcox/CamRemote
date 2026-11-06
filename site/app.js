@@ -808,6 +808,30 @@
     new IntersectionObserver(([e]) => { autoVisible = e.isIntersecting; if (autoVisible && !autoRunning) runAuto(); }, { threshold: 0.3 }).observe($('#autoDemo'));
   } else runAuto();
 
+  /* ---------- What it caught by itself ---------- */
+  const TAKES = {
+    animal: { tag: 'Animal · 0.92', alt: 'Two Steller\'s jays squabbling over a tray feeder.',
+      cap: 'Two Steller\'s jays squabbling over the tray. It saw an animal (0.92 sure) and started recording on its own.' },
+    bird: { tag: 'Bird · 0.91', alt: 'A Steller\'s jay perched beside a suet cage, sharp against a soft background.',
+      cap: 'A Steller\'s jay by the suet cage, in focus. Bird was picked, so it waited for a bird (0.91 sure).' },
+    person: { tag: 'Person · 0.96', alt: 'Remington walks in front of the camera at the feeder.',
+      cap: 'Walk in front of it and it rolls. Handy for filming yourself, or for checking it works before you leave.' },
+  };
+  const takeVid = $('#takeVid');
+  if (takeVid) {
+    $$('#takes [data-take]').forEach((b) => b.addEventListener('click', () => {
+      const k = b.dataset.take, t = TAKES[k];
+      $$('#takes [data-take]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+      takeVid.poster = `assets/auto-${k}.jpg`;
+      takeVid.src = `assets/auto-${k}.mp4`;
+      takeVid.setAttribute('aria-label', t.alt);
+      $('#takeTag').textContent = t.tag;
+      $('#takeCap').textContent = t.cap;
+      const r = takeVid.getBoundingClientRect();
+      if (!reduced && r.bottom > 0 && r.top < innerHeight) takeVid.play().catch(() => {});
+    }));
+  }
+
   /* ---------- How far away ---------- */
   const N = {
     you: (ic, b, small) => ({ ic, b, small, cls: 'you' }),
@@ -821,32 +845,27 @@
     tsm: { cls: 'l-ts', t: 'Tailscale · mobile data' },
   };
   const JOURNEY = [
-    { d: '20 m', pos: 12, title: 'At the feeder, with your phone',
-      text: 'The iPhone app runs the camera on its own, on the phone\'s hotspot. No Wi-Fi out here, and no computer.',
+    { title: 'Next to it: just your phone',
+      text: 'The iPhone app runs the camera on its own, over the phone\'s hotspot. No Wi-Fi out there, and no computer.',
       chain: [N.you('i-phone', 'iPhone', 'the app'), L.hot, N.cam] },
-    { d: 'the porch', pos: 30, title: 'Leave the phone. Take the laptop.',
-      text: 'Set the phone down by the camera. Your laptop\'s browser runs it through the iPhone app, over Tailscale.',
-      chain: [N.you('i-laptop', 'Laptop', 'browser'), L.ts, N.dev('i-phone', 'iPhone', 'by the camera'), L.hot, N.cam] },
-    { d: 'inside', pos: 45, title: 'Inside, at your desk',
-      text: 'The same from the computer inside. The phone stays out with the camera, passing it on.',
-      chain: [N.you('i-desktop', 'Computer', 'browser'), L.ts, N.dev('i-phone', 'iPhone', 'by the camera'), L.hot, N.cam] },
-    { d: 'at the desk', pos: 52, title: 'The full app, on home Wi-Fi',
-      text: 'Put the camera on your home Wi-Fi and open the full app: every setting, presets, peaking, time-lapse and automatic recording.',
+    { title: 'In the house: the full app',
+      text: 'Put the camera on your home Wi-Fi and open the app on your computer: every setting, presets, peaking and time-lapse. The picture arrives in 0.20 s.',
       chain: [N.you('i-desktop', 'Computer', 'the full app'), L.wifi, N.cam] },
-    { d: 'across town', pos: 80, title: 'Across town, on mobile data',
-      text: 'Your phone\'s browser reaches the app on your computer at home over Tailscale. Tap to focus, record, change settings.',
+    { title: 'Across town: your phone, through your computer',
+      text: 'With Tailscale on both, your phone\'s browser reaches the app on your computer at home. Tap to focus, record, change settings.',
       chain: [N.you('i-phone', 'Phone', 'browser'), L.tsm, N.dev('i-desktop', 'Computer', 'at home'), L.wifi, N.cam] },
-    { d: 'not even there', pos: 96, title: 'Not even there',
-      text: 'Turn on Automatic recording before you go. It sees the bird, focuses and hits record by itself, and stops once it\'s gone.',
+    { title: 'Not even there: it films by itself',
+      text: 'Turn on Automatic recording before you go. It sees the animal, focuses and records by itself, and stops once it\'s gone.',
       chain: [N.dev('i-desktop', 'Computer', 'automatic recording', 'AUTO'), L.wifi, N.cam] },
   ];
   const chain = $('#chain');
   function showStep(i) {
     const s = JOURNEY[i];
     $$('#journey [data-step]').forEach((b) => b.setAttribute('aria-selected', String(+b.dataset.step === i)));
-    $('#distFill').style.width = `${s.pos}%`;
-    $('#distYou').style.left = `${s.pos}%`;
-    $('#distLabel').textContent = s.d;
+    $$('#journey .ring-arc, #journey .ring-txt').forEach((el) => {
+      const k = +el.dataset.step;
+      el.classList.toggle('on', k === i); el.classList.toggle('in', k < i);
+    });
     $('#jTitle').textContent = s.title;
     $('#jText').textContent = s.text;
     chain.innerHTML = s.chain.map((n, k) => {
@@ -856,6 +875,7 @@
     }).join('');
   }
   $$('#journey [data-step]').forEach((b) => b.addEventListener('click', () => { showStep(+b.dataset.step); stopTour(); }));
+  // The rings themselves can be clicked too (the buttons below are the keyboard way in)
   showStep(0);
   // Walks through the steps by itself until someone clicks one
   let tour = 0, tourIdx = 0;
