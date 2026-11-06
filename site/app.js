@@ -223,17 +223,119 @@
   const ana = document.createElement('canvas'); ana.width = OW; ana.height = OH;
   const actx = ana.getContext('2d', { willReadFrequently: true });
 
-  img.onload = () => {
+  /* Real focus: a depth map of the frame (near = white) picks, for each pixel, how
+     far it sits from the focused distance, and so how soft it is. The soft versions
+     are blurred once up front and blended per pixel. A wider iris blurs more. */
+  const depthImg = new Image();
+  depthImg.src = 'assets/liveview-depth.png';
+  const BLUR_R = [0, 2, 4, 7, 11, 16];   // radius of each soft version, at 1600 px wide
+  const DEFOCUS = 22;                    // blur radius per unit of depth at F2.8
+  const START_DEPTH = 0.86;              // starts focused on the flower, so the bird is soft
+  let depth = null, softs = null, focused = null;
+  let focusDepth = START_DEPTH, focusAnim = 0;
+
+  function padded(r) {
+    // Edges repeat outward so the blur doesn't darken the borders
+    const W = canvas.width, H = canvas.height, P = Math.ceil(r * 2.5) + 2;
+    const c = document.createElement('canvas'); c.width = W + 2 * P; c.height = H + 2 * P;
+    const g = c.getContext('2d');
+    g.drawImage(img, P, P, W, H);
+    const sw = img.naturalWidth / W, sh = img.naturalHeight / H;
+    g.drawImage(img, 0, 0, sw, img.naturalHeight, 0, P, P, H);
+    g.drawImage(img, img.naturalWidth - sw, 0, sw, img.naturalHeight, W + P, P, P, H);
+    g.drawImage(c, 0, P, c.width, 1, 0, 0, c.width, P);
+    g.drawImage(c, 0, P + H - 1, c.width, 1, 0, P + H, c.width, P);
+    return { c, P };
+  }
+  function makeSofts() {
+    const W = canvas.width, H = canvas.height;
+    const probe = document.createElement('canvas').getContext('2d');
+    probe.filter = 'blur(2px)';
+    const canFilter = probe.filter === 'blur(2px)';
+    softs = BLUR_R.map((r) => {
+      if (!r) return base.data;
+      const { c, P } = padded(r);
+      const t = document.createElement('canvas'); t.width = c.width; t.height = c.height;
+      const g = t.getContext('2d', { willReadFrequently: true });
+      if (canFilter) {
+        g.filter = `blur(${r}px)`; g.drawImage(c, 0, 0);
+      } else {
+        // Older Safari: shrink and grow back, which softens about as much
+        const s = document.createElement('canvas'); s.width = Math.max(1, Math.round(c.width / r)); s.height = Math.max(1, Math.round(c.height / r));
+        s.getContext('2d').drawImage(c, 0, 0, s.width, s.height);
+        g.imageSmoothingQuality = 'high'; g.drawImage(s, 0, 0, t.width, t.height);
+      }
+      return g.getImageData(P, P, W, H).data;
+    });
+  }
+  function composeFocus() {
+    const n = canvas.width * canvas.height;
+    if (!focused) focused = new Uint8ClampedArray(n * 4);
+    // For each of the 256 depth values: which two soft versions, and how much of each
+    const lo = new Uint8Array(256), wt = new Float32Array(256);
+    const dof = 2.8 / IRIS[exp.iris];
+    for (let v = 0; v < 256; v++) {
+      const r = Math.min(BLUR_R[BLUR_R.length - 1], DEFOCUS * dof * Math.abs(v / 255 - focusDepth));
+      let k = 0; while (k < BLUR_R.length - 2 && r > BLUR_R[k + 1]) k++;
+      lo[v] = k; wt[v] = (r - BLUR_R[k]) / (BLUR_R[k + 1] - BLUR_R[k]);
+    }
+    for (let p = 0, i = 0; p < n; p++, i += 4) {
+      const v = depth[p], k = lo[v], w = wt[v], a = softs[k], b = softs[k + 1];
+      focused[i] = a[i] + (b[i] - a[i]) * w;
+      focused[i + 1] = a[i + 1] + (b[i + 1] - a[i + 1]) * w;
+      focused[i + 2] = a[i + 2] + (b[i + 2] - a[i + 2]) * w;
+    }
+  }
+  // Glides the focus to a new distance, like a lens racking
+  function pullFocus(to) {
+    cancelAnimationFrame(focusAnim);
+    if (!depth || reduced) { focusDepth = to; renderExposure(); return; }
+    const from = focusDepth, t0 = performance.now(), dur = 420;
+    const step = (now) => {
+      const t = Math.min(1, (now - t0) / dur), e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      focusDepth = from + (to - from) * e;
+      renderExposure(t < 1);
+      if (t < 1) focusAnim = requestAnimationFrame(step);
+    };
+    focusAnim = requestAnimationFrame(step);
+  }
+  function depthAt(p) {
+    // The middle value of a small patch, so a click just beside the neck still finds the bird
+    if (!depth) return focusDepth;
+    const W = canvas.width, H = canvas.height, cx = Math.round(p.x * W), cy = Math.round(p.y * H), vals = [];
+    for (let dy = -6; dy <= 6; dy += 3) for (let dx = -6; dx <= 6; dx += 3) {
+      const x = Math.min(W - 1, Math.max(0, cx + dx)), y = Math.min(H - 1, Math.max(0, cy + dy));
+      vals.push(depth[y * W + x]);
+    }
+    vals.sort((a, b) => a - b);
+    return vals[vals.length >> 1] / 255;
+  }
+
+  let loaded = 0;
+  const onPictures = () => {
+    if (++loaded < 2) return;
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     try {
       base = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      if (depthImg.naturalWidth) {
+        const t = document.createElement('canvas'); t.width = canvas.width; t.height = canvas.height;
+        const g = t.getContext('2d', { willReadFrequently: true });
+        g.drawImage(depthImg, 0, 0, t.width, t.height);
+        const d = g.getImageData(0, 0, t.width, t.height).data;
+        depth = new Uint8Array(t.width * t.height);
+        for (let p = 0; p < depth.length; p++) depth[p] = d[p * 4];
+        makeSofts();
+      }
     } catch (e) {
       tainted = true;
     }
     renderExposure();
   };
+  img.onload = onPictures;
+  depthImg.onload = onPictures;
+  depthImg.onerror = onPictures;
 
-  function renderExposure() {
+  function renderExposure(moving) {
     const ev = evOffset();
     const gain = Math.pow(2, ev);
     updateMeter(ev);
@@ -246,11 +348,13 @@
     }
     const lut = new Uint8ClampedArray(256);
     for (let i = 0; i < 256; i++) lut[i] = Math.round(255 * toSrgb(Math.min(1, toLin[i] * gain)));
-    const src = base.data;
+    let src = base.data;
+    if (depth && softs) { composeFocus(); src = focused; }
     const out = ctx.createImageData(canvas.width, canvas.height);
     const o = out.data;
     for (let i = 0; i < src.length; i += 4) { o[i] = lut[src[i]]; o[i + 1] = lut[src[i + 1]]; o[i + 2] = lut[src[i + 2]]; o[i + 3] = 255; }
     ctx.putImageData(out, 0, 0);
+    if (moving) return; // zebras, peaking and the histogram catch up when the focus settles
     actx.drawImage(canvas, 0, 0, OW, OH);
     lastPx = actx.getImageData(0, 0, OW, OH).data;
     analyse();
@@ -470,6 +574,7 @@
     focusBox.classList.toggle('track', state.tap === 'track');
     void focusBox.offsetWidth;
     focusBox.classList.add('show');
+    pullFocus(depthAt(p));
     clearTimeout(focusTimer);
     focusTimer = setTimeout(() => { focusBox.classList.add('ok'); toast(state.tap === 'track' ? 'Tracking' : 'Focused'); }, 420);
   });
@@ -477,6 +582,7 @@
     e.preventDefault();
     if (!state.focus) return;
     focusBox.classList.remove('show', 'ok');
+    pullFocus(START_DEPTH); // the camera's own autofocus goes back to the nearest thing
     toast(state.tap === 'track' ? 'Tracking cancelled' : 'Touch focus cancelled');
   });
 
