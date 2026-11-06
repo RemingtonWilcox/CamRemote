@@ -28,6 +28,17 @@ python -m http.server 8791 --directory site
 
 Then open http://localhost:8791. Opening `index.html` straight from the folder works too, but zebras, peaking and the histogram stay off, because browsers don't let a page read pictures from a file on disk.
 
+## Put it online
+
+It's served by Cloudflare at https://getremotecam.com. To publish the current files:
+
+```bash
+cd tools/website
+npx wrangler deploy
+```
+
+`_headers` sets the security headers, and `.assetsignore` keeps this README off the site.
+
 ## Privacy
 
 No cookies, analytics or fonts from elsewhere, and a Content-Security-Policy in `index.html` that blocks anything else. The only outside request is the YouTube video, from `youtube-nocookie.com`, and only after someone presses play. Light/dark is remembered in the browser only if the visitor presses the button.

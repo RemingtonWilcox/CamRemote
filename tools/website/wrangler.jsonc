@@ -1,0 +1,12 @@
+// The launch website (the site/ folder), served by Cloudflare at getremotecam.com.
+// Put it online, or update it, with: npx wrangler deploy (from this folder).
+{
+  "name": "remotecam-site",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "../../site" },
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "getremotecam.com", "custom_domain": true },
+    { "pattern": "www.getremotecam.com", "custom_domain": true }
+  ]
+}
