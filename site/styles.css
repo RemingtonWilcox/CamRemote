@@ -1031,4 +1031,16 @@ body::after {
 @media (max-width: 960px) { .duo-3, .trust-4 { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 760px) { .speeds-mini, .duo-3, .trust-4 { grid-template-columns: 1fr; } }
 
+/* Phones: the condensed display face reads as squished at this size, so use the
+   phone's own bold sans for headings, a little looser, and same-width hero buttons. */
+@media (max-width: 640px) {
+  :root { --display: var(--sans); }
+  h1, h2 { letter-spacing: -.022em; line-height: 1.04; }
+  .hero h1 { font-size: 2.75rem; letter-spacing: -.03em; line-height: 1.02; }
+  h2, .closer h2 { font-size: 2.1rem; letter-spacing: -.025em; }
+  .split-copy h2, .ios-copy h2 { font-size: 1.85rem; }
+  .cta { flex-direction: column; align-items: stretch; width: 100%; max-width: 340px; }
+  .cta .btn { justify-content: center; }
+}
+
 [hidden] { display: none !important; }
