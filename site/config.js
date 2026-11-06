@@ -38,14 +38,14 @@ window.SITE = {
 
   // PLACEHOLDER: a tip-jar link (Ko-fi, GitHub Sponsors or Buy Me a
   // Coffee). While it's '', no "support" link appears anywhere.
-  support: '',
+  support: 'https://ko-fi.com/remingtonwilcox',
 
   // PLACEHOLDER: full profile links. Leave '' for any you don't use:
   // unused ones are simply left out.
   socials: {
-    youtube: '',
+    youtube: 'https://www.youtube.com/@remwilcox',
     instagram: 'https://www.instagram.com/remingtonwilcox/',
-    tiktok: '',
+    tiktok: 'https://www.tiktok.com/@remington.mp4',
     x: '',
     discord: '',
   },
