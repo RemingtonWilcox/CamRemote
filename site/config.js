@@ -22,9 +22,8 @@ window.SITE = {
     windows: 'https://github.com/RemingtonWilcox/RemoteCam/releases/latest/download/CamRemote-Windows-Setup.exe',
     macApple: 'https://github.com/RemingtonWilcox/RemoteCam/releases/latest/download/CamRemote-Mac-AppleSilicon.dmg',
     macIntel: 'https://github.com/RemingtonWilcox/RemoteCam/releases/latest/download/CamRemote-Mac-Intel.dmg',
-    // The public TestFlight link is https://testflight.apple.com/join/ck3rFy8f. Paste it here
-    // once Apple's Beta App Review approves build 1.0.14: every iPhone button switches to it.
-    testflight: '',
+    // The public TestFlight beta, one build for iPhone and iPad (iOS 16 or newer).
+    testflight: 'https://testflight.apple.com/join/ck3rFy8f',
   },
 
   // PLACEHOLDER: the launch video's YouTube ID, the part after "v=" in

@@ -122,14 +122,15 @@
 
     if (os === 'windows' && !arm) {
       primary.href = d.windows; label(primary, 'Download for Windows');
-      label(secondary, 'Mac, iPhone and iPad');
+      label(secondary, 'Download for Mac');
     } else if (os === 'mac') {
       primary.href = d.macApple; label(primary, 'Download for Mac');
-      label(secondary, 'Windows, iPhone and iPad');
+      label(secondary, 'Download for Windows');
       fine.innerHTML = 'Free and open source. No account, no subscription, no tracking. <a href="' + d.macIntel + '">Older Intel Mac? Use this one.</a>';
     } else if (os === 'ios') {
-      primary.href = d.testflight || '#iphone'; label(primary, d.testflight ? 'Get the iPhone app on TestFlight' : 'iPhone: coming to TestFlight');
+      primary.href = d.testflight || '#iphone'; label(primary, d.testflight ? 'Get the beta on TestFlight' : 'iPhone: coming to TestFlight');
       label(secondary, 'Windows and Mac');
+      $('#heroIos').hidden = true;
     } else {
       label(primary, 'Download free');
       label(secondary, 'See what it runs on');
