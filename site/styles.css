@@ -255,6 +255,11 @@ code { font-family: var(--mono); font-size: .86em; }
   -webkit-mask-image: radial-gradient(70% 55% at 50% 30%, #000 20%, transparent 75%);
 }
 .hero-copy { text-align: center; display: flex; flex-direction: column; align-items: center; }
+.quick-dl { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 18px; }
+.qd { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--surface); color: var(--text-2); font-size: .86rem; font-weight: 550; text-decoration: none; transition: border-color .2s, color .2s; }
+.qd:hover { border-color: var(--text-2); color: var(--text); }
+.qd .ic { width: 16px; height: 16px; }
+.qd-soon { border-style: dashed; color: var(--muted); }
 .hero h1 {
   margin-top: 26px;
   font-size: clamp(2.7rem, 7.6vw, 6.2rem); font-weight: 680; letter-spacing: -.045em; line-height: .98;
@@ -741,6 +746,23 @@ input[type="range"]:focus-visible { outline: 2px solid var(--accent); outline-of
 .journey-copy p { margin-top: 10px; color: var(--text-2); }
 .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 22px; }
 .duo .fine { margin-top: 14px; }
+.duo h3 { margin-top: 14px; }
+.moments { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 48px; }
+.moment { margin: 0; }
+.moment img { display: block; width: 100%; height: auto; border-radius: 14px; box-shadow: var(--shadow); background: #000; }
+.moment figcaption { margin-top: 12px; font-size: .86rem; color: var(--muted); }
+.moment figcaption b { display: block; color: var(--text); font-size: 1rem; }
+.moments + .fine { margin-top: 20px; }
+.speeds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.speed { padding: 26px 24px; border-radius: 20px; background: var(--surface); border: 1px solid var(--line); }
+.speed-where { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: .9rem; font-weight: 600; }
+.speed-where .ic { width: 18px; height: 18px; color: var(--accent); }
+.speed-num { display: flex; align-items: baseline; gap: 4px; margin: 14px 0 6px; font: 650 clamp(2.6rem, 5vw, 3.6rem)/1 var(--sans); letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.speed-num small { font-size: .42em; color: var(--muted); font-weight: 600; letter-spacing: 0; }
+.speed > p:not(.fine):not(.speed-where) { color: var(--text); font-weight: 550; }
+.speed .fine { margin-top: 12px; }
+#speed .shot-wide + .fine { margin-top: 22px; }
+@media (max-width: 860px) { .speeds { grid-template-columns: 1fr; } .moments { gap: 10px; } .moment figcaption { font-size: .78rem; } }
 .glass { background: color-mix(in srgb, var(--surface) 75%, transparent); backdrop-filter: blur(10px); }
 .rule { margin-top: 26px; text-align: center; color: var(--text-2); }
 @media (max-width: 860px) {

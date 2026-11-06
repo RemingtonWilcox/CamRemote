@@ -11,7 +11,7 @@
 window.SITE = {
   name: 'RemoteCam',
   tagline: 'Run your Sony camera from anywhere.',
-  version: '1.0.11',
+  version: '1.0.13',
 
   github: 'https://github.com/RemingtonWilcox/RemoteCam',
   releases: 'https://github.com/RemingtonWilcox/RemoteCam/releases/latest',

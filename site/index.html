@@ -117,7 +117,7 @@
   <div class="wrap hero-copy">
     <a class="pill reveal" href="#iphone">
       <span class="pill-dot"></span>
-      <span>Version <span data-version></span> is out<span class="hide-sm"> · iPhone &amp; iPad beta on TestFlight</span></span>
+      <span>Version <span data-version></span> is out<span class="hide-sm"> · iPhone app coming to TestFlight</span></span>
       <svg class="ic"><use href="#i-arrow"/></svg>
     </a>
     <h1 class="reveal">Run your Sony camera<br><span class="grad">from anywhere.</span></h1>
@@ -129,7 +129,12 @@
       <a class="btn btn-ghost btn-lg" data-dl="secondary" href="#download"><span>All downloads</span></a>
       <a class="btn btn-text btn-lg" href="#watch"><svg class="ic"><use href="#i-play"/></svg><span>Watch the video</span></a>
     </div>
-    <p class="fine reveal" id="heroFine">Free and open source. No account, no subscription, no tracking.</p>
+    <div class="quick-dl reveal" aria-label="Downloads">
+      <a class="qd" data-dl="windows" href="#download"><svg class="ic"><use href="#i-windows"/></svg>Download for Windows</a>
+      <a class="qd" data-dl="macApple" href="#download"><svg class="ic"><use href="#i-apple"/></svg>Download for Mac</a>
+      <a class="qd qd-soon" href="#iphone"><svg class="ic"><use href="#i-phone"/></svg>iPhone: coming to TestFlight</a>
+    </div>
+    <p class="fine reveal" id="heroFine">Free and open source. No account, no subscription, no tracking. Tested on the A7S III.</p>
   </div>
 
   <div class="wrap hero-stage">
@@ -138,7 +143,7 @@
         <img src="assets/window.jpg" width="1760" height="946" alt="The app recording a backyard feeder: a woodpecker on the suet with the camera's tracking box around it, REC 00:02:32 at the top left, the grid and zebras on, the histogram in the corner, and the Video tab on the right with Stop, four saved setups, exposure and focus.">
       </figure>
       <div class="chip-float c1" aria-hidden="true"><span class="rec-dot"></span>REC <b class="mono" id="heroRec">00:02:32</b></div>
-      <div class="chip-float c2" aria-hidden="true"><svg class="ic"><use href="#i-wifi"/></svg>Live view · <b>~20 fps</b></div>
+      <div class="chip-float c2" aria-hidden="true"><svg class="ic"><use href="#i-wifi"/></svg>Live view · <b>0.20 s</b></div>
       <div class="chip-float c3" aria-hidden="true"><svg class="ic"><use href="#i-bird"/></svg>Bird seen · recording</div>
       <div class="chip-float c4" aria-hidden="true"><svg class="ic"><use href="#i-pin"/></svg>Across town</div>
     </div>
@@ -148,8 +153,8 @@
     <ul class="ribbon reveal" aria-label="Where it runs">
       <li><svg class="ic"><use href="#i-windows"/></svg><span><b>Windows 11</b>x64</span></li>
       <li><svg class="ic"><use href="#i-apple"/></svg><span><b>macOS 14.1+</b>Apple &amp; Intel</span></li>
-      <li><svg class="ic"><use href="#i-phone"/></svg><span><b>iPhone</b>free beta</span></li>
-      <li><svg class="ic"><use href="#i-laptop"/></svg><span><b>iPad</b>free beta</span></li>
+      <li><svg class="ic"><use href="#i-phone"/></svg><span><b>iPhone</b>coming to TestFlight</span></li>
+      <li><svg class="ic"><use href="#i-laptop"/></svg><span><b>iPad</b>coming to TestFlight</span></li>
       <li><svg class="ic"><use href="#i-camera"/></svg><span><b>Sony cameras</b>over Wi-Fi</span></li>
     </ul>
   </div>
@@ -181,7 +186,7 @@
 <!-- ============================== NUMBERS ============================== -->
 <section class="numbers" aria-label="In numbers">
   <div class="wrap nums">
-    <div class="num reveal"><b><small>~</small><span data-count="20">20</span></b><span>pictures a second over Wi-Fi on the A7S III</span></div>
+    <div class="num reveal"><b>0.20<small>s</small></b><span>from camera to screen on the same Wi-Fi</span></div>
     <div class="num reveal"><b><span data-count="240">240</span><small>fps</small></b><span>S&amp;Q slow motion, in HD</span></div>
     <div class="num reveal"><b><span data-count="9999" data-sep="1">9,999</span></b><span>photos in one time-lapse</span></div>
     <div class="num reveal"><b><span data-count="8">8</span><small>min</small></b><span>long exposures, held open on Bulb</span></div>
@@ -303,7 +308,7 @@
           </div>
         </aside>
       </div>
-      <p class="lab-foot">A model in your browser, not a camera. In the app these come from the A7S III over Wi-Fi, at around 20 pictures a second.</p>
+      <p class="lab-foot">A model in your browser, not a camera. In the app these come from the A7S III over Wi-Fi, about 8 pictures a second.</p>
     </div>
 
     <!-- Peaking: the real thing -->
@@ -569,15 +574,26 @@
     </div>
 
     <div class="trio trio-sm">
-      <div class="card flat reveal"><svg class="ic"><use href="#i-cpu"/></svg><p><b>Runs on your computer.</b> No pictures leave it.</p></div>
+      <div class="card flat reveal"><svg class="ic"><use href="#i-cpu"/></svg><p><b>Runs on your own computer.</b> No pictures leave it. The iPhone app runs its own, on the phone.</p></div>
       <div class="card flat reveal"><svg class="ic"><use href="#i-bird"/></svg><p><b>Knows birds, common mammals and people.</b> Something it doesn't know, like a squirrel, may not set it off.</p></div>
       <div class="card flat reveal"><svg class="ic"><use href="#i-shield"/></svg><p><b>Learns to ignore</b> a spot that keeps setting it off, like splashing water, for 10 minutes.</p></div>
     </div>
 
-    <figure class="shot shot-wide reveal">
-      <img src="assets/automatic-recording.jpg" width="1760" height="875" loading="lazy" alt="Automatic recording in the app: a green box labelled animal around the egret, a red recording outline, REC 00:00:09 at the top left, and Animal, 15 s and Focus on it picked on the right.">
-      <figcaption>The real thing: it has spotted the egret, started recording, and put a red outline around the picture.</figcaption>
-    </figure>
+    <div class="moments reveal">
+      <figure class="moment">
+        <img src="assets/auto-animal.jpg" width="324" height="360" loading="lazy" alt="The app recording by itself with Animal picked: REC 00:00:10, a box on an animal by the feeder, and Stop lit on the Video tab.">
+        <figcaption><b>Animal</b>Started by itself, 10 s in</figcaption>
+      </figure>
+      <figure class="moment">
+        <img src="assets/auto-bird.jpg" width="324" height="360" loading="lazy" alt="The app recording by itself with Bird picked: REC 00:01:09 and a box on a small bird at the feeder.">
+        <figcaption><b>Bird</b>Still rolling, a minute in</figcaption>
+      </figure>
+      <figure class="moment">
+        <img src="assets/auto-person.jpg" width="324" height="360" loading="lazy" alt="The app recording by itself with Person picked: a person walks up to the camera, with a green box around them and REC 00:00:05.">
+        <figcaption><b>Person</b>Walks in, recording starts</figcaption>
+      </figure>
+    </div>
+    <p class="center fine reveal">Real takes from one morning at the feeder, each started and stopped by the app. The camera is on its side here, so the picture stands upright.</p>
   </div>
 </section>
 
@@ -615,19 +631,67 @@
 
     <div class="duo">
       <article class="card glass reveal">
+        <svg class="ic ic-lg"><use href="#i-globe"/></svg>
+        <h3>From anywhere, with Tailscale</h3>
+        <p>Put the camera on your iPhone's hotspot and run it from a computer anywhere. <b>Download <a href="https://tailscale.com" rel="noopener">Tailscale</a> on each device, log in with the same account, and it's automatic.</b> Your devices find each other, with nothing to type.</p>
+        <p class="fine">Over mobile data the picture comes once a second by default, to save data: about 100 MB an hour while a computer is watching. Pick 3 or 8 a second on the phone for a smoother picture (about 280 or 750 MB an hour). The iPhone app has to stay open on screen.</p>
+      </article>
+      <article class="card glass reveal">
         <svg class="ic ic-lg"><use href="#i-phone"/></svg>
-        <h3>From your phone</h3>
-        <p>Tick <b>Allow phone control</b> in <b>Setup</b> and open the address it shows on your phone. You get the live picture, record, tap to focus, the focus ring and the camera's settings. It works on your home Wi-Fi, and from anywhere with <a href="https://tailscale.com" rel="noopener">Tailscale</a>.</p>
-        <p class="fine">Protected by an access code. The computer stays on with the app open. On an iPhone, Share › Add to Home Screen makes it a full-screen app.</p>
+        <h3>Your iPhone joins the computer's camera</h3>
+        <p>When <span class="nm"></span> on your computer is running the camera, the iPhone and iPad find it and show the camera through it, with nothing to type. Using the computer's camera means using its automatic recording too.</p>
+        <p class="fine">Or turn it round: in the iPhone app, turn on <b>Let my other devices join</b>, and an iPad or a computer runs the camera through the phone.</p>
+      </article>
+      <article class="card glass reveal">
+        <svg class="ic ic-lg"><use href="#i-desktop"/></svg>
+        <h3>400 ft away, on a cable</h3>
+        <p>Camera at the house on its Wi-Fi, computer 400 ft away at the end of a long Ethernet cable. The picture still arrives in about a third of a second, about 9 times a second.</p>
+        <p class="fine">Anything on the same network works: Wi-Fi, a cable, or both.</p>
       </article>
       <article class="card glass reveal">
         <svg class="ic ic-lg"><use href="#i-laptop"/></svg>
-        <h3>From a computer, through your iPhone</h3>
-        <p>No Wi-Fi where the camera is? Put it on your iPhone's hotspot, open the iPhone app, turn on <b>Allow control from a computer</b>, and run it from a computer somewhere else over Tailscale.</p>
-        <p class="fine">Uses mobile data: about 100, 280 or 750 MB an hour while a computer is watching, at 1, 3 or 8 pictures a second. Nothing while none is. It only works while the app stays open on the iPhone's screen.</p>
+        <h3>From your phone's browser</h3>
+        <p>Tick <b>Allow phone control</b> in <b>Setup</b> and open the address it shows on your phone. You get the live picture, record, tap to focus, the focus ring and the camera's settings, at home or over Tailscale.</p>
+        <p class="fine">Protected by an access code. The computer stays on with the app open. On an iPhone, Share › Add to Home Screen makes it a full-screen app.</p>
       </article>
     </div>
     <p class="rule reveal"><b>Two rules behind it all:</b> the camera is on one network at a time, and one device runs it while the others join in.</p>
+  </div>
+</section>
+
+<!-- ============================== SPEED ============================== -->
+<section class="section" id="speed">
+  <div class="wrap">
+    <div class="head center reveal">
+      <p class="eyebrow"><span class="dot dot-ok"></span>How fast is the picture?</p>
+      <h2>Measured with a clock, not a guess.</h2>
+      <p class="sub">An iPad shows the computer's clock. The camera films it, and the computer shows both. The gap between them is how long the picture took.</p>
+    </div>
+    <div class="speeds">
+      <article class="speed reveal">
+        <p class="speed-where"><svg class="ic"><use href="#i-wifi"/></svg>Same Wi-Fi</p>
+        <b class="speed-num">0.20<small>s</small></b>
+        <p>about 8 pictures a second</p>
+        <p class="fine">Camera and computer on the same router. Median of 24 readings.</p>
+      </article>
+      <article class="speed reveal">
+        <p class="speed-where"><svg class="ic"><use href="#i-desktop"/></svg>400 ft of Ethernet</p>
+        <b class="speed-num"><small>≈</small>0.33<small>s</small></b>
+        <p>about 9 pictures a second</p>
+        <p class="fine">Camera on the house Wi-Fi, computer at the end of the cable. A spot reading.</p>
+      </article>
+      <article class="speed reveal">
+        <p class="speed-where"><svg class="ic"><use href="#i-globe"/></svg>Hotspot + Tailscale</p>
+        <b class="speed-num"><small>≈</small>0.25<small>s</small></b>
+        <p>1 picture a second, or 3 or 8</p>
+        <p class="fine">Camera on the iPhone's hotspot in the woods, computer elsewhere. Each picture takes about 0.25 s; it comes once a second by default to save mobile data.</p>
+      </article>
+    </div>
+    <figure class="shot shot-wide reveal">
+      <img src="assets/tailscale-latency.jpg" width="1920" height="1080" loading="lazy" alt="The app on a computer running a camera in the woods over Tailscale: the computer's clock reads 14:21:46.81 above the picture, and in the picture someone holds up an iPad showing 14:21:45.77.">
+      <figcaption>The Tailscale test. This picture reached the computer just after 14:21:46.0 showing 45.77 on the iPad, so it was about 0.25 s on the way. At 1 a second it then stays on screen until the next one, which is why the clocks here are a second apart.</figcaption>
+    </figure>
+    <p class="center fine reveal"><b>The camera's own recording is always full quality.</b> These numbers are only for the preview you watch.</p>
   </div>
 </section>
 
@@ -636,14 +700,14 @@
   <div class="wrap">
     <div class="ios">
       <div class="ios-copy reveal">
-        <p class="eyebrow"><span class="dot"></span>iPhone &amp; iPad · free beta</p>
+        <p class="eyebrow"><span class="dot"></span>iPhone &amp; iPad · coming to TestFlight</p>
         <h2>No computer at all.<br>Just your phone and its hotspot.</h2>
-        <p class="sub"><span class="nm"></span> for iPhone and iPad runs the camera on its own, out where there's no Wi-Fi. It's a free beta on TestFlight, Apple's app for testing, before it comes to the App Store.</p>
+        <p class="sub"><span class="nm"></span> for iPhone and iPad runs the camera on its own, out where there's no Wi-Fi. It isn't out yet: it'll come to TestFlight, Apple's app for testing, first, and to the App Store later.</p>
         <ul class="chips">
-          <li>Live picture</li><li>Tap to focus</li><li>Exposure</li><li>Video</li><li>S&amp;Q</li><li>Photos</li><li>Burst</li><li>Time-lapse</li><li>C1 to C4</li><li>Automatic recording</li><li>Hand it to a computer</li>
+          <li>Live picture</li><li>Tap to focus</li><li>Exposure</li><li>Video</li><li>S&amp;Q</li><li>Photos</li><li>Burst</li><li>Time-lapse</li><li>C1 to C4</li><li>Automatic recording: animal, bird or person</li><li>Joins your computer's camera</li><li>Hand it to a computer</li>
         </ul>
         <div class="cta">
-          <a class="btn btn-primary btn-lg" data-link="testflight" href="#"><svg class="ic"><use href="#i-apple"/></svg><span>Join the free beta</span></a>
+          <a class="btn btn-primary btn-lg" data-link="testflight" href="#"><svg class="ic"><use href="#i-apple"/></svg><span>Coming to TestFlight</span></a>
         </div>
         <p class="fine">iOS and iPadOS 16 or newer. Photos and video stay on the camera's card. It only works while the app is open on screen, so keep the phone plugged in for long sessions. Close the app on your computer first: the camera takes one remote at a time.</p>
       </div>
@@ -675,8 +739,8 @@
       <article class="tile t-wide reveal"><svg class="ic"><use href="#i-camera"/></svg><h3>Shoot photos</h3><p>Single shots, bursts, self-timer, brackets, time-lapses and long exposures, saved to your card, your computer or both.</p></article>
       <article class="tile reveal"><svg class="ic"><use href="#i-sliders"/></svg><h3>Set up the camera</h3><p>Video format, frame rate, Super 35 crop, RAW or JPEG, white balance, audio and more, without a menu.</p></article>
       <article class="tile reveal"><svg class="ic"><use href="#i-cards"/></svg><h3>Use both cards</h3><p>See what's left on each slot, and format a card from the app. It asks first.</p></article>
-      <article class="tile t-wide reveal"><svg class="ic"><use href="#i-globe"/></svg><h3>Run it from anywhere</h3><p>Phone control at home or over Tailscale, and a computer through the iPhone app.</p></article>
-      <article class="tile t-wide reveal"><svg class="ic"><use href="#i-bird"/></svg><h3>Film wildlife</h3><p>Automatic recording starts and stops for animals, birds or people.</p></article>
+      <article class="tile t-wide reveal"><svg class="ic"><use href="#i-globe"/></svg><h3>Run it from anywhere</h3><p>Phone control at home or over Tailscale, a computer through the iPhone's hotspot, or 400 ft of cable. Install Tailscale, log in, and it's automatic.</p></article>
+      <article class="tile t-wide reveal"><svg class="ic"><use href="#i-bird"/></svg><h3>Film wildlife</h3><p>Automatic recording starts and stops for animals, birds or people, and focuses on them. It runs on your computer; no pictures leave it.</p></article>
       <article class="tile reveal"><svg class="ic"><use href="#i-battery"/></svg><h3>Stay informed</h3><p>Battery and card warnings before you run out.</p></article>
       <article class="tile reveal"><svg class="ic"><use href="#i-wifi"/></svg><h3>Stop worrying</h3><p>Reconnects by itself, and the camera keeps recording if Wi-Fi drops.</p></article>
       <article class="tile t-wide reveal"><svg class="ic"><use href="#i-send"/></svg><h3>Get help</h3><p><b>Send log to the developer</b> in Setup, one click, only when you press it.</p></article>
@@ -733,11 +797,11 @@
         <span class="you">Your device</span>
         <svg class="ic plat-ic"><use href="#i-phone"/></svg>
         <h3>iPhone &amp; iPad</h3>
-        <p class="req">iOS 16 or newer · free beta</p>
+        <p class="req">iOS 16 or newer · not out yet</p>
         <a class="btn btn-primary" data-link="testflight" href="#"><svg class="ic"><use href="#i-apple"/></svg>Join on TestFlight</a>
         <details>
           <summary>What's TestFlight?</summary>
-          <p>Apple's free app for trying apps before they reach the App Store. Install TestFlight, open the invite link, and tap <b>Install</b>. The App Store version comes later.</p>
+          <p>Apple's free app for trying apps before they reach the App Store. The iPhone app goes there first: once it's ready, install TestFlight, open the invite link and tap <b>Install</b>.</p>
         </details>
       </article>
     </div>
@@ -873,21 +937,23 @@
       <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-user-off"/></svg><h3>No account</h3><p>Nothing to sign up for. Open it and connect.</p></div>
       <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-shield"/></svg><h3>No tracking</h3><p>No analytics in the app, and none on this page either: no cookies, nothing loaded from anyone else.</p></div>
       <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-key"/></svg><h3>Your password stays put</h3><p>In Windows Credential Manager or your Mac's Keychain.</p></div>
+      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-send"/></svg><h3>Help when you ask</h3><p><b>Send log</b> in Setup sends what went wrong, only when you press it. No passwords, photos or video.</p></div>
       <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-cpu"/></svg><h3>Detection runs locally</h3><p>The animal detector runs on your own computer or phone.</p></div>
-      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-code"/></svg><h3>Open source</h3><p>Read every line on <a data-link="github" href="#">GitHub</a>, and build it yourself if you like.</p></div>
+      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-code"/></svg><h3>Open source</h3><p>MIT licensed. Read every line on <a data-link="github" href="#">GitHub</a>, and build it yourself if you like.</p></div>
     </div>
 
     <details class="specs reveal">
       <summary>Specifications</summary>
       <dl>
         <dt>Computer</dt><dd>Windows 11 x64, or macOS 14.1 or newer on Apple or Intel. Windows on ARM and Linux aren't supported.</dd>
-        <dt>iPhone and iPad</dt><dd>iOS and iPadOS 16 or newer. Free beta on TestFlight.</dd>
+        <dt>iPhone and iPad</dt><dd>iOS and iPadOS 16 or newer. Coming to TestFlight first.</dd>
         <dt>Connection</dt><dd>Wi-Fi on the same network as the camera, with an optional HDMI capture card for the picture.</dd>
-        <dt>Wi-Fi live view</dt><dd>1024×576 at around 20 frames a second on the A7S III.</dd>
+        <dt>Live view</dt><dd>1024×576 on the A7S III. About 0.20 s and 8 pictures a second on the same Wi-Fi; about 0.25 s a picture over a phone hotspot and Tailscale, 1 a second by default.</dd>
         <dt>Photos to your computer</dt><dd>Full size, or a small JPEG. A full-size RAW took 4 to 12 seconds on the A7S III in our tests, depending on your network.</dd>
         <dt>Time-lapse</dt><dd>One photo every 1 to 60 seconds, up to 9,999 photos, using the camera's own interval shooting.</dd>
         <dt>Animal detection</dt><dd>Runs on your computer once a second. It knows birds, common mammals and people.</dd>
         <dt>Phone control</dt><dd>A web page on your phone, over your home network or Tailscale, protected by an access code.</dd>
+        <dt>Remote access</dt><dd>Tailscale, signed in to the same account on each device. Only Tailscale and local network addresses are answered.</dd>
         <dt>Built on</dt><dd>Sony's Camera Remote SDK v2.02.00 on Windows and Mac.</dd>
         <dt>Price</dt><dd>Free. MIT licence.</dd>
       </dl>
@@ -896,9 +962,9 @@
     <div class="honest reveal">
       <h3>Good to know</h3>
       <ul>
-        <li><b>Only tested on the A7S III.</b> The A9 II is confirmed by a user. The other cameras on the list should work, but nobody has tried them yet.</li>
+        <li><b>Tested on the A7S III.</b> An A9 II user has confirmed it works too. The other cameras on the list should work, but nobody has tried them yet.</li>
         <li><b>Warranty:</b> Sony's terms say a camera controlled through an app like this is no longer covered by its manufacturer warranty.</li>
-        <li><b><span class="nm"></span> isn't made by, endorsed by or supported by Sony.</b></li>
+        <li><b><span class="nm"></span> isn't made by, endorsed by or supported by Sony.</b> It uses Sony's Camera Remote SDK.</li>
       </ul>
     </div>
   </div>
