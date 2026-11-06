@@ -575,7 +575,7 @@
     </div>
     <!-- PLACEHOLDER: set youtubeId in config.js. Nothing loads from YouTube until someone presses play. -->
     <div class="video reveal" id="video">
-      <img class="video-poster" src="assets/liveview.jpg" alt="" loading="lazy">
+      <img class="video-poster" src="assets/video-poster.jpg" alt="" loading="lazy">
       <div class="video-shade"></div>
       <div class="video-hud" aria-hidden="true">
         <span class="mono">next to it</span><span class="mono">in the house</span><span class="mono">across town</span><span class="mono">not even there</span>
@@ -616,6 +616,17 @@
         <h3 id="jTitle"></h3>
         <p id="jText"></p>
       </div>
+    </div>
+
+    <div class="where-pics">
+      <figure class="shot reveal">
+        <img src="assets/cable-deck.jpg" width="1600" height="900" loading="lazy" alt="The A7S III on a tripod on a deck above an autumn valley, its screen showing the red chairs in front of it.">
+        <figcaption><b>400 ft away.</b> The camera on the deck at the house, run from a computer at the end of the cable.</figcaption>
+      </figure>
+      <figure class="shot reveal">
+        <img src="assets/tailscale-woods.jpg" width="1600" height="850" loading="lazy" alt="The app on a computer showing a forest from the camera, with Automatic recording on, watching for animals, and Focus on it ticked.">
+        <figcaption><b>From anywhere.</b> The camera in the woods on the iPhone's hotspot, run from a computer over Tailscale and watching for animals.</figcaption>
+      </figure>
     </div>
 
     <div class="duo">
@@ -701,10 +712,19 @@
         <p class="fine">iOS and iPadOS 16 or newer. Photos and video stay on the camera's card. It only works while the app is open on screen, so keep the phone plugged in for long sessions. Close the app on your computer first: the camera takes one remote at a time.</p>
       </div>
 
-      <div class="devices reveal" role="group" aria-label="iPhone screenshots">
-        <figure class="iphone ip-l"><div class="dev-screen"><img src="assets/iphone-timelapse.jpg" width="440" height="908" loading="lazy" alt="The iPhone's time-lapse planner: two hours of real time at one photo every 5 seconds makes a one-minute clip at 24 fps, 120 times faster."></div><i class="island"></i></figure>
-        <figure class="iphone ip-r"><div class="dev-screen"><img src="assets/iphone-computer.jpg" width="440" height="908" loading="lazy" alt="Computer control on: the iPhone app showing the live picture at 120p while a computer runs the camera through the phone."></div><i class="island"></i></figure>
-        <figure class="iphone ip-c"><div class="dev-screen"><img src="assets/iphone-rec.jpg" width="440" height="908" loading="lazy" alt="The iPhone app recording 60p at a bird feeder, with shutter, iris and ISO, the Record button, automatic recording and the C1 to C4 setups below."></div><i class="island"></i></figure>
+      <div class="ios-photos reveal">
+        <figure class="ios-main">
+          <img src="assets/phone-and-camera.jpg" width="1600" height="900" loading="lazy" alt="An iPhone held up next to the A7S III on a tripod in the woods: the app shows the same forest as the camera's own screen, with Connected to A7S III at the bottom.">
+          <figcaption>The phone and the camera's own screen, side by side in the woods.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/phone-woods.jpg" width="1000" height="750" loading="lazy" alt="The iPhone app recording, with a green box around the person it has seen. The camera stands on its tripod behind the phone.">
+          <figcaption>Person seen, so it's recording.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/ipad-woods.jpg" width="1000" height="750" loading="lazy" alt="An iPad held over the ferns, recording the forest through the app, with a red outline around the picture.">
+          <figcaption>The same app on an iPad.</figcaption>
+        </figure>
       </div>
     </div>
   </div>

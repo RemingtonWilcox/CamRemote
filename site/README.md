@@ -9,7 +9,7 @@ A single static page: plain HTML, CSS and JavaScript, with no build step and not
 | `styles.css` | Look and layout, light and dark |
 | `app.js` | The interactive parts |
 | `theme.js` | Picks light or dark before the page draws |
-| `assets/` | Pictures. `liveview.jpg` is the egret frame the live-view demo works on; the `.mp4` clips play muted on a loop while they're on screen |
+| `assets/` | Pictures. `focus-jay.jpg` and its depth map drive the focus demo; the `.mp4` clips play muted on a loop while they're on screen |
 
 ## Change something
 
