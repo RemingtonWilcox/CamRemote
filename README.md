@@ -13,6 +13,8 @@ all in one clean window on your computer, with no cables.
 <a href="https://github.com/RemingtonWilcox/RemoteCam/releases/latest/download/CamRemote-Windows-Setup.exe"><img src="https://img.shields.io/badge/Download_for_Windows-0078D4?style=for-the-badge" alt="Download for Windows" height="44" /></a>
 &nbsp;
 <a href="https://github.com/RemingtonWilcox/RemoteCam/releases/latest/download/CamRemote-Mac-AppleSilicon.dmg"><img src="https://img.shields.io/badge/Download_for_Mac-555555?style=for-the-badge" alt="Download for Mac" height="44" /></a>
+&nbsp;
+<a href="https://testflight.apple.com/join/ck3rFy8f"><img src="https://img.shields.io/badge/iPhone_and_iPad_(beta)-1C1C1E?style=for-the-badge" alt="Get the iPhone and iPad beta on TestFlight" height="44" /></a>
 
 <sub>Free and open source. No account, no subscription, no tracking. Formerly CamRemote. <a href="https://github.com/RemingtonWilcox/RemoteCam/releases/latest/download/CamRemote-Mac-Intel.dmg">Older Intel Mac? Use this one.</a></sub><br>
 <sub>Tested on the Sony A7S III. <a href="#which-cameras-work">Which cameras work?</a></sub>
@@ -101,7 +103,7 @@ Tick **Allow phone control** in **Setup** and open the address it shows on your 
 
 ### From a computer, through your iPhone
 
-No Wi-Fi where the camera is? Put it on your iPhone's hotspot, open the RemoteCam iPhone app, and run it from a computer somewhere else over Tailscale. This comes with the [iPhone app](#coming-soon-remotecam-for-iphone), which isn't out yet.
+No Wi-Fi where the camera is? Put it on your iPhone's hotspot, open the RemoteCam iPhone app, and run it from a computer somewhere else over Tailscale. This comes with the [iPhone app](#remotecam-for-iphone-and-ipad-beta), now in beta on TestFlight.
 
 </td>
 </tr>
@@ -151,15 +153,15 @@ Here it has spotted the egret, started recording, put a green box around it and 
 
 <br>
 
-## Coming soon: RemoteCam for iPhone
+## RemoteCam for iPhone and iPad (beta)
 
-Run the camera with no computer at all, just your phone and its hotspot. The iPhone app has the live picture, tap to focus, exposure, video, S&Q, photos, burst, time-lapse, C1 to C4 saved setups and automatic recording for animals, birds or people, and it can hand the camera to a computer anywhere over Tailscale.
+Run the camera with no computer at all, just your phone and its hotspot. The app runs on iPhone and iPad and has the live picture, tap to focus, exposure, video, S&Q, photos, burst, time-lapse, C1 to C4 saved setups and automatic recording for animals, birds or people, and it can hand the camera to a computer anywhere over Tailscale.
 
 <p align="center">
 <img src="docs/iphone.jpg" alt="RemoteCam for iPhone three ways: recording 60p at a bird feeder with the C1 to C4 setups below, the time-lapse planner set to two hours at one photo every 5 seconds for a one-minute clip, and Computer control on while a computer runs the camera at 120p" width="860" />
 </p>
 
-**You can't download it yet.** It's still being tested, and it'll come to TestFlight, Apple's beta testing app, first. [More about it](#on-your-iphone).
+**[Get the beta on TestFlight](https://testflight.apple.com/join/ck3rFy8f)** for iPhone and iPad (iOS 16 or newer). Open the link on the phone or iPad: it sends you to Apple's free TestFlight app first, then installs RemoteCam. It's a beta, so tell us what breaks. [More about it](#on-your-iphone-or-ipad).
 
 <br>
 
@@ -177,7 +179,7 @@ Run the camera with no computer at all, just your phone and its hotspot. The iPh
 | **Save your setups** | **C1** to **C4**, four for video and four for photos, each back with one click |
 | **Set up the camera** | Video format, frame rate, Super 35 crop, RAW or JPEG, white balance, audio and more, without touching a menu |
 | **Use both cards** | See what's left on each slot, and format a card from the app. It asks first |
-| **Run it from anywhere** | Phone control at home or over Tailscale, and soon from a computer through the iPhone app |
+| **Run it from anywhere** | Phone control at home or over Tailscale, and from a computer or iPad through the iPhone app |
 | **Film wildlife** | **Automatic recording** starts and stops for animals, birds or people |
 | **Stay informed** | Battery and card warnings before you run out |
 | **Stop worrying** | Reconnects by itself, and the camera keeps recording if Wi-Fi drops |
@@ -293,7 +295,7 @@ If your computer asks about network access, say yes:
 
 <br>
 
-## On your iPhone
+## On your iPhone or iPad
 
 There's also an iPhone app that runs the camera with no computer at all, just your phone's hotspot. It has the live picture, tap to focus, exposure, video, S&Q, photos, burst, time-lapse and C1 to C4 saved setups. Photos and video stay on the camera's card.
 
@@ -307,7 +309,7 @@ It can also record when something shows up, with the same rules as on a computer
 - **It uses mobile data.** The computer gets a smaller picture than the phone shows: 640 pixels wide, and 1, 3 or 8 pictures a second, which you pick in Setup. That's about 100, 280 or 750 MB an hour while a computer is watching, and nothing while none is. Setup shows how much it has really sent.
 - **Remove** next to a device in Setup makes it ask again. The browser's code stays hidden until you tap **Show code**, and **New code** signs out every browser that used the old one. Only Tailscale and local network addresses are answered.
 
-**You can't download it yet.** It's still being tested, and it'll come to TestFlight, Apple's beta testing app, first. If you have a Mac and a paid Apple developer account, you can [build it yourself](#build-the-iphone-app).
+**[Get the beta on TestFlight](https://testflight.apple.com/join/ck3rFy8f)** for iPhone and iPad (iOS 16 or newer). Open the link on the device: it sends you to Apple's free TestFlight app first, then installs RemoteCam. If you have a Mac and a paid Apple developer account, you can [build it yourself](#build-the-iphone-app).
 
 <br>
 
