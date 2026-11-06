@@ -76,7 +76,7 @@ Three tabs, nothing hidden in menus. **Video** and **Photo** switch the camera f
 
 The histogram and meter float over the corner of the picture: drag them anywhere, drag the corner to resize, and click for zebra and peaking levels. Settings your camera doesn't have are left out, so you only see what works. The window opens at the picture's shape, with no black bars, and comes back where you left it.
 
-The live picture runs at around 20 frames a second over Wi-Fi on the A7S III. If the Wi-Fi drops, the camera keeps recording and the app reconnects by itself.
+The live picture runs at around 8 frames a second over Wi-Fi on the A7S III, about 0.2 s behind the camera. If the Wi-Fi drops, the camera keeps recording and the app reconnects by itself.
 
 <p align="center">
 <img src="docs/tabs.png" alt="RemoteCam's three tabs side by side: Video with the Record button and four saved setups, Photo with Take photo and the Drive choices, and Setup with saving, photo and focus settings" width="760" />
@@ -424,7 +424,7 @@ That's normal after resetting the camera or changing its Access Authen. settings
 |---|---|
 | **Computer** | Windows 11 x64, or macOS 14.1 or newer on Apple or Intel. Windows on ARM and Linux aren't supported |
 | **Connection** | Wi-Fi on the same network as the camera, with an optional HDMI capture card for the picture |
-| **Wi-Fi live view** | 1024×576 at around 20 frames a second on the A7S III |
+| **Wi-Fi live view** | 1024×576 at around 8 frames a second on the A7S III |
 | **Photos to your computer** | Full size, or a small JPEG. A full-size RAW took 4 to 12 seconds on the A7S III in our tests, depending on your network |
 | **Time-lapse** | One photo every 1 to 60 seconds, up to 9,999 photos, using the camera's own interval shooting |
 | **Animal detection** | Runs on your computer once a second. It knows birds, common mammals and people, and no pictures leave your computer |
