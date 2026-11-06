@@ -41,4 +41,4 @@ npx wrangler deploy
 
 ## Privacy
 
-No cookies, analytics or fonts from elsewhere, and a Content-Security-Policy in `index.html` that blocks anything else. The only outside request is the YouTube video, from `youtube-nocookie.com`, and only after someone presses play. Light/dark is remembered in the browser only if the visitor presses the button.
+No cookies, analytics or fonts from elsewhere, and a Content-Security-Policy in `index.html` that blocks anything else. The only outside request is the YouTube video, from `youtube.com`, and only after someone presses play. Light/dark is remembered in the browser only if the visitor presses the button.

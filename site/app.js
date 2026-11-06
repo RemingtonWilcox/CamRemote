@@ -146,7 +146,12 @@
 
   /* ---------- Video: loads from YouTube only after a click ---------- */
   const video = $('#video');
-  if (S.youtubeId) { $('#watch').hidden = false; $('#heroWatch').hidden = false; }
+  if (S.youtubeId) {
+    $('#watch').hidden = false; $('#heroWatch').hidden = false;
+    // A plain link too: some connections get YouTube's "confirm you're not a bot" inside embeds.
+    const yt = $('#watchOnYouTube');
+    if (yt) { yt.href = `https://www.youtube.com/watch?v=${encodeURIComponent(S.youtubeId)}`; yt.hidden = false; }
+  }
   $('#playBtn').addEventListener('click', () => {
     if (!S.youtubeId) {
       const note = $('#videoNote');
@@ -156,7 +161,7 @@
       return;
     }
     const f = document.createElement('iframe');
-    f.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(S.youtubeId)}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
+    f.src = `https://www.youtube.com/embed/${encodeURIComponent(S.youtubeId)}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
     f.title = S.videoTitle || 'Video';
     f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
     f.allowFullscreen = true;

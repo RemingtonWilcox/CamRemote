@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <!-- This page loads nothing from anyone else until you press play on the video. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-src https://www.youtube-nocookie.com; connect-src 'none'; form-action 'none'; base-uri 'self'; object-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'none'; form-action 'none'; base-uri 'self'; object-src 'none'">
   <meta name="referrer" content="strict-origin-when-cross-origin">
 
   <!-- APP NAME: also set in config.js. Change both if the name changes. -->
@@ -488,6 +488,7 @@
       </button>
       <p class="video-note" id="videoNote"></p>
     </div>
+    <p class="video-alt"><a id="watchOnYouTube" href="https://www.youtube.com/@remwilcox" target="_blank" rel="noopener" hidden>Won't play here? Watch it on YouTube ↗</a></p>
   </div>
 </section>
 

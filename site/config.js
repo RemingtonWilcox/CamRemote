@@ -27,7 +27,7 @@ window.SITE = {
   },
 
   // The launch video's YouTube ID (https://youtu.be/ChdXwOyK7DU). It only
-  // loads, from youtube-nocookie.com, after someone clicks play.
+  // loads, from youtube.com, after someone clicks play.
   youtubeId: 'ChdXwOyK7DU',
   videoTitle: 'I built a free app that runs my Sony camera from anywhere',
 
