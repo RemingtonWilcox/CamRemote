@@ -115,6 +115,12 @@
   <div class="hero-glow" aria-hidden="true"></div>
   <div class="hero-grid" aria-hidden="true"></div>
   <div class="wrap hero-copy">
+    <div class="osd" aria-hidden="true">
+      <span class="tl"><b>Movie M</b> 4K 24p · XAVC HS</span>
+      <span class="tr">Card 1 56m <i class="batt"></i> 22%</span>
+      <span class="bl">1/50 <b>F2.8</b> ISO 640</span>
+      <span class="br">AF-C · <b>Animal</b></span>
+    </div>
     <a class="pill reveal" href="#iphone">
       <span class="pill-dot"></span>
       <span>Version <span data-version></span> is out<span class="hide-sm"> · iPhone app coming to TestFlight</span></span>
@@ -157,29 +163,6 @@
       <li><svg class="ic"><use href="#i-laptop"/></svg><span><b>iPad</b>coming to TestFlight</span></li>
       <li><svg class="ic"><use href="#i-camera"/></svg><span><b>Sony cameras</b>over Wi-Fi</span></li>
     </ul>
-  </div>
-</section>
-
-<!-- ============================== VIDEO ============================== -->
-<section class="section" id="watch">
-  <div class="wrap">
-    <div class="head center reveal">
-      <p class="eyebrow"><span class="dot dot-rec"></span>Watch</p>
-      <h2 data-video-title>How far away can I run my camera?</h2>
-      <p class="sub">From 20 metres to across town, then not even there. One question, one camera at the feeder.</p>
-    </div>
-    <!-- PLACEHOLDER: set youtubeId in config.js. Nothing loads from YouTube until someone presses play. -->
-    <div class="video reveal" id="video">
-      <img class="video-poster" src="assets/liveview.jpg" alt="" loading="lazy">
-      <div class="video-shade"></div>
-      <div class="video-hud" aria-hidden="true">
-        <span class="mono">20 m</span><span class="mono">porch</span><span class="mono">inside</span><span class="mono">across town</span><span class="mono">not even there</span>
-      </div>
-      <button class="play" id="playBtn" type="button" aria-label="Play the video">
-        <svg class="ic"><use href="#i-play"/></svg>
-      </button>
-      <p class="video-note" id="videoNote"></p>
-    </div>
   </div>
 </section>
 
@@ -597,12 +580,35 @@
   </div>
 </section>
 
+<!-- ============================== VIDEO ============================== -->
+<section class="section" id="watch">
+  <div class="wrap">
+    <div class="head center reveal">
+      <p class="eyebrow"><span class="dot dot-rec"></span>Watch</p>
+      <h2 data-video-title>How far away can I run my camera?</h2>
+      <p class="sub">From 20 metres to across town, then not even there. One question, one camera at the feeder.</p>
+    </div>
+    <!-- PLACEHOLDER: set youtubeId in config.js. Nothing loads from YouTube until someone presses play. -->
+    <div class="video reveal" id="video">
+      <img class="video-poster" src="assets/liveview.jpg" alt="" loading="lazy">
+      <div class="video-shade"></div>
+      <div class="video-hud" aria-hidden="true">
+        <span class="mono">20 m</span><span class="mono">porch</span><span class="mono">inside</span><span class="mono">across town</span><span class="mono">not even there</span>
+      </div>
+      <button class="play" id="playBtn" type="button" aria-label="Play the video">
+        <svg class="ic"><use href="#i-play"/></svg>
+      </button>
+      <p class="video-note" id="videoNote"></p>
+    </div>
+  </div>
+</section>
+
 <!-- ============================== ANYWHERE ============================== -->
 <section class="section section-dark" id="anywhere">
   <div class="wrap">
     <div class="head center reveal">
       <p class="eyebrow"><span class="dot"></span>Run it from anywhere</p>
-      <h2>How far away can you run your camera?</h2>
+      <h2>Hide the camera. Walk away. Keep shooting.</h2>
       <p class="sub">Hide the camera by a feeder, up a tree or across the yard. Then keep walking.</p>
     </div>
 
