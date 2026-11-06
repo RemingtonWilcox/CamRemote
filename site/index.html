@@ -138,7 +138,7 @@
         <svg class="ic"><use href="#i-down"/></svg><span>Download free</span>
       </a>
       <a class="btn btn-ghost btn-lg" data-dl="secondary" href="#download"><span>All downloads</span></a>
-      <a class="btn btn-text btn-lg" href="#watch"><svg class="ic"><use href="#i-play"/></svg><span>Watch the video</span></a>
+      <a class="btn btn-text btn-lg" href="#watch" id="heroWatch" hidden><svg class="ic"><use href="#i-play"/></svg><span>Watch the video</span></a>
     </div>
     <p class="fine reveal" id="heroFine">Free and open source. No account, no subscription, no tracking. Tested on the A7S III.</p>
   </div>
@@ -204,25 +204,6 @@
       <div class="card flat reveal"><svg class="ic"><use href="#i-bird"/></svg><p><b>Knows birds, common mammals and people.</b> Something it doesn't know, like a squirrel, may not set it off.</p></div>
       <div class="card flat reveal"><svg class="ic"><use href="#i-shield"/></svg><p><b>Learns to ignore</b> a spot that keeps setting it off, like splashing water, for 10 minutes.</p></div>
     </div>
-
-    <!-- The detector: how the model was picked -->
-    <div class="detect reveal" id="detector">
-      <div class="det-copy">
-        <h3>Picking the model that spots them</h3>
-        <p>Every candidate looked at the same 486 frames with an animal in them and 763 without. RemoteCam uses the one that finds the most without false alarms and still runs on an ordinary computer.</p>
-        <ul class="det-bars">
-          <li><span class="det-name">Nano<small>earlier versions</small></span><span class="det-bar"><i style="--v:.358"></i></span><b>174</b><em class="bad">96 false</em></li>
-          <li><span class="det-name">Small</span><span class="det-bar"><i style="--v:.463"></i></span><b>225</b><em>2 false</em></li>
-          <li class="det-now"><span class="det-name">Small + a closer look<small>in RemoteCam now</small></span><span class="det-bar"><i style="--v:.611"></i></span><b>297</b><em>2 false</em></li>
-          <li class="det-lab"><span class="det-name">XLarge on a graphics card<small>an experiment</small></span><span class="det-bar"><i style="--v:.949"></i></span><b>461</b><em>0 false</em></li>
-        </ul>
-        <p class="fine">Animals found out of 486, and false alarms out of 763 empty frames. All RF-DETR models. The closer look checks a crop around the last sighting again.</p>
-      </div>
-      <figure class="det-vid">
-        <video class="loop" src="assets/detector-gopro.mp4" poster="assets/detector-gopro.jpg" width="1280" height="720" muted loop playsinline preload="none" aria-label="A GoPro view inside a feeder: a Steller's jay eats seeds with a green box labelled Steller's jay 100%."></video>
-        <figcaption>The experiment, on Nov 5: XLarge on a graphics card, watching a GoPro inside the feeder. It names the species too. It isn't in RemoteCam yet.</figcaption>
-      </figure>
-    </div>
   </div>
 </section>
 
@@ -230,27 +211,9 @@
 <section class="section" id="features">
   <div class="wrap">
     <div class="head reveal">
-      <p class="eyebrow"><span class="dot"></span>Your whole camera, in one window</p>
-      <h2>Every control, a click away.</h2>
-      <p class="sub">The picture stays big, with the camera's controls beside it.</p>
-    </div>
-
-    <div class="trio">
-      <article class="card reveal">
-        <svg class="ic ic-lg"><use href="#i-eye"/></svg>
-        <h3>See it</h3>
-        <p>The live picture over Wi-Fi, or full quality through an HDMI capture card. Histogram, zebras, peaking, a grid and the camera's own meter, one click each.</p>
-      </article>
-      <article class="card reveal">
-        <svg class="ic ic-lg"><use href="#i-focus"/></svg>
-        <h3>Focus it</h3>
-        <p>Click the picture to focus or track. Drag the focus ring, jump along the focus bar, or magnify to check what's sharp.</p>
-      </article>
-      <article class="card reveal">
-        <svg class="ic ic-lg"><use href="#i-camera"/></svg>
-        <h3>Shoot it</h3>
-        <p>Video, photos, bursts, brackets, S&amp;Q slow motion, time-lapse and long exposures. Save to the card, your computer, or both.</p>
-      </article>
+      <p class="eyebrow"><span class="dot"></span>One window</p>
+      <h2>The whole camera, on your screen.</h2>
+      <p class="sub">A big live picture, with exposure, focus and Record beside it. Try it below.</p>
     </div>
 
     <!-- The live-view lab: a working model of the window's picture tools -->
@@ -382,58 +345,13 @@
   </div>
 </section>
 
-<!-- ============================== TABS ============================== -->
-<section class="section section-alt" id="tabs">
-  <div class="wrap">
-    <div class="head reveal">
-      <p class="eyebrow"><span class="dot"></span>Clean, and quick</p>
-      <h2>Three tabs. Nothing hidden in menus.</h2>
-      <p class="sub"><b>Video</b> and <b>Photo</b> switch the camera for you and keep what you change while shooting right in front of you. Anything you only set once lives in <b>Setup</b>, out of the way.</p>
-    </div>
-    <div class="tabs-show reveal" id="tabsShow">
-      <div class="seg seg-big" role="tablist" aria-label="Tabs in the app">
-        <button type="button" role="tab" data-tab="0" aria-selected="true">Video</button>
-        <button type="button" role="tab" data-tab="1" aria-selected="false">Photo</button>
-        <button type="button" role="tab" data-tab="2" aria-selected="false">Setup</button>
-      </div>
-      <div class="tabs-stage">
-        <div class="tabs-img" data-active="0">
-          <img src="assets/tabs.png" width="1071" height="875" loading="lazy" alt="The app's three tabs side by side: Video with the Record button and four saved setups, Photo with Take photo and the Drive choices, and Setup with saving, photo and focus settings.">
-          <button type="button" class="tabs-col" data-tab="0" aria-label="Video tab"></button>
-          <button type="button" class="tabs-col" data-tab="1" aria-label="Photo tab"></button>
-          <button type="button" class="tabs-col" data-tab="2" aria-label="Setup tab"></button>
-        </div>
-        <div class="tabs-copy" aria-live="polite">
-          <div class="tab-text" data-tab="0">
-            <h3>Video</h3>
-            <p>One big Record button, with a red outline around the picture while rolling. Automatic recording, your four video setups, exposure, Base ISO and focus, all on one page.</p>
-          </div>
-          <div class="tab-text" data-tab="1" hidden>
-            <h3>Photo</h3>
-            <p>Take photo, Time-lapse or Long exposure. Pick Single, Burst, Timer or Bracket under Drive, then only the choices for that one. Four more setups, just for photos.</p>
-          </div>
-          <div class="tab-text" data-tab="2" hidden>
-            <h3>Setup</h3>
-            <p>Where photos are saved, file format, video format and frame rate, Super 35, white balance, audio and more, without touching a camera menu. Settings your camera doesn't have are left out.</p>
-          </div>
-          <ul class="mini-list">
-            <li>The histogram and meter float over the picture: drag them anywhere.</li>
-            <li>The window opens at the picture's shape, with no black bars.</li>
-            <li>If the Wi-Fi drops, the camera keeps recording and the app reconnects by itself.</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- ============================== PRESETS + S&Q ============================== -->
 <section class="section" id="presets">
   <div class="wrap">
     <div class="head reveal">
-      <p class="eyebrow"><span class="dot dot-ok"></span>Your setups, one click away</p>
-      <h2>C1 to C4. Click, and the camera is set.</h2>
-      <p class="sub">Each saves how the camera is set right now: mode, exposure, focus, and for video the file format and frame rate. Video and Photo each have their own four.</p>
+      <p class="eyebrow"><span class="dot dot-ok"></span>Saved setups</p>
+      <h2>Switch from 24p to 120p in one click.</h2>
+      <p class="sub">Save four setups for video and four for photos: frame rate, file format, exposure and focus. Click one and the camera changes to match.</p>
     </div>
 
     <div class="presets-grid">
@@ -452,7 +370,7 @@
 
       <div class="sq reveal" id="sq">
         <p class="eyebrow"><span class="dot"></span>S&amp;Q slow motion</p>
-        <h3>Ten times slower, in one click.</h3>
+        <h3>Slow motion on a button.</h3>
         <p>Pick how fast the camera shoots and how fast it plays back. Save it to C4 and slow motion is right there.</p>
         <div class="sq-controls">
           <div>
@@ -479,14 +397,6 @@
         <p class="fine">Up to 240fps in HD on the A7S III. The fastest rates need an HD file format.</p>
       </div>
     </div>
-
-    <div class="baseiso reveal">
-      <div>
-        <p class="eyebrow"><span class="dot"></span>Base ISO</p>
-        <h3>The A7S III's two native ISOs, one click each.</h3>
-      </div>
-      <p><b>640</b> and <b>12800</b> in S-Log3. 12800 is the cleanest choice in low light. The buttons only appear on the A7S III; other cameras use the ISO control.</p>
-    </div>
   </div>
 </section>
 
@@ -494,8 +404,8 @@
 <section class="section section-alt" id="photo">
   <div class="wrap">
     <div class="head reveal">
-      <p class="eyebrow"><span class="dot"></span>Photos, time-lapse and long exposures</p>
-      <h2>Three ways to shoot, one tab.</h2>
+      <p class="eyebrow"><span class="dot"></span>Photo tab</p>
+      <h2>Photos, time-lapses and long exposures.</h2>
     </div>
     <div class="photo-show reveal" id="photoShow">
       <div class="seg seg-big" role="tablist" aria-label="Photo modes">
@@ -506,7 +416,7 @@
       <div class="photo-panes">
           <div class="pane" data-mode="0">
             <h3>Photo</h3>
-            <p>Pick a drive, then just the choices for that one.</p>
+            <p>Pick Single, Burst, Timer or Bracket. Only that mode's settings show.</p>
             <div class="seg" data-group="drive">
               <button type="button" data-v="single">Single</button><button type="button" data-v="burst">Burst</button><button type="button" data-v="timer">Timer</button><button type="button" data-v="bracket" class="on">Bracket</button>
             </div>
@@ -566,7 +476,7 @@
 </section>
 
 <!-- ============================== VIDEO ============================== -->
-<section class="section" id="watch">
+<section class="section" id="watch" hidden>
   <div class="wrap">
     <div class="head center reveal">
       <p class="eyebrow"><span class="dot dot-rec"></span>Watch</p>
@@ -593,8 +503,8 @@
   <div class="wrap">
     <div class="head center reveal">
       <p class="eyebrow"><span class="dot"></span>Run it from anywhere</p>
-      <h2>Hide the camera. Walk away. Keep shooting.</h2>
-      <p class="sub">By a feeder, up a tree or across the yard. Pick how far away you'll be.</p>
+      <h2>Leave the camera out there.<br>Run it from the house, or from town.</h2>
+      <p class="sub">Pick how far away you'll be.</p>
     </div>
 
     <div class="journey reveal" id="journey">
@@ -618,24 +528,25 @@
       </div>
     </div>
 
-    <div class="duo">
+    <div class="speeds-mini reveal" aria-label="How quick the picture is">
+      <div><p class="speed-where"><svg class="ic"><use href="#i-wifi"/></svg>Same Wi-Fi</p><b class="speed-num">0.20<small>s</small></b><p>about 8 pictures a second</p></div>
+      <div><p class="speed-where"><svg class="ic"><use href="#i-desktop"/></svg>400 ft of Ethernet</p><b class="speed-num"><small>≈</small>0.33<small>s</small></b><p>about 9 pictures a second</p></div>
+      <div><p class="speed-where"><svg class="ic"><use href="#i-globe"/></svg>iPhone hotspot + Tailscale</p><b class="speed-num"><small>≈</small>0.25<small>s</small></b><p>a smaller picture, 1 to 8 a second</p></div>
+    </div>
+    <p class="center fine reveal">How long the live picture takes to arrive, timed with a clock in the shot. The camera always records at full quality.</p>
+
+    <div class="duo duo-3">
       <article class="card glass reveal">
         <svg class="ic ic-lg"><use href="#i-globe"/></svg>
         <h3>From anywhere, with Tailscale</h3>
         <p>Put the camera on your iPhone's hotspot and run it from a computer anywhere. <b>Download <a href="https://tailscale.com" rel="noopener">Tailscale</a> on each device, log in with the same account, and it's automatic.</b> Your devices find each other, with nothing to type.</p>
-        <p class="fine">Over mobile data the computer gets a smaller picture, once a second by default: about 100 MB an hour while it watches. Pick 3 or 8 a second on the phone for a smoother one (about 280 or 750 MB an hour). The iPhone app has to stay open on screen.</p>
+        <p class="fine">Over mobile data the computer gets a 640-pixel picture once a second, about 100 MB an hour. Pick 3 or 8 a second on the phone for a smoother one. The iPhone app has to stay open.</p>
       </article>
       <article class="card glass reveal">
         <svg class="ic ic-lg"><use href="#i-phone"/></svg>
         <h3>Your iPhone joins the computer's camera</h3>
-        <p>When <span class="nm"></span> on your computer is running the camera, the iPhone and iPad find it and show the camera through it, with nothing to type. Using the computer's camera means using its automatic recording too.</p>
+        <p>When <span class="nm"></span> on your computer is running the camera, the iPhone and iPad find it and join in, with nothing to type.</p>
         <p class="fine">Or turn it round: in the iPhone app, turn on <b>Let my other devices join</b>, and an iPad or a computer runs the camera through the phone.</p>
-      </article>
-      <article class="card glass reveal">
-        <svg class="ic ic-lg"><use href="#i-desktop"/></svg>
-        <h3>400 ft away, on a cable</h3>
-        <p>Camera at the house on its Wi-Fi, computer 400 ft away at the end of a long Ethernet cable. The picture still arrives in about a third of a second, about 9 times a second.</p>
-        <p class="fine">Anything on the same network works: Wi-Fi, a cable, or both.</p>
       </article>
       <article class="card glass reveal">
         <svg class="ic ic-lg"><use href="#i-laptop"/></svg>
@@ -645,42 +556,6 @@
       </article>
     </div>
     <p class="rule reveal"><b>Two rules behind it all:</b> the camera is on one network at a time, and one device runs it while the others join in.</p>
-  </div>
-</section>
-
-<!-- ============================== SPEED ============================== -->
-<section class="section" id="speed">
-  <div class="wrap">
-    <div class="head center reveal">
-      <p class="eyebrow"><span class="dot dot-ok"></span>How fast is the picture?</p>
-      <h2>Measured with a clock, not a guess.</h2>
-      <p class="sub">An iPad shows the computer's clock. The camera films it, and the computer shows both. The gap between them is how long the picture took.</p>
-    </div>
-    <div class="speeds">
-      <article class="speed reveal">
-        <p class="speed-where"><svg class="ic"><use href="#i-wifi"/></svg>Same Wi-Fi</p>
-        <b class="speed-num">0.20<small>s</small></b>
-        <p>about 8 pictures a second</p>
-        <p class="fine">Camera and computer on the same router. Median of 24 readings.</p>
-      </article>
-      <article class="speed reveal">
-        <p class="speed-where"><svg class="ic"><use href="#i-desktop"/></svg>400 ft of Ethernet</p>
-        <b class="speed-num"><small>≈</small>0.33<small>s</small></b>
-        <p>about 9 pictures a second</p>
-        <p class="fine">Camera on the house Wi-Fi, computer at the end of the cable. A spot reading.</p>
-      </article>
-      <article class="speed reveal">
-        <p class="speed-where"><svg class="ic"><use href="#i-globe"/></svg>iPhone hotspot + Tailscale</p>
-        <b class="speed-num"><small>≈</small>0.25<small>s</small></b>
-        <p>a smaller picture, 1 to 8 a second</p>
-        <p class="fine">Camera on the iPhone's hotspot in the woods, computer elsewhere. Each picture is as quick, but to save mobile data the computer gets fewer and smaller ones: 640 pixels wide, once a second unless you pick 3 or 8.</p>
-      </article>
-    </div>
-    <figure class="shot shot-wide reveal">
-      <img src="assets/tailscale-latency.jpg" width="1920" height="1080" loading="lazy" alt="The app on a computer running a camera in the woods over Tailscale: the computer's clock reads 14:21:46.81 above the picture, and in the picture someone holds up an iPad showing 14:21:45.77.">
-      <figcaption>The Tailscale test. This picture reached the computer just after 14:21:46.0 showing 45.77 on the iPad, so it was about 0.25 s on the way. At 1 a second it then stays on screen until the next one, which is why the clocks here are a second apart.</figcaption>
-    </figure>
-    <p class="center fine reveal"><b>The camera's own recording is always full quality.</b> These numbers are only for the preview you watch.</p>
   </div>
 </section>
 
@@ -719,44 +594,12 @@
   </div>
 </section>
 
-<!-- ============================== EVERYTHING ============================== -->
-<section class="section section-alt" id="everything">
-  <div class="wrap">
-    <div class="head reveal">
-      <p class="eyebrow"><span class="dot"></span>Everything it does</p>
-      <h2>The whole list.</h2>
-    </div>
-    <div class="bento">
-      <article class="tile t-wide reveal"><svg class="ic"><use href="#i-eye"/></svg><h3>See</h3><p>Live view over Wi-Fi, or full quality through an HDMI capture card. Rotate it for a camera on its side.</p></article>
-      <article class="tile reveal"><svg class="ic"><use href="#i-focus"/></svg><h3>Focus</h3><p>Click to focus or track. In MF or DMF, drag the focus ring or jump along the focus bar.</p></article>
-      <article class="tile reveal"><svg class="ic"><use href="#i-loupe"/></svg><h3>Check focus</h3><p>Focus magnifier and peaking.</p></article>
-      <article class="tile reveal"><svg class="ic"><use href="#i-sun"/></svg><h3>Expose</h3><p>ISO, shutter and iris, with a histogram, zebras, the camera's meter and one-click Base ISO on the A7S III.</p></article>
-      <article class="tile reveal"><svg class="ic"><use href="#i-rec"/></svg><h3>Record</h3><p>One big button, with a red outline around the picture while rolling.</p></article>
-      <article class="tile reveal"><svg class="ic"><use href="#i-slow"/></svg><h3>Slow motion</h3><p>S&amp;Q, up to 240fps in HD on the A7S III.</p></article>
-      <article class="tile reveal"><svg class="ic"><use href="#i-presets"/></svg><h3>Save your setups</h3><p>C1 to C4: four for video and four for photos.</p></article>
-      <article class="tile t-wide reveal"><svg class="ic"><use href="#i-camera"/></svg><h3>Shoot photos</h3><p>Single shots, bursts, self-timer, brackets, time-lapses and long exposures, saved to your card, your computer or both.</p></article>
-      <article class="tile reveal"><svg class="ic"><use href="#i-sliders"/></svg><h3>Set up the camera</h3><p>Video format, frame rate, Super 35 crop, RAW or JPEG, white balance, audio and more, without a menu.</p></article>
-      <article class="tile reveal"><svg class="ic"><use href="#i-cards"/></svg><h3>Use both cards</h3><p>See what's left on each slot, and format a card from the app. It asks first.</p></article>
-      <article class="tile t-wide reveal"><svg class="ic"><use href="#i-globe"/></svg><h3>Run it from anywhere</h3><p>Phone control at home or over Tailscale, a computer through the iPhone's hotspot, or 400 ft of cable. Install Tailscale, log in, and it's automatic.</p></article>
-      <article class="tile t-wide reveal"><svg class="ic"><use href="#i-bird"/></svg><h3>Film wildlife</h3><p>Automatic recording starts and stops for animals, birds or people, and focuses on them. It runs on your computer; no pictures leave it.</p></article>
-      <article class="tile reveal"><svg class="ic"><use href="#i-battery"/></svg><h3>Stay informed</h3><p>Battery and card warnings before you run out.</p></article>
-      <article class="tile reveal"><svg class="ic"><use href="#i-wifi"/></svg><h3>Stop worrying</h3><p>Reconnects by itself, and the camera keeps recording if Wi-Fi drops.</p></article>
-      <article class="tile t-wide reveal"><svg class="ic"><use href="#i-send"/></svg><h3>Get help</h3><p><b>Send log to the developer</b> in Setup, one click, only when you press it.</p></article>
-    </div>
-    <div class="keys reveal">
-      <span class="keys-h">Handy keys</span>
-      <span><kbd>H</kbd> histogram</span><span><kbd>Z</kbd> zebras</span><span><kbd>P</kbd> peaking</span><span><kbd>G</kbd> grid</span><span><kbd>R</kbd> rotate</span><span><kbd>F9</kbd> record, take a photo or start a long exposure</span>
-    </div>
-  </div>
-</section>
-
 <!-- ============================== DOWNLOAD ============================== -->
 <section class="section" id="download">
   <div class="wrap">
     <div class="head center reveal">
       <p class="eyebrow"><span class="dot dot-ok"></span>Download · version <span data-version></span></p>
       <h2>Free. For your computer and your phone.</h2>
-      <p class="sub">No account, no subscription, no tracking.</p>
     </div>
     <div class="platforms">
       <article class="plat reveal" data-os="windows">
@@ -929,16 +772,13 @@
   <div class="wrap">
     <div class="head center reveal">
       <p class="eyebrow"><span class="dot"></span>Free, private, open</p>
-      <h2>Yours, with no strings.</h2>
+      <h2>Free, with nothing sent anywhere.</h2>
     </div>
-    <div class="trust">
-      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-gift"/></svg><h3>Free</h3><p>No subscription, no in-app purchases. The code is MIT licensed.</p></div>
-      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-user-off"/></svg><h3>No account</h3><p>Nothing to sign up for. Open it and connect.</p></div>
-      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-shield"/></svg><h3>No tracking</h3><p>No analytics in the app, and none on this page either: no cookies, nothing loaded from anyone else.</p></div>
-      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-key"/></svg><h3>Your password stays put</h3><p>In Windows Credential Manager or your Mac's Keychain.</p></div>
-      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-send"/></svg><h3>Help when you ask</h3><p><b>Send log</b> in Setup sends what went wrong, only when you press it. No passwords, photos or video.</p></div>
-      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-cpu"/></svg><h3>Detection runs locally</h3><p>The animal detector runs on your own computer or phone.</p></div>
-      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-code"/></svg><h3>Open source</h3><p>MIT licensed. Read every line on <a data-link="github" href="#">GitHub</a>, and build it yourself if you like.</p></div>
+    <div class="trust trust-4">
+      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-code"/></svg><h3>Free and open source</h3><p>No subscription or in-app purchases. MIT licensed: read the code on <a data-link="github" href="#">GitHub</a>.</p></div>
+      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-user-off"/></svg><h3>No account, no tracking</h3><p>Nothing to sign up for. No analytics in the app or on this page.</p></div>
+      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-key"/></svg><h3>Your password stays put</h3><p>Kept in Windows Credential Manager or your Mac's Keychain.</p></div>
+      <div class="card flat reveal"><svg class="ic ic-lg"><use href="#i-send"/></svg><h3>Help only when you ask</h3><p><b>Send log</b> in Setup sends what went wrong when you press it. No passwords, photos or video.</p></div>
     </div>
 
     <details class="specs reveal">

@@ -5,7 +5,7 @@ A single static page: plain HTML, CSS and JavaScript, with no build step and not
 | File | What it is |
 |---|---|
 | `index.html` | The page |
-| `config.js` | **Everything you'd change:** the app's name, version, download links, TestFlight link, YouTube video and social links |
+| `config.js` | **Everything you'd change:** the app's name, version, download links, TestFlight link, YouTube video and social links. The video section and the hero's **Watch the video** button stay hidden until `youtubeId` is set |
 | `styles.css` | Look and layout, light and dark |
 | `app.js` | The interactive parts |
 | `theme.js` | Picks light or dark before the page draws |

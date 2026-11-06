@@ -145,6 +145,7 @@
 
   /* ---------- Video: loads from YouTube only after a click ---------- */
   const video = $('#video');
+  if (S.youtubeId) { $('#watch').hidden = false; $('#heroWatch').hidden = false; }
   $('#playBtn').addEventListener('click', () => {
     if (!S.youtubeId) {
       const note = $('#videoNote');
@@ -618,15 +619,6 @@
     if (map[k]) { setTool(map[k], !state[map[k]]); toast(`${map[k][0].toUpperCase() + map[k].slice(1)} ${state[map[k]] ? 'on' : 'off'}`); }
     else if (e.key === 'F9') { e.preventDefault(); setRec(!state.rec); }
   });
-
-  /* ---------- Tabs showcase ---------- */
-  const tabsImg = $('.tabs-img');
-  function showTab(i) {
-    tabsImg.dataset.active = i;
-    $$('#tabsShow [role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === String(i))));
-    $$('.tab-text').forEach((t) => { t.hidden = t.dataset.tab !== String(i); });
-  }
-  $$('#tabsShow [data-tab]').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
   /* ---------- Presets ---------- */
   const PRESETS = [
