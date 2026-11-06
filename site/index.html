@@ -95,6 +95,7 @@
       <span class="nm"></span>
     </a>
     <nav class="nav-links" id="navLinks" aria-label="Sections">
+      <a href="#auto">Wildlife</a>
       <a href="#features">Features</a>
       <a href="#anywhere">Anywhere</a>
       <a href="#iphone">iPhone &amp; iPad</a>
@@ -131,18 +132,13 @@
       <svg class="ic"><use href="#i-arrow"/></svg>
     </a>
     <h1 class="reveal">Run your Sony camera<br><span class="grad">from anywhere.</span></h1>
-    <p class="lede reveal">Live picture, focus, exposure, video, photos, slow motion and time-lapse, from across the yard or across town. One clean window on your computer, or your phone, with no cables.</p>
+    <p class="lede reveal">See, focus and shoot from across the yard or across town, on your computer or your phone. Leave it, and it films the wildlife by itself.</p>
     <div class="cta reveal" id="heroCta">
       <a class="btn btn-primary btn-lg" data-dl="primary" href="#download">
         <svg class="ic"><use href="#i-down"/></svg><span>Download free</span>
       </a>
       <a class="btn btn-ghost btn-lg" data-dl="secondary" href="#download"><span>All downloads</span></a>
       <a class="btn btn-text btn-lg" href="#watch"><svg class="ic"><use href="#i-play"/></svg><span>Watch the video</span></a>
-    </div>
-    <div class="quick-dl reveal" aria-label="Downloads">
-      <a class="qd" data-dl="windows" href="#download"><svg class="ic"><use href="#i-windows"/></svg>Download for Windows</a>
-      <a class="qd" data-dl="macApple" href="#download"><svg class="ic"><use href="#i-apple"/></svg>Download for Mac</a>
-      <a class="qd qd-soon" href="#iphone"><svg class="ic"><use href="#i-phone"/></svg>iPhone: coming to TestFlight</a>
     </div>
     <p class="fine reveal" id="heroFine">Free and open source. No account, no subscription, no tracking. Tested on the A7S III.</p>
   </div>
@@ -170,14 +166,63 @@
   </div>
 </section>
 
-<!-- ============================== NUMBERS ============================== -->
-<section class="numbers" aria-label="In numbers">
-  <div class="wrap nums">
-    <div class="num reveal"><b>0.20<small>s</small></b><span>from camera to screen on the same Wi-Fi</span></div>
-    <div class="num reveal"><b><span data-count="240">240</span><small>fps</small></b><span>S&amp;Q slow motion, in HD</span></div>
-    <div class="num reveal"><b><span data-count="9999" data-sep="1">9,999</span></b><span>photos in one time-lapse</span></div>
-    <div class="num reveal"><b><span data-count="8">8</span><small>min</small></b><span>long exposures, held open on Bulb</span></div>
-    <div class="num reveal"><b><span data-count="0">0</span></b><span>accounts, subscriptions or trackers</span></div>
+<!-- ============================== AUTOMATIC RECORDING ============================== -->
+<section class="section" id="auto">
+  <div class="wrap">
+    <div class="head reveal">
+      <p class="eyebrow"><span class="dot dot-rec"></span>Automatic recording</p>
+      <h2>Leave it at the feeder.<br>It films the wildlife for you.</h2>
+      <p class="sub">Tick <b>Automatic recording</b> and walk away. When something shows up, the app focuses on it and records. Once it's gone, it stops.</p>
+    </div>
+
+    <div class="takes reveal" id="takes">
+      <figure class="take">
+        <div class="take-pic">
+          <video class="loop" id="takeVid" src="assets/auto-animal.mp4" poster="assets/auto-animal.jpg" width="1280" height="720" autoplay muted loop playsinline preload="metadata" aria-label="Two Steller's jays squabbling over a tray feeder."></video>
+          <div class="take-osd" aria-hidden="true"><span class="take-rec">REC</span><span id="takeTag">Animal · 0.92</span></div>
+        </div>
+      </figure>
+      <div class="take-side">
+        <p class="lbl">Record when it sees</p>
+        <div class="seg seg-panel" role="tablist" aria-label="Record when it sees">
+          <button type="button" role="tab" data-take="animal" aria-selected="true">Animal</button>
+          <button type="button" role="tab" data-take="bird" aria-selected="false">Bird</button>
+          <button type="button" role="tab" data-take="person" aria-selected="false">Person</button>
+        </div>
+        <p class="take-cap" id="takeCap" aria-live="polite">Two Steller's jays squabbling over the tray. It saw an animal (0.92 sure) and started recording on its own.</p>
+        <dl class="take-set">
+          <div><dt>Looks</dt><dd>Once a second</dd></div>
+          <div><dt>Focus on it</dt><dd>On or off</dd></div>
+          <div><dt>Stops after</dt><dd>10 s to 1 min gone</dd></div>
+        </dl>
+        <p class="fine">Real takes from Nov 4, each started by the app. Cropped from 4K and colour-corrected for the web.</p>
+      </div>
+    </div>
+
+    <div class="trio trio-sm">
+      <div class="card flat reveal"><svg class="ic"><use href="#i-cpu"/></svg><p><b>Runs on your own computer.</b> No pictures leave it. The iPhone app runs its own, on the phone.</p></div>
+      <div class="card flat reveal"><svg class="ic"><use href="#i-bird"/></svg><p><b>Knows birds, common mammals and people.</b> Something it doesn't know, like a squirrel, may not set it off.</p></div>
+      <div class="card flat reveal"><svg class="ic"><use href="#i-shield"/></svg><p><b>Learns to ignore</b> a spot that keeps setting it off, like splashing water, for 10 minutes.</p></div>
+    </div>
+
+    <!-- The detector: how the model was picked -->
+    <div class="detect reveal" id="detector">
+      <div class="det-copy">
+        <h3>Picking the model that spots them</h3>
+        <p>Every candidate looked at the same 486 frames with an animal in them and 763 without. RemoteCam uses the one that finds the most without false alarms and still runs on an ordinary computer.</p>
+        <ul class="det-bars">
+          <li><span class="det-name">Nano<small>earlier versions</small></span><span class="det-bar"><i style="--v:.358"></i></span><b>174</b><em class="bad">96 false</em></li>
+          <li><span class="det-name">Small</span><span class="det-bar"><i style="--v:.463"></i></span><b>225</b><em>2 false</em></li>
+          <li class="det-now"><span class="det-name">Small + a closer look<small>in RemoteCam now</small></span><span class="det-bar"><i style="--v:.611"></i></span><b>297</b><em>2 false</em></li>
+          <li class="det-lab"><span class="det-name">XLarge on a graphics card<small>an experiment</small></span><span class="det-bar"><i style="--v:.949"></i></span><b>461</b><em>0 false</em></li>
+        </ul>
+        <p class="fine">Animals found out of 486, and false alarms out of 763 empty frames. All RF-DETR models. The closer look checks a crop around the last sighting again.</p>
+      </div>
+      <figure class="det-vid">
+        <video class="loop" src="assets/detector-gopro.mp4" poster="assets/detector-gopro.jpg" width="1280" height="720" muted loop playsinline preload="none" aria-label="A GoPro view inside a feeder: a Steller's jay eats seeds with a green box labelled Steller's jay 100%."></video>
+        <figcaption>The experiment, on Nov 5: XLarge on a graphics card, watching a GoPro inside the feeder. It names the species too. It isn't in RemoteCam yet.</figcaption>
+      </figure>
+    </div>
   </div>
 </section>
 
@@ -186,8 +231,8 @@
   <div class="wrap">
     <div class="head reveal">
       <p class="eyebrow"><span class="dot"></span>Your whole camera, in one window</p>
-      <h2>Everything you'd reach for on the camera is a click away.</h2>
-      <p class="sub">And the picture stays big in the middle.</p>
+      <h2>Every control, a click away.</h2>
+      <p class="sub">The picture stays big, with the camera's controls beside it.</p>
     </div>
 
     <div class="trio">
@@ -228,7 +273,7 @@
           </div>
           <div class="mon-pic" id="monPic">
             <div class="mon-zoom" id="monZoom">
-              <canvas id="labCanvas" width="1600" height="900" aria-label="Live picture of a cattle egret. Click to focus." role="img"></canvas>
+              <canvas id="labCanvas" width="1600" height="900" aria-label="Live picture of a Steller's jay on a perch at the feeder. Click to focus." role="img"></canvas>
               <canvas id="labOverlay" width="1024" height="576" aria-hidden="true"></canvas>
               <div class="grid3" id="labGrid" aria-hidden="true"></div>
               <div class="focus-box" id="focusBox" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
@@ -295,7 +340,7 @@
           </div>
         </aside>
       </div>
-      <p class="lab-foot">A model in your browser, not a camera: a depth map of the photo decides what's sharp, so try the flower too, and a narrower iris for more in focus. In the app the picture comes from the A7S III over Wi-Fi, about 8 times a second.</p>
+      <p class="lab-foot">A model in your browser, not a camera: a depth map of a frame from the A7S III decides what's sharp. Try the frame and the trees too, and a narrower iris to get more in focus.</p>
     </div>
 
     <!-- Peaking: the real thing -->
@@ -458,12 +503,7 @@
         <button type="button" role="tab" data-mode="1" aria-selected="false">Time-lapse</button>
         <button type="button" role="tab" data-mode="2" aria-selected="false">Long exposure</button>
       </div>
-      <div class="photo-stage">
-        <div class="col-crop" data-mode="0">
-          <img src="assets/photo-modes.png" width="1071" height="875" loading="lazy" alt="The Photo tab three ways: Photo with a 1-stop, 3-photo bracket, Time-lapse with one photo every 10 seconds, and Long exposure set to 30 seconds with ND filter choices.">
-        </div>
-
-        <div class="photo-panes">
+      <div class="photo-panes">
           <div class="pane" data-mode="0">
             <h3>Photo</h3>
             <p>Pick a drive, then just the choices for that one.</p>
@@ -504,108 +544,23 @@
             </div>
             <p class="fine">Tell it the ND filter on your lens and it suggests a length from the meter. Long exposures need the camera in <b>M</b>.</p>
           </div>
-        </div>
       </div>
 
       <!-- Real results for the chosen mode -->
       <div class="photo-real">
         <figure class="shot shot-pic" data-mode="0">
-          <img src="assets/photo-zion.jpg" width="1000" height="1498" loading="lazy" alt="The Watchman in Zion lit orange by the last sun, under a pale sky with pink clouds.">
+          <img src="assets/photo-zion.jpg" width="1000" height="1498" decoding="async" alt="The Watchman in Zion lit orange by the last sun, under a pale sky with pink clouds.">
           <figcaption><b>Photo</b>The Watchman in Zion at sunset, on the A7S III.</figcaption>
         </figure>
         <figure class="shot shot-pic" data-mode="1" hidden>
-          <video class="loop" src="assets/timelapse-zion.mp4" poster="assets/timelapse-zion.jpg" width="720" height="1078" muted loop playsinline preload="none" aria-label="A time-lapse of The Watchman in Zion going from dusk to a sky full of stars, with clouds drifting past."></video>
+          <video class="loop" src="assets/timelapse-zion.mp4" poster="assets/timelapse-zion.jpg" width="720" height="1078" muted loop playsinline preload="metadata" aria-label="A time-lapse of The Watchman in Zion going from dusk to a sky full of stars, with clouds drifting past."></video>
           <figcaption><b>Time-lapse</b>The Watchman from dusk to stars: one photo every 10 seconds for two hours, with the A7S III's own interval shooting, the same one the app sets up.</figcaption>
         </figure>
         <figure class="shot shot-pic" data-mode="2" hidden>
-          <img src="assets/longexp-milkyway.jpg" width="1600" height="1592" loading="lazy" alt="The Milky Way rising over a converted school bus parked on a dark hill.">
+          <img src="assets/longexp-milkyway.jpg" width="1600" height="1592" decoding="async" alt="The Milky Way rising over a converted school bus parked on a dark hill.">
           <figcaption><b>Long exposure</b>30 seconds at night on the A7S III: the Milky Way over the bus.</figcaption>
         </figure>
       </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============================== AUTOMATIC RECORDING ============================== -->
-<section class="section" id="auto">
-  <div class="wrap">
-    <div class="head center reveal">
-      <p class="eyebrow"><span class="dot dot-ok"></span>Automatic recording</p>
-      <h2>It can even film wildlife for you.</h2>
-      <p class="sub">Tick <b>Automatic recording</b> and walk away. The app watches the picture, starts recording when something shows up, focuses on it, and stops once it's been gone for a while.</p>
-    </div>
-
-    <div class="auto reveal" id="autoDemo">
-      <div class="auto-pic" id="autoPic">
-        <img src="assets/liveview.jpg" width="1600" height="900" loading="lazy" alt="A cattle egret at the edge of a garden, as the app's live picture.">
-        <div class="scan" aria-hidden="true"></div>
-        <div class="det" id="autoBox" aria-hidden="true"><span id="autoLabel">animal</span></div>
-        <div class="auto-rec" id="autoRec" aria-hidden="true"><span class="rec-dot"></span>REC <b class="mono" id="autoTime">00:00:00</b></div>
-        <div class="auto-state mono" id="autoState" role="status" aria-live="polite">Watching for animals…</div>
-      </div>
-      <div class="auto-side">
-        <p class="lbl">Record when it sees</p>
-        <div class="seg seg-panel" data-group="autoWhat">
-          <button type="button" data-v="animal" class="on">Animal</button><button type="button" data-v="bird">Bird</button><button type="button" data-v="person">Person</button>
-        </div>
-        <p class="lbl">Stop once it's been gone for</p>
-        <div class="seg seg-panel" data-group="autoGone">
-          <button type="button" data-v="10">10 s</button><button type="button" data-v="15" class="on">15 s</button><button type="button" data-v="30">30 s</button><button type="button" data-v="60">1 min</button>
-        </div>
-        <label class="check"><input type="checkbox" id="autoFocus" checked><span></span>Focus on it</label>
-        <ol class="auto-steps" id="autoSteps">
-          <li data-s="watch">Watching the picture, once a second</li>
-          <li data-s="seen">Something shows up</li>
-          <li data-s="rec">Focuses and starts recording</li>
-          <li data-s="gone">It leaves, the timer runs</li>
-          <li data-s="stop">Stops the take</li>
-        </ol>
-        <button type="button" class="btn btn-ghost btn-sm" id="autoReplay">Play it again</button>
-      </div>
-    </div>
-
-    <div class="trio trio-sm">
-      <div class="card flat reveal"><svg class="ic"><use href="#i-cpu"/></svg><p><b>Runs on your own computer.</b> No pictures leave it. The iPhone app runs its own, on the phone.</p></div>
-      <div class="card flat reveal"><svg class="ic"><use href="#i-bird"/></svg><p><b>Knows birds, common mammals and people.</b> Something it doesn't know, like a squirrel, may not set it off.</p></div>
-      <div class="card flat reveal"><svg class="ic"><use href="#i-shield"/></svg><p><b>Learns to ignore</b> a spot that keeps setting it off, like splashing water, for 10 minutes.</p></div>
-    </div>
-
-    <div class="takes reveal" id="takes">
-      <div class="takes-top">
-        <h3>What it caught by itself</h3>
-        <div class="seg" role="tablist" aria-label="Automatic recording mode">
-          <button type="button" role="tab" data-take="animal" aria-selected="true">Animal</button>
-          <button type="button" role="tab" data-take="bird" aria-selected="false">Bird</button>
-          <button type="button" role="tab" data-take="person" aria-selected="false">Person</button>
-        </div>
-      </div>
-      <figure class="take">
-        <div class="take-pic">
-          <video class="loop" id="takeVid" src="assets/auto-animal.mp4" poster="assets/auto-animal.jpg" width="1280" height="720" autoplay muted loop playsinline preload="metadata" aria-label="Two Steller's jays squabbling over a tray feeder."></video>
-          <div class="take-osd" aria-hidden="true"><span class="take-rec">REC</span><span id="takeTag">Animal · 0.92</span></div>
-        </div>
-        <figcaption id="takeCap">Two Steller's jays squabbling over the tray. It saw an animal (0.92 sure) and started recording on its own.</figcaption>
-      </figure>
-      <p class="fine">Real takes from the A7S III at the feeder on Nov 4, each started by the app. Cropped from 4K and colour-corrected for the web.</p>
-    </div>
-
-    <!-- The detector: how the model was picked -->
-    <div class="detect reveal" id="detector">
-      <div class="det-copy">
-        <h3>Picking the model that spots them</h3>
-        <p>Every candidate looked at the same 486 frames with an animal in them and 763 without. RemoteCam uses the one that finds the most without false alarms and still runs on an ordinary computer.</p>
-        <ul class="det-bars">
-          <li><span class="det-name">Nano<small>earlier versions</small></span><span class="det-bar"><i style="--v:.358"></i></span><b>174</b><em class="bad">96 false</em></li>
-          <li><span class="det-name">Small</span><span class="det-bar"><i style="--v:.463"></i></span><b>225</b><em>2 false</em></li>
-          <li class="det-now"><span class="det-name">Small + a closer look<small>in RemoteCam now</small></span><span class="det-bar"><i style="--v:.611"></i></span><b>297</b><em>2 false</em></li>
-          <li class="det-lab"><span class="det-name">XLarge on a graphics card<small>an experiment</small></span><span class="det-bar"><i style="--v:.949"></i></span><b>461</b><em>0 false</em></li>
-        </ul>
-        <p class="fine">Animals found out of 486, and false alarms out of 763 empty frames. All RF-DETR models. The closer look checks a crop around the last sighting again.</p>
-      </div>
-      <figure class="det-vid">
-        <video class="loop" src="assets/detector-gopro.mp4" poster="assets/detector-gopro.jpg" width="1280" height="720" muted loop playsinline preload="none" aria-label="A GoPro view inside a feeder: a Steller's jay eats seeds with a green box labelled Steller's jay 100%."></video>
-        <figcaption>The experiment, on Nov 5: XLarge on a graphics card, watching a GoPro inside the feeder. It names the species too. It isn't in RemoteCam yet.</figcaption>
-      </figure>
     </div>
   </div>
 </section>
@@ -616,14 +571,14 @@
     <div class="head center reveal">
       <p class="eyebrow"><span class="dot dot-rec"></span>Watch</p>
       <h2 data-video-title>How far away can I run my camera?</h2>
-      <p class="sub">From 20 metres to across town, then not even there. One question, one camera at the feeder.</p>
+      <p class="sub">One camera at the feeder. Next to it, in the house, across town, and then not there at all.</p>
     </div>
     <!-- PLACEHOLDER: set youtubeId in config.js. Nothing loads from YouTube until someone presses play. -->
     <div class="video reveal" id="video">
       <img class="video-poster" src="assets/liveview.jpg" alt="" loading="lazy">
       <div class="video-shade"></div>
       <div class="video-hud" aria-hidden="true">
-        <span class="mono">20 m</span><span class="mono">porch</span><span class="mono">inside</span><span class="mono">across town</span><span class="mono">not even there</span>
+        <span class="mono">next to it</span><span class="mono">in the house</span><span class="mono">across town</span><span class="mono">not even there</span>
       </div>
       <button class="play" id="playBtn" type="button" aria-label="Play the video">
         <svg class="ic"><use href="#i-play"/></svg>
@@ -639,7 +594,7 @@
     <div class="head center reveal">
       <p class="eyebrow"><span class="dot"></span>Run it from anywhere</p>
       <h2>Hide the camera. Walk away. Keep shooting.</h2>
-      <p class="sub">Hide the camera by a feeder, up a tree or across the yard. Then keep walking.</p>
+      <p class="sub">By a feeder, up a tree or across the yard. Pick how far away you'll be.</p>
     </div>
 
     <div class="journey reveal" id="journey">
@@ -668,7 +623,7 @@
         <svg class="ic ic-lg"><use href="#i-globe"/></svg>
         <h3>From anywhere, with Tailscale</h3>
         <p>Put the camera on your iPhone's hotspot and run it from a computer anywhere. <b>Download <a href="https://tailscale.com" rel="noopener">Tailscale</a> on each device, log in with the same account, and it's automatic.</b> Your devices find each other, with nothing to type.</p>
-        <p class="fine">Over mobile data the picture comes once a second by default, to save data: about 100 MB an hour while a computer is watching. Pick 3 or 8 a second on the phone for a smoother picture (about 280 or 750 MB an hour). The iPhone app has to stay open on screen.</p>
+        <p class="fine">Over mobile data the computer gets a smaller picture, once a second by default: about 100 MB an hour while it watches. Pick 3 or 8 a second on the phone for a smoother one (about 280 or 750 MB an hour). The iPhone app has to stay open on screen.</p>
       </article>
       <article class="card glass reveal">
         <svg class="ic ic-lg"><use href="#i-phone"/></svg>
@@ -715,10 +670,10 @@
         <p class="fine">Camera on the house Wi-Fi, computer at the end of the cable. A spot reading.</p>
       </article>
       <article class="speed reveal">
-        <p class="speed-where"><svg class="ic"><use href="#i-globe"/></svg>Hotspot + Tailscale</p>
+        <p class="speed-where"><svg class="ic"><use href="#i-globe"/></svg>iPhone hotspot + Tailscale</p>
         <b class="speed-num"><small>≈</small>0.25<small>s</small></b>
-        <p>1 picture a second, or 3 or 8</p>
-        <p class="fine">Camera on the iPhone's hotspot in the woods, computer elsewhere. Each picture takes about 0.25 s; it comes once a second by default to save mobile data.</p>
+        <p>a smaller picture, 1 to 8 a second</p>
+        <p class="fine">Camera on the iPhone's hotspot in the woods, computer elsewhere. Each picture is as quick, but to save mobile data the computer gets fewer and smaller ones: 640 pixels wide, once a second unless you pick 3 or 8.</p>
       </article>
     </div>
     <figure class="shot shot-wide reveal">

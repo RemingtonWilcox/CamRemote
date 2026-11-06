@@ -17,25 +17,6 @@
     : null;
   $$('.reveal').forEach((el) => (revealer ? revealer.observe(el) : el.classList.add('in')));
 
-  /* ---------- Numbers count up the first time they're seen ---------- */
-  if (!reduced && 'IntersectionObserver' in window) {
-    const counter = new IntersectionObserver((entries) => {
-      entries.forEach((e) => {
-        if (!e.isIntersecting) return;
-        counter.unobserve(e.target);
-        const el = e.target, to = +el.dataset.count, t0 = performance.now(), ms = 1300;
-        const show = (v) => { el.textContent = el.dataset.sep ? v.toLocaleString('en') : String(v); };
-        const tick = (t) => {
-          const k = Math.min(1, (t - t0) / ms), eased = 1 - Math.pow(1 - k, 3);
-          show(Math.round(to * eased));
-          if (k < 1) requestAnimationFrame(tick);
-        };
-        show(0); requestAnimationFrame(tick);
-      });
-    }, { threshold: 0.6 });
-    $$('[data-count]').forEach((el) => counter.observe(el));
-  }
-
   /* ---------- Name, version and links from config.js ---------- */
   $$('.nm').forEach((el) => { el.textContent = S.name || ''; });
   $$('[data-version]').forEach((el) => { el.textContent = S.version || ''; });
@@ -211,7 +192,7 @@
   let tainted = false;      // true when the page is opened as a file, where canvases can't be read
   let lastPx = null;        // the picture as shown, at the camera's Wi-Fi size
   const img = new Image();
-  img.src = 'assets/liveview.jpg';
+  img.src = 'assets/focus-jay.jpg';
 
   const toLin = new Float32Array(256);
   for (let i = 0; i < 256; i++) { const c = i / 255; toLin[i] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
@@ -227,10 +208,10 @@
      far it sits from the focused distance, and so how soft it is. The soft versions
      are blurred once up front and blended per pixel. A wider iris blurs more. */
   const depthImg = new Image();
-  depthImg.src = 'assets/liveview-depth.png';
+  depthImg.src = 'assets/focus-jay-depth.png';
   const BLUR_R = [0, 2, 4, 7, 11, 16];   // radius of each soft version, at 1600 px wide
   const DEFOCUS = 22;                    // blur radius per unit of depth at F2.8
-  const START_DEPTH = 0.86;              // starts focused on the flower, so the bird is soft
+  const START_DEPTH = 0.72;              // starts on the frame in front of the jay, so the jay is soft
   let depth = null, softs = null, focused = null;
   let focusDepth = START_DEPTH, focusAnim = 0;
 
@@ -681,9 +662,7 @@
   showSq();
 
   /* ---------- Photo modes ---------- */
-  const colCrop = $('.col-crop');
   function showMode(i) {
-    colCrop.dataset.mode = i;
     $$('#photoShow [role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.mode === String(i))));
     $$('.pane, .photo-real [data-mode]').forEach((p) => { p.hidden = p.dataset.mode !== String(i); });
     if (+i === 2) runExposureRing();
@@ -744,69 +723,6 @@
   }
   onGroup('lexp', (v) => { lexp = +v; showLexp(); });
   showLexp();
-
-  /* ---------- Automatic recording demo ---------- */
-  const autoPic = $('#autoPic'), autoState = $('#autoState'), autoTime = $('#autoTime'), autoLabel = $('#autoLabel');
-  const auto = { what: 'animal', gone: 15, focus: true };
-  let autoTimers = [], autoTick = 0, autoVisible = false, autoRunning = false;
-  const later = (ms, fn) => autoTimers.push(setTimeout(fn, ms));
-  function stepTo(s) {
-    const order = ['watch', 'seen', 'rec', 'gone', 'stop'];
-    const i = order.indexOf(s);
-    $$('#autoSteps li').forEach((li) => {
-      const j = order.indexOf(li.dataset.s);
-      li.classList.toggle('now', j === i); li.classList.toggle('done', j < i);
-    });
-  }
-  function resetAuto() {
-    autoTimers.forEach(clearTimeout); autoTimers = []; clearInterval(autoTick);
-    autoPic.classList.remove('seen', 'rec', 'leaving', 'idle');
-    autoTime.textContent = clock(0);
-  }
-  function runAuto() {
-    resetAuto();
-    autoRunning = true;
-    const noun = { animal: 'animals', bird: 'birds', person: 'people' }[auto.what];
-    autoState.textContent = `Watching for ${noun}…`;
-    stepTo('watch');
-    if (auto.what === 'person') {
-      later(2600, () => { autoState.textContent = 'No one here. A bird won\'t set it off.'; });
-      later(6000, () => { if (autoVisible) runAuto(); else autoRunning = false; });
-      return;
-    }
-    autoLabel.textContent = auto.what;
-    let secs = 0;
-    later(2400, () => { autoPic.classList.add('seen'); stepTo('seen'); autoState.textContent = auto.what === 'bird' ? 'Bird seen.' : 'Animal seen.'; });
-    later(3300, () => {
-      autoPic.classList.add('rec'); stepTo('rec');
-      autoState.textContent = auto.focus ? 'Focusing on it. Recording.' : 'Recording.';
-      autoTick = setInterval(() => { secs++; autoTime.textContent = clock(secs); }, 1000);
-    });
-    later(7600, () => {
-      clearInterval(autoTick);
-      autoPic.classList.add('leaving'); stepTo('gone');
-      let left = auto.gone;
-      autoState.textContent = `Gone. Stopping in ${left} s`;
-      // the wait is sped up here
-      autoTick = setInterval(() => {
-        left--; secs++; autoTime.textContent = clock(secs);
-        autoState.textContent = `Gone. Stopping in ${left} s`;
-        if (left <= 0) {
-          clearInterval(autoTick);
-          autoPic.classList.remove('rec', 'seen', 'leaving'); autoPic.classList.add('idle'); stepTo('stop');
-          autoState.textContent = `Take saved: ${secs} s. Watching again…`;
-          later(2600, () => { if (autoVisible) runAuto(); else autoRunning = false; });
-        }
-      }, Math.max(60, 2400 / auto.gone));
-    });
-  }
-  onGroup('autoWhat', (v) => { auto.what = v; runAuto(); });
-  onGroup('autoGone', (v) => { auto.gone = +v; runAuto(); });
-  $('#autoFocus').addEventListener('change', (e) => { auto.focus = e.target.checked; runAuto(); });
-  $('#autoReplay').addEventListener('click', runAuto);
-  if ('IntersectionObserver' in window) {
-    new IntersectionObserver(([e]) => { autoVisible = e.isIntersecting; if (autoVisible && !autoRunning) runAuto(); }, { threshold: 0.3 }).observe($('#autoDemo'));
-  } else runAuto();
 
   /* ---------- What it caught by itself ---------- */
   const TAKES = {
