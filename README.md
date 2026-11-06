@@ -17,7 +17,8 @@ all in one clean window on your computer, with no cables.
 <a href="https://testflight.apple.com/join/ck3rFy8f"><img src="https://img.shields.io/badge/iPhone_and_iPad_(beta)-1C1C1E?style=for-the-badge" alt="Get the iPhone and iPad beta on TestFlight" height="44" /></a>
 
 <sub>Free and open source. No account, no subscription, no tracking. Formerly CamRemote. <a href="https://github.com/RemingtonWilcox/RemoteCam/releases/latest/download/CamRemote-Mac-Intel.dmg">Older Intel Mac? Use this one.</a></sub><br>
-<sub>Tested on the Sony A7S III. <a href="#which-cameras-work">Which cameras work?</a></sub>
+<sub>Tested on the Sony A7S III. <a href="#which-cameras-work">Which cameras work?</a></sub><br>
+<sub><a href="https://getremotecam.com">getremotecam.com</a> · <a href="https://www.youtube.com/@remwilcox">YouTube</a> · <a href="https://www.instagram.com/remingtonwilcox/">Instagram</a> · <a href="https://www.tiktok.com/@remington.mp4">TikTok</a> · <a href="https://ko-fi.com/remingtonwilcox">Support it on Ko-fi</a></sub>
 
 <br><br>
 
