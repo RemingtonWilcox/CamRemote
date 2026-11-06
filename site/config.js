@@ -32,7 +32,16 @@ window.SITE = {
   youtubeId: '',
   videoTitle: 'How far away can I run my camera?',
 
-  // PLACEHOLDER: full profile links. Leave '' for any you don't use.
+  // Who makes it: a small credit in the closer, the footer and the
+  // thank-you note after a download.
+  maker: 'Remington Wilcox',
+
+  // PLACEHOLDER: a tip-jar link (Ko-fi, GitHub Sponsors or Buy Me a
+  // Coffee). While it's '', no "support" link appears anywhere.
+  support: '',
+
+  // PLACEHOLDER: full profile links. Leave '' for any you don't use:
+  // unused ones are simply left out.
   socials: {
     youtube: '',
     instagram: 'https://www.instagram.com/remingtonwilcox/',

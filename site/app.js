@@ -961,13 +961,36 @@ Don't ask me for my camera password.`;
     setTimeout(() => { label.textContent = 'Copy'; }, 2200);
   });
 
-  /* ---------- Socials ---------- */
-  const SOCIAL = [['youtube', 'YouTube'], ['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['x', 'X'], ['discord', 'Discord'], ['github', 'GitHub']];
-  $('#socials').innerHTML = SOCIAL.map(([k, label]) => {
-    const url = k === 'github' ? S.github : (S.socials || {})[k];
-    const icon = `<svg class="ic"><use href="#s-${k}"/></svg>`;
-    return url
-      ? `<li><a href="${url}" rel="noopener me" aria-label="${label}" title="${label}">${icon}</a></li>`
-      : `<li><span title="${label}: coming soon" aria-label="${label}: coming soon" role="img">${icon}</span></li>`;
-  }).join('');
+  /* ---------- Socials, the maker and the tip jar ---------- */
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const SOCIAL = [['instagram', 'Instagram'], ['youtube', 'YouTube'], ['tiktok', 'TikTok'], ['x', 'X'], ['discord', 'Discord'], ['github', 'GitHub']];
+  const socialUrl = (k) => (k === 'github' ? S.github : (S.socials || {})[k]) || '';
+  const icon = (k) => `<svg class="ic"><use href="#s-${k}"/></svg>`;
+  $('#socials').innerHTML = SOCIAL.filter(([k]) => socialUrl(k)).map(([k, label]) =>
+    `<li><a href="${esc(socialUrl(k))}" rel="noopener me" aria-label="${label}" title="${label}">${icon(k)}</a></li>`).join('');
+  $$('[data-maker]').forEach((el) => { el.textContent = S.maker || ''; });
+
+  // Where to follow along: every profile that's set, but not GitHub or Discord
+  const follow = SOCIAL.filter(([k]) => !['github', 'discord'].includes(k) && socialUrl(k));
+  const tip = S.support ? `<a class="tip" href="${esc(S.support)}" rel="noopener">Buy me a coffee</a>` : '';
+  const maker = $('#maker');
+  if (maker && S.maker) {
+    maker.innerHTML = `<span>Made by <b>${esc(S.maker)}</b></span>` +
+      (follow.length ? `<span class="follow">${follow.map(([k, label]) =>
+        `<a href="${esc(socialUrl(k))}" rel="noopener me" aria-label="${label}" title="${label}">${icon(k)}</a>`).join('')}</span>` : '') +
+      (tip ? `<span>${tip}</span>` : '');
+  }
+
+  // A quiet thank-you once someone has actually downloaded it
+  const thanks = $('#thanks');
+  if (thanks) {
+    const first = follow[0];
+    let msg = 'Thanks for trying it.';
+    if (first) msg += ` New features and footage go up on <a href="${esc(socialUrl(first[0]))}" rel="noopener me">${first[1]}</a> first.`;
+    if (S.support) msg += ` And if it saves you a walk to the camera, <a href="${esc(S.support)}" rel="noopener">there's a tip jar</a>.`;
+    $$('[data-dl]').forEach((el) => el.addEventListener('click', () => {
+      if (!/^https?:/.test(el.getAttribute('href') || '')) return;
+      thanks.innerHTML = msg; thanks.hidden = false;
+    }));
+  }
 })();
