@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="CamRemote.MainWindow"
-        Title="CamRemote" Width="1400" Height="860" MinWidth="980" MinHeight="600"
+        Title="RemoteCam" Width="1400" Height="860" MinWidth="980" MinHeight="600"
         Background="#16181B">
     <Grid ColumnDefinitions="*,340" RowDefinitions="Auto,*,Auto">
 
@@ -314,6 +314,12 @@
                                         ToolTip.Tip="Makes a new access code. Phones already signed in will need it." />
                             </StackPanel>
 
+                            <TextBlock Text="OTHER DEVICES" Classes="Section" />
+                            <CheckBox x:Name="ShareEnabled" Content="Let my other devices join" Click="OnShareToggle"
+                                      ToolTip.Tip="When this RemoteCam has the camera, RemoteCam on your iPhone, iPad or other computers can use it through this one. The first time, you're asked here." />
+                            <TextBlock x:Name="AllowedHint" TextWrapping="Wrap" Classes="Small" Margin="0,6,0,0" />
+                            <StackPanel x:Name="AllowedList" />
+
                             <TextBlock Text="SOMETHING NOT WORKING?" Classes="Section" />
                             <TextBlock Text="What happened? (optional)" Classes="Small" Margin="0,0,0,4" />
                             <TextBox x:Name="LogNote" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="48" MaxLength="2000" />
@@ -325,6 +331,16 @@
                             <TextBlock Text="Show log file" Classes="Small" FontSize="11" HorizontalAlignment="Center" Margin="0,18,0,0"
                                        TextDecorations="Underline" Cursor="Hand" PointerPressed="OnShowLogPressed"
                                        ToolTip.Tip="Shows camremote.log in Finder, to send along when something went wrong." />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,6,0,0">
+                                <TextBlock Text="Help" Classes="Small" FontSize="11"
+                                           TextDecorations="Underline" Cursor="Hand" PointerPressed="OnHelpPressed"
+                                           ToolTip.Tip="Opens the help on GitHub: what to try when something isn't working." />
+                                <TextBlock Text="  ·  " Classes="Small" FontSize="11" />
+                                <TextBlock Text="Instagram" Classes="Small" FontSize="11"
+                                           TextDecorations="Underline" Cursor="Hand" PointerPressed="OnInstagramPressed"
+                                           ToolTip.Tip="Opens @remingtonwilcox on Instagram." />
+                            </StackPanel>
+                            <TextBlock x:Name="AboutText" Classes="Small" FontSize="11" HorizontalAlignment="Center" Margin="0,6,0,0" />
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>

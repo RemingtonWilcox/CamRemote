@@ -30,6 +30,13 @@ if not ort:
 text += "\n\n## ONNX Runtime licence\n\n" + (ort[-1].parent / "LICENSE").read_text(encoding="utf-8")
 text += "\n\n## ONNX Runtime third-party notices\n\n" + ort[-1].read_text(encoding="utf-8")
 
+# The Windows app's WebGPU library, which the animal detector uses for the graphics card. The Mac's is built into ONNX Runtime.
+if sys.platform == "win32":
+    webgpu = sorted((nuget / "microsoft.ml.onnxruntime.ep.webgpu").glob("*/ThirdPartyNotices.txt"))
+    if not webgpu:
+        sys.exit("Couldn't find the WebGPU library's notices. Build the app once first.")
+    text += "\n\n## ONNX Runtime WebGPU third-party notices\n\n" + webgpu[-1].read_text(encoding="utf-8")
+
 output.parent.mkdir(parents=True, exist_ok=True)
 output.write_text(text, encoding="utf-8")
 print(f"wrote {output}")

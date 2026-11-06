@@ -1,0 +1,256 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="CamRemote.JoinWindow"
+        Title="RemoteCam" Width="1400" Height="860" MinWidth="980" MinHeight="600"
+        WindowStartupLocation="CenterScreen" Background="#16181B">
+    <!-- Laid out like MainWindow, so the camera looks the same whether this Mac holds it or another RemoteCam does. -->
+    <Grid ColumnDefinitions="*,340" RowDefinitions="Auto,*,Auto">
+
+        <!-- Status strip over the picture -->
+        <DockPanel Grid.Row="0" Grid.Column="0" Margin="14,10" LastChildFill="False">
+            <Border x:Name="RecBadge" DockPanel.Dock="Left" Background="{StaticResource Rec}" CornerRadius="4"
+                    Padding="8,2" Margin="0,0,12,0" IsVisible="False">
+                <TextBlock x:Name="RecTime" Text="● REC 00:00:00" FontSize="15" FontWeight="Bold" Foreground="White" />
+            </Border>
+            <TextBlock x:Name="CamSummary" DockPanel.Dock="Left" VerticalAlignment="Center" FontSize="17" FontWeight="SemiBold" />
+            <TextBlock x:Name="CardText" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="18,0,0,0" FontSize="15" />
+            <TextBlock x:Name="BatteryText" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="18,0,0,0" FontSize="15" />
+        </DockPanel>
+
+        <!-- The host's live picture. Click to focus. -->
+        <Border Grid.Row="1" Grid.Column="0" Background="Black">
+            <Panel>
+                <TextBlock x:Name="NoSignal" Text="Waiting for the picture…" Foreground="{StaticResource Dim}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <!-- Turns red while recording -->
+                <Border x:Name="RecFrame" HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="3" BorderBrush="Transparent">
+                    <LayoutTransformControl x:Name="PictureTurn">
+                        <Panel ClipToBounds="True">
+                            <Image x:Name="Picture" Stretch="Uniform" Cursor="Cross" PointerPressed="OnPicturePressed" />
+                            <Image x:Name="AssistLayer" Stretch="Uniform" IsHitTestVisible="False" />
+                            <Grid x:Name="GuideGrid" IsHitTestVisible="False" IsVisible="False" ColumnDefinitions="*,*,*" RowDefinitions="*,*,*">
+                                <Border Grid.Column="1" Grid.RowSpan="3" BorderBrush="#80FFFFFF" BorderThickness="1,0" />
+                                <Border Grid.Row="1" Grid.ColumnSpan="3" BorderBrush="#80FFFFFF" BorderThickness="0,1" />
+                                <Rectangle Grid.Row="1" Grid.Column="1" Width="24" Height="1" Fill="#B0FFFFFF" />
+                                <Rectangle Grid.Row="1" Grid.Column="1" Width="1" Height="24" Fill="#B0FFFFFF" />
+                            </Grid>
+                            <Canvas IsHitTestVisible="False">
+                                <Ellipse x:Name="FocusMark" Width="20" Height="20" Stroke="#C0FFFFFF" StrokeThickness="1.5" IsVisible="False" />
+                                <!-- What the animal trigger sees -->
+                                <Rectangle x:Name="AnimalBox" Stroke="#4CD964" StrokeThickness="2" IsVisible="False" />
+                                <TextBlock x:Name="AnimalLabel" Text="animal" FontSize="12" Foreground="White" Background="#B0000000"
+                                           Padding="4,1" IsVisible="False" RenderTransformOrigin="0%,0%" />
+                            </Canvas>
+                        </Panel>
+                    </LayoutTransformControl>
+                </Border>
+                <!-- The histogram and the camera's meter, as in MainWindow -->
+                <Border x:Name="Hud" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,12,12" Width="280"
+                        Background="#D0121417" BorderBrush="#40FFFFFF" BorderThickness="1" CornerRadius="8" Padding="10,8" IsHitTestVisible="False">
+                    <StackPanel>
+                        <StackPanel x:Name="HistogramPart">
+                            <Border Height="64" Background="#1E1E1E" CornerRadius="3" ClipToBounds="True">
+                                <Image x:Name="Histogram" Stretch="Fill" />
+                            </Border>
+                            <DockPanel Margin="0,4,0,0">
+                                <TextBlock x:Name="UnderText" DockPanel.Dock="Right" FontSize="11" Foreground="{StaticResource Dim}" />
+                                <TextBlock x:Name="OverText" FontSize="11" />
+                            </DockPanel>
+                        </StackPanel>
+                        <StackPanel x:Name="MeterBox" Margin="0,6,0,0" IsVisible="False">
+                            <TextBlock x:Name="ExposureText" FontSize="13" FontWeight="SemiBold" />
+                            <Canvas x:Name="ExposureScale" Height="32" Margin="0,2,0,0" SizeChanged="OnExposureScaleSized">
+                                <Rectangle x:Name="ExposureNeedle" Width="3" Height="18" Fill="White" />
+                            </Canvas>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="AlertBox" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,14,0,0"
+                        CornerRadius="6" Padding="16,8" Background="{StaticResource Rec}" IsVisible="False" IsHitTestVisible="False">
+                    <TextBlock x:Name="AlertText" Foreground="White" FontSize="16" FontWeight="Bold" TextAlignment="Center" TextWrapping="Wrap" />
+                </Border>
+                <Border x:Name="Toast" Background="#E61B1E22" CornerRadius="6" Padding="14,8" Margin="0,0,0,24"
+                        HorizontalAlignment="Center" VerticalAlignment="Bottom" IsVisible="False">
+                    <TextBlock x:Name="ToastText" Foreground="White" FontSize="14" TextWrapping="Wrap" MaxWidth="560" />
+                </Border>
+            </Panel>
+        </Border>
+
+        <!-- Under the picture's corner: what's drawn over it and which way up it is -->
+        <DockPanel Grid.Row="2" Grid.Column="0" Margin="12,6" Background="Transparent">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+                <ToggleButton x:Name="GridChip" Content="Grid" Classes="Chip" Click="OnGuideClick" ToolTip.Tip="Rule of thirds and centre mark (G)" />
+                <ToggleButton x:Name="ZebraChip" Content="Zebras" Classes="Chip" Click="OnGuideClick" ToolTip.Tip="Stripe the brightest parts of the picture (Z)" />
+                <ToggleButton x:Name="PeakingChip" Content="Peaking" Classes="Chip" Click="OnGuideClick" ToolTip.Tip="Colour the parts in focus (P)" />
+                <ToggleButton x:Name="HistogramChip" Content="Histogram" Classes="Chip" Click="OnGuideClick" ToolTip.Tip="Show the histogram (H)" />
+                <Border Width="1" Background="#3A3F45" Margin="10,4" />
+                <Button Content="⟲" Padding="9,1" MinHeight="26" FontSize="15" Focusable="False" Click="OnRotateClick" Tag="-90"
+                        ToolTip.Tip="Turn the picture a quarter turn left, for a camera on its side (Shift+R)" />
+                <TextBlock x:Name="RotationText" Width="30" TextAlignment="Center" VerticalAlignment="Center" FontSize="12" Foreground="{StaticResource Dim}" />
+                <Button Content="⟳" Padding="9,1" MinHeight="26" FontSize="15" Focusable="False" Click="OnRotateClick" Tag="90"
+                        ToolTip.Tip="Turn the picture a quarter turn right, for a camera on its side (R)" />
+            </StackPanel>
+            <TextBlock x:Name="HostText" Foreground="{StaticResource Dim}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        </DockPanel>
+
+        <!-- Controls -->
+        <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" BorderBrush="#333" BorderThickness="1,0,0,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="16,10,16,0">
+                    <DockPanel>
+                        <Button Content="Leave" Click="OnLeaveClick" Padding="10,3" DockPanel.Dock="Right"
+                                ToolTip.Tip="Stop using the camera through the other RemoteCam" />
+                        <Ellipse x:Name="LinkDot" Width="10" Height="10" Fill="#666" Margin="0,0,8,0" DockPanel.Dock="Left" />
+                        <TextBlock x:Name="LinkText" Text="Joining…" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    </DockPanel>
+                    <Button x:Name="UseHereButton" Content="Use the camera here" Click="OnUseHereClick" Margin="0,8,0,0" Padding="10,4"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" IsVisible="False"
+                            ToolTip.Tip="Connect this computer to the camera itself, so the picture doesn't pass through the other computer. The other RemoteCam joins this one instead." />
+                    <UniformGrid Rows="1" Margin="0,12,0,0">
+                        <ToggleButton x:Name="VideoTab" Content="Video" Classes="PageTab" Click="OnModeClick" IsChecked="True"
+                                      ToolTip.Tip="Switches the camera to movie mode." />
+                        <ToggleButton x:Name="PhotoTab" Content="Photo" Classes="PageTab" Click="OnModeClick"
+                                      ToolTip.Tip="Switches the camera to photo mode." />
+                        <ToggleButton x:Name="SetupTab" Content="Setup" Classes="PageTab" Click="OnSetupClick"
+                                      ToolTip.Tip="Settings you set once or now and then." />
+                    </UniformGrid>
+                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="16,0,16,16">
+                        <!-- What changes while shooting -->
+                        <StackPanel x:Name="ShootPage">
+                            <Button x:Name="RecButton" Click="OnRecClick" Height="56" Margin="0,10,0,0" IsEnabled="False"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                    ToolTip.Tip="Start / stop recording (F9)">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse x:Name="RecDot" Width="18" Height="18" Fill="{StaticResource Rec}" Margin="0,0,10,0" />
+                                    <TextBlock x:Name="RecLabel" Text="Record" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <StackPanel x:Name="BirdBox">
+                                <CheckBox x:Name="BirdWatch" Margin="0,10,0,0" Content="Automatic recording" Click="OnBirdWatchClick"
+                                          ToolTip.Tip="Starts recording by itself when the camera sees what you pick below. Checks the picture twice a second, on this Mac, and records through the other RemoteCam." />
+                                <StackPanel x:Name="RecordSubjectPanel" Margin="0,6,0,0" IsVisible="False">
+                                    <TextBlock Text="Record when it sees" FontSize="12" Foreground="Gray" Margin="0,0,0,3" />
+                                    <UniformGrid x:Name="RecordSubjectButtons" Rows="1" Margin="-2,0,-2,0" />
+                                    <TextBlock Text="Stop once it's been gone for" FontSize="12" Foreground="Gray" Margin="0,6,0,3" />
+                                    <UniformGrid x:Name="RecordStopButtons" Rows="1" Margin="-2,0,-2,0" />
+                                    <CheckBox x:Name="RecordFocus" Content="Focus on it" Margin="0,8,0,0" Click="OnRecordFocusClick"
+                                              ToolTip.Tip="While recording, focuses where it sees the subject, and again when it moves somewhere new." />
+                                </StackPanel>
+                                <TextBlock x:Name="BirdStatus" FontSize="12" Foreground="Gray" Margin="0,3,0,0" TextWrapping="Wrap" IsVisible="False" />
+                            </StackPanel>
+                            <Button x:Name="ShutterButton" Height="56" Margin="0,10,0,0" IsEnabled="False" HorizontalAlignment="Stretch" IsVisible="False"
+                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                    ToolTip.Tip="Take a photo (F9). Hold it down for a burst when Drive is set to continuous.">
+                                <TextBlock x:Name="ShutterLabel" Text="Take photo" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            </Button>
+                            <!-- What the shutter button does: a photo per press, or a time-lapse that this Mac times -->
+                            <UniformGrid x:Name="PhotoModes" Rows="1" Margin="-2,8,-2,0" IsVisible="False">
+                                <ToggleButton x:Name="StillMode" Content="Photo" Margin="2" Padding="2,5" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                              Click="OnPhotoModeClick" IsChecked="True" ToolTip.Tip="A photo per press, or a burst while held." />
+                                <ToggleButton x:Name="TimeLapseMode" Content="Time-lapse" Margin="2" Padding="2,5" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                              Click="OnPhotoModeClick" ToolTip.Tip="This Mac takes a photo every so often through the other RemoteCam." />
+                            </UniformGrid>
+                            <StackPanel x:Name="TimeLapseBox" Margin="0,4,0,0" IsVisible="False">
+                                <TextBlock Text="One photo every" FontSize="12" Foreground="Gray" Margin="0,4,0,3" />
+                                <UniformGrid x:Name="IntervalButtons" Rows="1" Margin="-2,0,-2,0" />
+                                <TextBlock Text="Photos" FontSize="12" Foreground="Gray" Margin="0,8,0,3" />
+                                <UniformGrid x:Name="ShotButtons" Rows="1" Margin="-2,0,-2,0" />
+                                <TextBlock x:Name="TimeLapsePlan" Classes="Small" TextWrapping="Wrap" Margin="0,8,0,4" />
+                            </StackPanel>
+                            <TextBlock x:Name="TimeLapseNote" Classes="Small" TextWrapping="Wrap" Margin="0,6,0,0" IsVisible="False" />
+                            <StackPanel x:Name="DriveRows" Margin="0,4,0,0" />
+                            <!-- C1 to C4: the other RemoteCam's own presets, for the side its camera is on. One per row. -->
+                            <StackPanel x:Name="PresetButtons" Margin="0,8,0,0" />
+
+                            <TextBlock Text="EXPOSURE" Classes="Section" />
+                            <StackPanel x:Name="ExposureRows" />
+                            <UniformGrid x:Name="BaseIsoPanel" Rows="1" Margin="0,0,0,4" IsVisible="False" />
+
+                            <TextBlock Text="FOCUS" Classes="Section" />
+                            <StackPanel x:Name="FocusRows" />
+                            <StackPanel x:Name="FocusRing" IsVisible="False" Margin="0,2,0,0">
+                                <TextBlock Text="Focus ring: drag or scroll" FontSize="12" Foreground="Gray" Margin="0,0,0,3" />
+                                <Border x:Name="FocusWheel" Height="44" Margin="0,0,0,6" Background="#1B1E22" BorderBrush="#30353B" BorderThickness="1"
+                                        CornerRadius="8" ClipToBounds="True" Cursor="SizeWestEast" PointerPressed="OnWheelDown" PointerMoved="OnWheelMove"
+                                        PointerReleased="OnWheelUp" PointerWheelChanged="OnWheelScroll" ToolTip.Tip="Drag slowly for fine focus, faster for bigger moves.">
+                                    <Canvas x:Name="WheelTicks" />
+                                </Border>
+                                <DockPanel>
+                                    <RepeatButton DockPanel.Dock="Left" Tag="-7" Click="OnFocusStep" Delay="300" Interval="120" Width="36"
+                                                  HorizontalContentAlignment="Center" ToolTip.Tip="Hold to focus nearer">
+                                        <TextBlock Text="✿" FontSize="15" />
+                                    </RepeatButton>
+                                    <RepeatButton DockPanel.Dock="Right" Tag="7" Click="OnFocusStep" Delay="300" Interval="120" Width="46"
+                                                  HorizontalContentAlignment="Center" ToolTip.Tip="Hold to focus farther">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Data="M0,12 L5,3 L8,7 L10,5 L15,12 Z" Fill="#DDD" VerticalAlignment="Center" Margin="0,0,3,0" />
+                                            <TextBlock Text="∞" FontSize="15" />
+                                        </StackPanel>
+                                    </RepeatButton>
+                                    <UniformGrid Rows="1" Margin="4,0">
+                                        <RepeatButton Content="◀" Tag="-1" Click="OnFocusStep" Delay="300" Interval="120" Margin="0,0,2,0"
+                                                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" ToolTip.Tip="A little nearer" />
+                                        <RepeatButton Content="▶" Tag="1" Click="OnFocusStep" Delay="300" Interval="120" Margin="2,0,0,0"
+                                                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" ToolTip.Tip="A little farther" />
+                                    </UniformGrid>
+                                </DockPanel>
+                            </StackPanel>
+                            <StackPanel x:Name="MagnifyBox" IsVisible="False">
+                                <TextBlock Text="Focus magnifier" FontSize="12" Foreground="Gray" Margin="0,8,0,3" />
+                                <StackPanel x:Name="MagnifyButtons" Orientation="Horizontal" />
+                            </StackPanel>
+                            <Button x:Name="StopTracking" Content="Stop tracking" Click="OnStopTrackingClick" Margin="0,8,0,0"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" IsVisible="False" />
+
+                            <StackPanel x:Name="VideoShoot">
+                                <TextBlock Text="RECORDING" Classes="Section" />
+                                <UniformGrid x:Name="SlowQuickSwitch" Rows="1" Margin="-2,0,-2,4" IsVisible="False">
+                                    <ToggleButton x:Name="NormalSpeed" Content="Normal" Margin="2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                  Click="OnSlowQuickClick" ToolTip.Tip="Records at normal speed." />
+                                    <ToggleButton x:Name="SlowQuick" Content="S&amp;Q" Margin="2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                  Click="OnSlowQuickClick"
+                                                  ToolTip.Tip="Slow and quick motion: shoots at one frame rate and plays back at another, such as 240fps played at 24p." />
+                                </UniformGrid>
+                                <StackPanel x:Name="RecordingRows" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- What gets set once or now and then -->
+                        <StackPanel x:Name="SetupPage" IsVisible="False">
+                            <TextBlock x:Name="PhotoHead" Text="PHOTO" Classes="Section" />
+                            <StackPanel x:Name="PhotoRows" />
+                            <TextBlock x:Name="AudioHead" Text="AUDIO" Classes="Section" />
+                            <StackPanel x:Name="AudioRows" />
+                            <TextBlock x:Name="MoreHead" Text="CAMERA" Classes="Section" />
+                            <StackPanel x:Name="MoreRows" />
+
+                            <TextBlock Text="CONNECTION" Classes="Section" />
+                            <TextBlock Classes="Small" TextWrapping="Wrap"
+                                       Text="The camera is held by the other RemoteCam, which passes the picture and your changes on. Where photos are saved is set there." />
+
+                            <TextBlock Text="SOMETHING NOT WORKING?" Classes="Section" />
+                            <TextBlock Text="What happened? (optional)" Classes="Small" Margin="0,0,0,4" />
+                            <TextBox x:Name="LogNote" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="48" MaxLength="2000" />
+                            <Button x:Name="SendLogButton" Content="Send log to the developer" Margin="0,6,0,0" HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center" Click="OnSendLogClick" />
+                            <TextBlock x:Name="SendLogResult" TextWrapping="Wrap" FontSize="12" Margin="0,6,0,0"
+                                       Text="It sends what the app did, with your camera's model and its address on your network. No passwords, photos or video." />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,18,0,0">
+                                <TextBlock Text="Help" Classes="Small" FontSize="11"
+                                           TextDecorations="Underline" Cursor="Hand" PointerPressed="OnHelpPressed"
+                                           ToolTip.Tip="Opens the help on GitHub: what to try when something isn't working." />
+                                <TextBlock Text="  ·  " Classes="Small" FontSize="11" />
+                                <TextBlock Text="Instagram" Classes="Small" FontSize="11"
+                                           TextDecorations="Underline" Cursor="Hand" PointerPressed="OnInstagramPressed"
+                                           ToolTip.Tip="Opens @remingtonwilcox on Instagram." />
+                            </StackPanel>
+                            <TextBlock x:Name="AboutText" Classes="Small" FontSize="11" HorizontalAlignment="Center" Margin="0,6,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

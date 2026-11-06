@@ -7,8 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// The same model and numbers as BirdTrigger.cs on a computer.
-static const int FirstAnimal = 16, LastAnimal = 25; // the COCO numbers the model uses, bird through giraffe
+// The same model and numbers as BirdTrigger.cs on a computer. The caller picks the COCO numbers to look for.
 static const float Mean[3] = {0.485f, 0.456f, 0.406f};
 static const float Std[3] = {0.229f, 0.224f, 0.225f};
 
@@ -99,9 +98,9 @@ static int output(OrtValue *value, const float **data, int64_t *rows, int64_t *c
     return ok ? 0 : -1;
 }
 
-int animal_look(const uint8_t *rgba, int rotation, float *found)
+int animal_look(const uint8_t *rgba, int rotation, int first_class, int last_class, float *found)
 {
-    if (!g_session) return -1;
+    if (!g_session || first_class < 0 || last_class < first_class) return -1;
     // Shown upright, turned by rotation degrees clockwise, because the model finds far more animals that way.
     const int size = ANIMAL_SIZE, last = size - 1, plane = size * size;
     for (int y = 0; y < size; y++) {
@@ -129,12 +128,12 @@ int animal_look(const uint8_t *rgba, int rotation, float *found)
     const float *logits, *boxes;
     int64_t queries, classes, box_count, box_size;
     if (output(results[0], &logits, &queries, &classes) || output(results[1], &boxes, &box_count, &box_size)
-        || queries != box_count || box_size != 4 || classes <= LastAnimal) goto done;
+        || queries != box_count || box_size != 4 || classes <= last_class) goto done;
 
     float best = -INFINITY;
     int64_t at = 0;
     for (int64_t i = 0; i < queries; i++) {
-        for (int animal = FirstAnimal; animal <= LastAnimal; animal++) {
+        for (int animal = first_class; animal <= last_class; animal++) {
             float v = logits[i * classes + animal];
             if (v > best) {
                 best = v;

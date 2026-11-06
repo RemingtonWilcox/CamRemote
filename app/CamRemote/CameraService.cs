@@ -52,7 +52,7 @@ public sealed record FocusFrame(FrameKind Kind, bool Focused, double X, double Y
 /// Owns the SDK session. Every SDK call runs on one worker thread, in order; results and
 /// camera events are delivered on the UI thread.
 /// </summary>
-public sealed class CameraService : IDisposable
+public sealed class CameraService : IDisposable, ITriggerCamera
 {
     private const uint TypeUInt32 = 0x0003, TypeUInt64 = 0x0004, TypeInt16 = 0x1002;
     private const long FocusManual = 1, FocusContinuous = 3;
@@ -62,11 +62,13 @@ public sealed class CameraService : IDisposable
     private const uint ParamUp = 0, ParamDown = 1;
     private const long PriorityPcRemote = 2;
     private const long LiveViewQualityHigh = 1;
+    private const long LiveViewProtocolAlt = 2; // CrLiveViewProtocol_Alt, the camera's HTTP stream
     private const int ControlTries = 5; // about 10 s at the 2 s poll
     private const int RefreshTries = 5;
     private const int FocusQuietMs = 700;
     private const double RingPixelsPerStep = 12;
     private const int FrameHoldMs = 500;
+    private const int LostAfterMs = 20000; // Sony's own reconnecting gets a Wi-Fi blip back within about 10 s
 
     private readonly IUi _ui;
     private readonly BlockingCollection<Action> _queue = new();
@@ -80,10 +82,12 @@ public sealed class CameraService : IDisposable
     private volatile bool _propsDirty;
     private bool _refreshQueued;
     private int _controlMisses, _refreshFails;
-    private bool _hadControl, _restartedLink;
+    private bool _hadControl, _restartedLink, _triedHttpLiveView;
+    private long _reconnectingSince; // when Sony's SDK started reconnecting on its own; 0 while it isn't
 
     public Dictionary<uint, Prop> Props { get; private set; } = new();
     public LinkState State { get; private set; } = LinkState.Disconnected;
+    bool ITriggerCamera.Connected => State == LinkState.Connected;
 
     /// <summary>
     /// Set when automatic reconnecting should pause until the user connects by hand: after they
@@ -96,6 +100,8 @@ public sealed class CameraService : IDisposable
     public event Action? FramesChanged;
     public event Action? FocusMoved;
     public event Action<string>? Message;
+    /// <summary>A connection or command failed, with the SDK's error code. On the UI thread.</summary>
+    public event Action<int>? Failed;
 
     public CameraService(IUi ui)
     {
@@ -110,6 +116,8 @@ public sealed class CameraService : IDisposable
         });
         _poll = ui.Every(TimeSpan.FromSeconds(2), () =>
         {
+            long since = Interlocked.Read(ref _reconnectingSince);
+            if (since != 0 && Environment.TickCount64 - since > LostAfterMs) DropLostCamera();
             if (!Focusing) RequestRefresh();
         });
         _quickPoll = ui.Every(TimeSpan.FromMilliseconds(300), () =>
@@ -163,14 +171,21 @@ public sealed class CameraService : IDisposable
     private void SayFailed(string msg, int err)
     {
         Log.Write($"{msg} {Native.ErrorName(err)}");
-        _ui.Post(() => Message?.Invoke(msg));
+        _ui.Post(() =>
+        {
+            Message?.Invoke(msg);
+            Failed?.Invoke(err);
+        });
     }
+
+    /// <summary>The camera already has a remote, maybe another CamRemote. It takes one at a time.</summary>
+    public static bool IsBusy(int err) => Math.Abs((long)err) is 0x820B or 0x8210;
 
     /// <summary>What a Sony connection error means for the person using the app.</summary>
     private static string Explain(int err) => Math.Abs((long)err) switch
     {
         0x8202 => "Couldn't reach the camera. It may be off, or another app like Imaging Edge or Monitor & Control may be using it.",
-        0x820B or 0x8210 => "Another app is using the camera. Close Imaging Edge or Monitor & Control, then CamRemote can connect.",
+        0x820B or 0x8210 => "Another app is using the camera, maybe RemoteCam on another device, Imaging Edge or Monitor & Control. Close it, then RemoteCam can connect.",
         0x820A => "The camera refused the connection. Check that Remote Shooting is on.",
         0x8207 or 0x8208 or 0x8209 => "Lost contact with the camera. Check that it's on and on the same Wi-Fi.",
         0x8212 or 0x8213 or 0x8214 or 0x8215 => "Couldn't make a secure connection to the camera. Turn it off and on, then try again.",
@@ -252,6 +267,7 @@ public sealed class CameraService : IDisposable
         switch (kind)
         {
             case Native.EvConnected:
+                Interlocked.Exchange(ref _reconnectingSince, 0);
                 SetState(LinkState.Connected);
                 Say("Connected.");
                 Run(() =>
@@ -263,6 +279,7 @@ public sealed class CameraService : IDisposable
                 _frameWake.Set();
                 break;
             case Native.EvDisconnected:
+                Interlocked.Exchange(ref _reconnectingSince, 0);
                 _ui.Post(() => Props = new()); // stale values (like "recording") would mislead
                 SetState(LinkState.Disconnected);
                 if (a == 0) Say("Disconnected.");
@@ -286,10 +303,13 @@ public sealed class CameraService : IDisposable
                 break;
             case Native.EvWarning:
                 if (a is 0x20009 or 0x2000A or 0x2000B or 0x2001B) _ui.Post(EndFormat);
+                if (a == 0x20002) Interlocked.CompareExchange(ref _reconnectingSince, Environment.TickCount64, 0);
+                if (a == 0x20001) Interlocked.Exchange(ref _reconnectingSince, 0);
                 if (a != _lastWarning)
                 {
                     Log.Write("Camera notice: " + Native.ErrorName((int)a));
-                    if (ExplainNotice(a) is { } notice) Say(notice);
+                    if (a == 0x2006A) _ui.Post(() => Say(WhyNoRecording()));
+                    else if (ExplainNotice(a) is { } notice) Say(notice);
                 }
                 _lastWarning = a;
                 _propsDirty = true; // a resumed session sends no connect event of its own on every camera
@@ -311,6 +331,7 @@ public sealed class CameraService : IDisposable
         Log.Write(err == 0 ? "Asked the camera for control of its settings." : "Asking for control failed: " + Native.ErrorName(err));
         // Ask for the sharper live-view stream; harmless if the camera ignores it.
         Native.cb_set_prop((uint)PropCode.LiveView_Image_Quality, LiveViewQualityHigh, 0x2002);
+        _triedHttpLiveView = false; // the camera goes back to its usual stream on each connect
         SendPhotoFolder();
     }
 
@@ -406,6 +427,22 @@ public sealed class CameraService : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// When a camera goes off or out of range, Sony's SDK keeps the link "connected" for over 3 minutes while it
+    /// tries to get it back, and the window shows the last picture as if nothing happened. Letting go sooner shows
+    /// the loss, and the window's own reconnecting brings the camera back once it's on again.
+    /// </summary>
+    private void DropLostCamera()
+    {
+        Interlocked.Exchange(ref _reconnectingSince, 0);
+        if (State != LinkState.Connected) return;
+        Say("Lost the camera. RemoteCam will reconnect when it's back on.");
+        Props = new();
+        PropsChanged?.Invoke();
+        SetState(LinkState.Disconnected);
+        Run(() => Native.cb_disconnect());
+    }
+
     // ---- Properties ----
 
     /// <summary>Re-reads all properties, coalescing bursts of change events into one read.</summary>
@@ -424,6 +461,7 @@ public sealed class CameraService : IDisposable
                 return;
             }
             if (!CheckControl(map)) return;
+            UseHttpLiveView(map);
             _ui.Post(() =>
             {
                 Props = map;
@@ -431,6 +469,20 @@ public sealed class CameraService : IDisposable
                 PropsChanged?.Invoke();
             });
         });
+    }
+
+    /// <summary>
+    /// Runs on the camera thread. Switches live view to the camera's HTTP stream where it offers one. Measured on
+    /// the A7S III: 24 frames a second instead of 15 to 19, and the picture shows about 40 ms sooner (0.165 s
+    /// against 0.20 s), with fewer slow frames. Focus boxes and picture size stay the same.
+    /// </summary>
+    private void UseHttpLiveView(Dictionary<uint, Prop> map)
+    {
+        if (_triedHttpLiveView || !map.TryGetValue((uint)PropCode.LiveViewProtocol, out var p)) return;
+        _triedHttpLiveView = true;
+        if (p.Value == LiveViewProtocolAlt || !p.Writable || !p.Candidates.Contains(LiveViewProtocolAlt)) return;
+        int err = Native.cb_set_prop((uint)PropCode.LiveViewProtocol, LiveViewProtocolAlt, p.Type);
+        Log.Write(err == 0 ? "Switched live view to the camera's faster stream." : "The camera kept its usual live view stream: " + Native.ErrorName(err));
     }
 
     /// <summary>Runs on the camera thread. Every setting the camera reports right now, or null if it didn't answer.</summary>
@@ -494,17 +546,32 @@ public sealed class CameraService : IDisposable
     public bool RecordWaiting => _recordWaiting;
     public DateTime RecordSent { get; private set; }
 
-    /// <summary>The camera toggles recording on "Down"; Sony asks for "Up" right after.</summary>
+    /// <summary>The camera's model as it reports itself, set before connecting. It decides how the record button is pressed.</summary>
+    public string Model { get; set; } = "";
+
+    // Sony: these models start and stop on "Down" and want "Up" straight after. Every other camera starts on "Down"
+    // and stops on "Up", so a quick Down and Up there starts a take and ends it a moment later.
+    private static readonly string[] TogglesOnDown = ["ILCE-1", "ILCE-9M2", "ILCE-7RM4A", "ILCE-7RM4", "ILCE-7SM3", "ILCE-7C", "DSC-RX0M2"];
+
+    /// <summary>Starts recording, or stops it if the camera is recording.</summary>
     public void ToggleRecord()
     {
         _recordWaiting = true;
+        bool start = !IsRecording;
+        bool toggles = TogglesOnDown.Contains(Model.Trim(), StringComparer.OrdinalIgnoreCase);
         Run(() =>
         {
             try
             {
-                int err = Native.cb_command(CmdMovieRecord, ParamDown);
-                Thread.Sleep(80);
-                Native.cb_command(CmdMovieRecord, ParamUp);
+                int err;
+                if (toggles)
+                {
+                    err = Native.cb_command(CmdMovieRecord, ParamDown);
+                    Thread.Sleep(80);
+                    Native.cb_command(CmdMovieRecord, ParamUp);
+                }
+                else err = Native.cb_command(CmdMovieRecord, start ? ParamDown : ParamUp);
+                Log.Write($"Record button: {(start ? "start" : "stop")} on {(Model.Length > 0 ? Model : "an unknown model")}{(toggles ? ", Down and Up" : "")}, result {err}.");
                 if (err != 0) SayFailed("The camera didn't respond to the record button.", err);
             }
             finally
@@ -600,6 +667,20 @@ public sealed class CameraService : IDisposable
         var preset = new Preset { Values = values };
         var (top, middle, bottom) = Describe(preset, photo);
         preset.Summary = string.Join(", ", new[] { top, middle, bottom }.Where(s => s.Length > 0));
+        return preset;
+    }
+
+    /// <summary>Video and Photo each have their own C1 to C4, kept in the app's settings.</summary>
+    public string PresetKey(int slot) => (IsPhotoMode ? "photo" : "video") + slot;
+
+    public Preset? PresetIn(Settings settings, int slot) => settings.Presets.GetValueOrDefault(PresetKey(slot));
+
+    /// <summary>Keeps the camera's settings now in a slot for the page it's on. Null when the camera isn't connected.</summary>
+    public Preset? SavePreset(Settings settings, int slot)
+    {
+        if (TakePreset() is not { } preset) return null;
+        settings.Presets[PresetKey(slot)] = preset;
+        settings.Save();
         return preset;
     }
 
@@ -757,11 +838,7 @@ public sealed class CameraService : IDisposable
         bool halfPress = _halfPressed;
         Run(() =>
         {
-            if (halfPress)
-            {
-                Native.cb_set_prop((uint)PropCode.S1, S1Locked, TypeUInt16Array);
-                Thread.Sleep(FocusWaitMs);
-            }
+            if (halfPress) PressHalfway(FocusWaitMs);
             int err = Native.cb_command(CmdRelease, ParamDown);
             if (err != 0) SayFailed("The camera didn't take the picture.", err);
         });
@@ -790,6 +867,17 @@ public sealed class CameraService : IDisposable
     private PropCode CardStatus(int slot) => slot == 1 ? PropCode.MediaSLOT1_Status : PropCode.MediaSLOT2_Status;
     private PropCode CardFormat(int slot) => slot == 1 ? PropCode.MediaSLOT1_QuickFormatEnableStatus : PropCode.MediaSLOT2_QuickFormatEnableStatus;
     private PropCode CardTime(int slot) => slot == 1 ? PropCode.MediaSLOT1_RemainingTime : PropCode.MediaSLOT2_RemainingTime;
+
+    /// <summary>Why the camera turned down the record button, when its cards explain it. A full card is the usual reason.</summary>
+    private string WhyNoRecording()
+    {
+        var ready = new[] { 1, 2 }.Where(s => Get(CardStatus(s))?.Value == 0).ToList();
+        if (ready.Count == 0 && new[] { 1, 2 }.Any(s => Get(CardStatus(s)) != null))
+            return "The camera couldn't record: there's no card it can use. Check the card is in and not locked.";
+        if (ready.Count > 0 && ready.All(s => Get(CardTime(s))?.Value == 0))
+            return "The camera couldn't record: its card is full.";
+        return "The camera couldn't start or stop recording.";
+    }
 
     /// <summary>The cards in the camera, on cameras that can format over the SDK.</summary>
     public IEnumerable<int> CardSlots => new[] { 1, 2 }.Where(s => Get(CardStatus(s))?.Value == 0 && Get(CardFormat(s)) != null);
@@ -844,7 +932,17 @@ public sealed class CameraService : IDisposable
             return null;
         }
         if (!evenIfTapIsOff && Get(PropCode.FunctionOfTouchOperation)?.Value == TouchFnOff)
-            return "Tap does is set to Off, so clicks do nothing. Pick Focus or Tracking.";
+        {
+            if (!TouchLockedOff) return TapOffHint;
+            // The camera switched touch off itself (the A7S III does while HDMI Info. Display has its screen off), but its
+            // focus area can still move: put a spot there and the camera focuses, or tracks with a Tracking spot.
+            if (Get(PropCode.AF_Area_Position) is not { Writable: true }) return TapOffHint;
+            uint spot = TouchPoint(fx, fy);
+            Log.Write($"Tap at {fx:0.00}, {fy:0.00} with touch locked off: moving the focus area there.");
+            bool photo = IsPhotoMode;
+            Run(() => MoveFocusSpot(spot, photo));
+            return null;
+        }
         uint xy = TouchPoint(fx, fy);
         Log.Write($"Tap at {fx:0.00}, {fy:0.00}: focus mode {Get(PropCode.FocusMode)?.Value}, tap function {Get(PropCode.FunctionOfTouchOperation)?.Value}, " +
                   $"touch allowed {Get(PropCode.RemoteTouchOperationEnableStatus)?.Value}, spot movable {Get(PropCode.AF_Area_Position)?.Writable}");
@@ -882,9 +980,12 @@ public sealed class CameraService : IDisposable
         bool touch = evenIfTapIsOff || Get(PropCode.RemoteTouchOperationEnableStatus)?.Value == 1 || Get(PropCode.TouchOperation)?.Value != TouchOn;
         if (touch)
         {
+            // In video the A7S III's tap is only tracking or off, so a tap made while it's off has to track.
+            long function = track || Get(PropCode.FunctionOfTouchOperation) is { Candidates: { Length: > 0 } offered }
+                && !offered.Contains(TouchFnFocus) && offered.Contains(TouchFnTracking) ? TouchFnTracking : TouchFnFocus;
             Run(() =>
             {
-                EnableTouch(track ? TouchFnTracking : TouchFnFocus);
+                EnableTouch(function);
                 int err = Native.cb_set_prop((uint)PropCode.RemoteTouchOperation, xy, TypeUInt32);
                 if (err != 0 && MoveFocusSpot(xy, IsPhotoMode)) return; // the A9 II over Wi-Fi refuses remote touch
                 if (err != 0) SayFailed(Get(PropCode.AF_Area_Position) is { Writable: false } ? SpotNeeded : "The camera couldn't focus there.", err);
@@ -912,7 +1013,26 @@ public sealed class CameraService : IDisposable
                "or set Focus Area to a Spot type.";
     }
 
-    private const string SpotNeeded = "To click to focus on this camera, set Focus area to Spot S, Spot M or Spot L.";
+    /// <summary>Tap does is Off in autofocus and the camera offers nothing else, so it isn't the person's choice.</summary>
+    public bool TouchLockedOff => !IsManualFocus && Get(PropCode.FunctionOfTouchOperation) is { Value: TouchFnOff } f
+                                  && (!f.Writable || f.Candidates.All(c => c == TouchFnOff));
+
+    /// <summary>What to say when Tap does is Off. It names only the choices the camera offers: the A7S III in movie mode has no Focus.</summary>
+    public string TapOffHint
+    {
+        get
+        {
+            if (TouchLockedOff)
+                return "The camera has switched touch off, as it does while HDMI Info. Display is on. " +
+                       "Set Focus area to a Spot or Tracking spot and clicks move it there.";
+            var offered = Get(PropCode.FunctionOfTouchOperation)?.Candidates ?? [];
+            bool focus = offered.Contains(TouchFnFocus), tracking = offered.Contains(TouchFnTracking);
+            return "Tap does is Off, so clicks do nothing." +
+                   (focus && tracking ? " Pick Focus or Tracking." : focus ? " Pick Focus." : tracking ? " Pick Tracking." : "");
+        }
+    }
+
+    private const string SpotNeeded ="To click to focus on this camera, set Focus area to Spot S, Spot M or Spot L.";
 
     /// <summary>
     /// Runs on the camera thread. For cameras without remote touch: moves a spot focus area to the tap, and in
@@ -930,9 +1050,35 @@ public sealed class CameraService : IDisposable
     /// <summary>Runs on the camera thread.</summary>
     private void HalfPress()
     {
-        Native.cb_set_prop((uint)PropCode.S1, S1Locked, TypeUInt16Array);
-        Thread.Sleep(FocusHoldMs);
+        PressHalfway(FocusHoldMs);
         Native.cb_set_prop((uint)PropCode.S1, S1Unlocked, TypeUInt16Array);
+    }
+
+    private const long FocusedAfS = 0x102, FocusedAfC = 0x103, TrackingAfC = 0x303; // CrFocusIndicator
+    private static bool Focused(long indication) => indication is FocusedAfS or FocusedAfC or TrackingAfC;
+
+    /// <summary>
+    /// Runs on the camera thread. Half-presses the shutter and waits until the camera says it has focused, or for
+    /// <paramref name="longestMs"/>. It only stops early on a change it saw: in AF-C the camera can already say it's
+    /// focused on what it was looking at before, so a focused reading before the press counts for nothing.
+    /// </summary>
+    private void PressHalfway(int longestMs)
+    {
+        var took = System.Diagnostics.Stopwatch.StartNew();
+        // From the last refresh, so the press isn't held up by a read.
+        bool stale = Get(PropCode.FocusIndication) is { } before && Focused(before.Value);
+        Native.cb_set_prop((uint)PropCode.S1, S1Locked, TypeUInt16Array);
+        while (took.ElapsedMilliseconds < longestMs)
+        {
+            Thread.Sleep(40);
+            long now = ReadAll()?.GetValueOrDefault((uint)PropCode.FocusIndication)?.Value ?? 0;
+            if (!Focused(now)) stale = false;
+            else if (!stale)
+            {
+                Log.Write($"Focused {took.ElapsedMilliseconds} ms after the half-press.");
+                return;
+            }
+        }
     }
 
     private static uint TouchPoint(double fx, double fy)
@@ -945,9 +1091,19 @@ public sealed class CameraService : IDisposable
     /// <summary>Runs on the camera thread. Turns touch on with the given function, if it isn't already.</summary>
     private void EnableTouch(long function)
     {
-        if (Get(PropCode.TouchOperation)?.Value != TouchOn) SetNow(PropCode.TouchOperation, TouchOn);
-        if (Get(PropCode.FunctionOfTouchOperation)?.Value != function) SetNow(PropCode.FunctionOfTouchOperation, function);
-        Thread.Sleep(150);
+        bool changed = false;
+        if (Get(PropCode.TouchOperation)?.Value != TouchOn)
+        {
+            SetNow(PropCode.TouchOperation, TouchOn);
+            changed = true;
+        }
+        // Only a function the camera offers: asking for Focus where it has none only gets a refusal.
+        if (Get(PropCode.FunctionOfTouchOperation) is { } now && now.Value != function && (now.Candidates.Length == 0 || now.Candidates.Contains(function)))
+        {
+            SetNow(PropCode.FunctionOfTouchOperation, function);
+            changed = true;
+        }
+        if (changed) Thread.Sleep(150); // the camera takes a moment to switch
     }
 
     private void SetNow(PropCode code, long value)

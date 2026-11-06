@@ -28,17 +28,19 @@
     <Compile Include="..\CamRemote\LiveViewFeed.cs" Link="Shared\LiveViewFeed.cs" />
     <Compile Include="..\CamRemote\Native.cs" Link="Shared\Native.cs" />
     <Compile Include="..\CamRemote\PhoneServer.cs" Link="Shared\PhoneServer.cs" />
+    <Compile Include="..\CamRemote\Peers.cs" Link="Shared\Peers.cs" />
     <Compile Include="..\CamRemote\PictureAssist.cs" Link="Shared\PictureAssist.cs" />
     <Compile Include="..\CamRemote\SdkNames.g.cs" Link="Shared\SdkNames.g.cs" />
     <Compile Include="..\CamRemote\Settings.cs" Link="Shared\Settings.cs" />
     <Compile Include="..\CamRemote\SonyRemote.cs" Link="Shared\SonyRemote.cs" />
+    <Compile Include="..\CamRemote\RemoteLink.cs" Link="Shared\RemoteLink.cs" />
     <EmbeddedResource Include="..\CamRemote\phone.html" LogicalName="phone.html" />
     <EmbeddedResource Include="..\CamRemote\phone-icon.png" LogicalName="phone-icon.png" />
   </ItemGroup>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <None Include="..\..\vendor\BirdModel\*.onnx" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" Visible="false" />
+    <None Include="..\..\vendor\BirdModel\rfdetr_small.onnx" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" Visible="false" />
     <!-- Microsoft stopped building ONNX Runtime for Intel Macs after this older version. -->
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.23.2" Condition="'$(RuntimeIdentifier)' == 'osx-x64'" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.31.1" Condition="'$(RuntimeIdentifier)' != 'osx-x64'" />

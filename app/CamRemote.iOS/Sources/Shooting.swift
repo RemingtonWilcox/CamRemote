@@ -163,9 +163,13 @@ struct ShootingView: View {
                 ZStack { Text(" ").hidden(); captureNote }.frame(maxWidth: .infinity)
             }
             ScrollView {
-                if !camera.photoMode, AnimalTrigger.available { AnimalSwitch(animals: animals) }
+                if !camera.photoMode, camera.join != nil, let auto = camera.joinedAuto {
+                    JoinedAutoSwitch(camera: camera, auto: auto, animals: animals)
+                } else if !camera.photoMode, AnimalTrigger.available {
+                    AnimalSwitch(animals: animals)
+                }
                 ChipGrid(columns: columns) {
-                    ForEach(1...3, id: \.self) { slot in
+                    ForEach(1...4, id: \.self) { slot in // C4 as on the computer, often slow motion
                         PresetChip(camera: camera, slot: slot)
                     }
                     chip(Code.mode)
@@ -354,7 +358,8 @@ struct ShootingView: View {
     // MARK: Parts of both
 
     private var liveView: some View {
-        LiveView(camera: camera, turn: pictureTurn, grid: showGrid, blink: blink, animal: animals.box)
+        LiveView(camera: camera, turn: pictureTurn, grid: showGrid, blink: blink,
+                 animal: camera.join != nil && camera.joinedAuto != nil ? camera.joinedBox : animals.box)
     }
 
     private func tileRow(background: Color) -> some View {
@@ -640,9 +645,6 @@ struct LiveView: View {
 struct AnimalSwitch: View {
     @ObservedObject var animals: AnimalTrigger
 
-    /// What automatic recording can look for. Only animals for now: a new subject needs its own detector, and a tap to pick it.
-    private static let subjects = ["Animal"]
-
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Toggle("Automatic recording", isOn: Binding(get: { animals.on }, set: { $0 ? animals.start() : animals.stop() }))
@@ -651,26 +653,87 @@ struct AnimalSwitch: View {
             if animals.on {
                 Text("Record when it sees").font(.caption2).foregroundColor(.dim)
                 ChipGrid {
-                    ForEach(Self.subjects, id: \.self) { subject in
-                        Text(subject)
-                            .font(.footnote.weight(.semibold))
-                            .foregroundColor(.good)
-                            .frame(maxWidth: .infinity, minHeight: 32)
-                            .background(Color.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.good, lineWidth: 2))
+                    ForEach(RecordSubject.all, id: \.name) { subject in
+                        let picked = subject == animals.subject
+                        Button { animals.choose(subject) } label: {
+                            Text(subject.name)
+                                .font(.footnote.weight(.semibold))
+                                .foregroundColor(picked ? .good : .white)
+                                .frame(maxWidth: .infinity, minHeight: 32)
+                                .background(Color.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(picked ? Color.good : Color.clear, lineWidth: 2))
+                        }
+                        .buttonStyle(Press())
                     }
                 }
             }
             if animals.on, !animals.status.isEmpty {
                 Text(animals.status).font(.caption).foregroundColor(.white)
             }
-            Text("Checks the picture twice a second, on this \(AppDelegate.pad ? "iPad" : "phone") only. It only works while CamRemote is open on screen, so keep it unlocked and plugged in.")
+            Text("Checks the picture twice a second, on this \(AppDelegate.pad ? "iPad" : "phone") only. It only works while RemoteCam is open on screen, so keep it unlocked and plugged in.")
                 .font(.caption)
                 .foregroundColor(.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(10)
         .background(Color.panel, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// Automatic recording on the RemoteCam this device is using the camera through. Changing it here changes it there, and
+/// this device's own detector stays off, so the two never fight over the record button.
+struct JoinedAutoSwitch: View {
+    @ObservedObject var camera: Camera
+    let auto: JoinedAuto
+    @ObservedObject var animals: AnimalTrigger
+
+    var body: some View {
+        let host = camera.join?.name ?? "the other RemoteCam"
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("Automatic recording", isOn: Binding(get: { auto.on }, set: { camera.setJoinedAuto("auto", $0 ? "1" : "0") }))
+                .font(.footnote.weight(.semibold))
+                .tint(.good)
+                .disabled(!auto.available)
+            if auto.on {
+                Text("Record when it sees").font(.caption2).foregroundColor(.dim)
+                ChipGrid {
+                    ForEach(auto.subjects, id: \.self) { name in
+                        chip(name, picked: name == auto.subject) { camera.setJoinedAuto("autoSubject", name) }
+                    }
+                }
+                if !auto.stops.isEmpty {
+                    Text("Stop once it's been gone for").font(.caption2).foregroundColor(.dim)
+                    ChipGrid {
+                        ForEach(auto.stops, id: \.self) { seconds in
+                            chip(seconds < 60 ? "\(seconds) s" : "\(seconds / 60) min", picked: seconds == auto.stopAfter) {
+                                camera.setJoinedAuto("autoStop", String(seconds))
+                            }
+                        }
+                    }
+                }
+                if !auto.status.isEmpty { Text(auto.status).font(.caption).foregroundColor(.white) }
+            }
+            Text(auto.available ? "Runs on \(host), which has the camera. Changing it here changes it there."
+                                : "\(host) doesn't have the animal detector, so automatic recording isn't available.")
+                .font(.caption)
+                .foregroundColor(.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(10)
+        .background(Color.panel, in: RoundedRectangle(cornerRadius: 8))
+        .onAppear { if animals.on { animals.stop() } } // only one detector decides when to record
+    }
+
+    private func chip(_ text: String, picked: Bool, tap: @escaping () -> Void) -> some View {
+        Button(action: tap) {
+            Text(text)
+                .font(.footnote.weight(.semibold))
+                .foregroundColor(picked ? .good : .white)
+                .frame(maxWidth: .infinity, minHeight: 32)
+                .background(Color.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(picked ? Color.good : Color.clear, lineWidth: 2))
+        }
+        .buttonStyle(Press())
     }
 }
 
@@ -909,7 +972,7 @@ struct PresetChip: View {
     let slot: Int
 
     var body: some View {
-        let lines = camera.preset(slot).map(camera.describe) ?? []
+        let lines = camera.presetLines(slot)
         ChipFace(label: "C\(slot)", value: lines.first ?? "Empty", on: camera.activeSlot == slot, more: Array(lines.dropFirst()))
             .overlay {
                 if camera.activeSlot == slot { RoundedRectangle(cornerRadius: 8).stroke(Color.good, lineWidth: 2) }
@@ -957,6 +1020,7 @@ struct SetupSheet: View {
     @State private var chooser: Row?
     @State private var showCredits = false
     @State private var forgetting: SavedCamera?
+    @State private var askFormat = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -1015,18 +1079,31 @@ struct SetupSheet: View {
                     .padding(12)
                     .background(Color.panel, in: RoundedRectangle(cornerRadius: 10))
                 }
+                if camera.join == nil {
+                    section("CARD")
+                    Button(camera.formatting ? "Formatting…" : "Format card…") { askFormat = true }
+                        .buttonStyle(Big(color: .panel))
+                        .disabled(camera.formatting || camera.recording || camera.timeLapseRunning)
+                }
                 section("CONNECTION")
-                Text("Photos and video stay on the camera's card.")
+                Text(camera.join.map { "Using the camera through \($0.name). It keeps the camera when you leave." }
+                     ?? "Photos and video stay on the camera's card.")
                     .font(.footnote)
                     .foregroundColor(.dim)
-                Button("Disconnect") {
+                Button(camera.join == nil ? "Disconnect" : "Leave") {
                     dismiss()
                     camera.disconnect()
                 }
                 .buttonStyle(Big(color: .panel))
                 SendLogSection(camera: camera)
+                Text("RemoteCam \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") · Made by Remington Wilcox")
+                    .font(.caption2)
+                    .foregroundColor(.dim)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 12)
                 HStack(spacing: 12) {
-                    Text("CamRemote \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
+                    Link("Help", destination: URL(string: "https://github.com/RemingtonWilcox/RemoteCam#something-not-working")!)
+                    Link("Instagram", destination: URL(string: "https://www.instagram.com/remingtonwilcox/")!)
                     Button("Credits") { showCredits = true }
                 }
                 .font(.caption2)
@@ -1047,6 +1124,11 @@ struct SetupSheet: View {
             Button("Forget", role: .destructive) { camera.forget(saved) }
         } message: { _ in
             Text("Its login is removed from this device and your others. You'll type it again to connect.")
+        }
+        .confirmationDialog("Erase the camera's card?", isPresented: $askFormat, titleVisibility: .visible) {
+            Button("Erase card", role: .destructive) { camera.formatCard() }
+        } message: {
+            Text("Every photo and video on it is deleted, and it can't be undone. Copy anything you want to keep first.")
         }
     }
 

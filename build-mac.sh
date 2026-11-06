@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds dist/CamRemote.app. Needs the Sony SDK unpacked in vendor/CrSDK (see README).
+# Builds dist/RemoteCam.app. Needs the Sony SDK unpacked in vendor/CrSDK (see README).
 # Signs with your Developer ID if you have one, or for this Mac only if you don't.
 # Set CAMREMOTE_SIGN to a signing identity to choose one, or to - to skip the Developer ID.
 set -euo pipefail
@@ -33,7 +33,7 @@ cmake --build build/bridge-mac --config Release
 rm -rf build/mac-publish
 dotnet publish app/CamRemote.Mac/CamRemote.Mac.csproj -c Release -r "$rid" --self-contained -p:PublishSingleFile=true -p:DebugType=none -o build/mac-publish
 
-app=dist/CamRemote.app
+app=dist/RemoteCam.app
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Frameworks/CrAdapter" "$app/Contents/Resources"
 cp tools/mac/Info.plist "$app/Contents/"

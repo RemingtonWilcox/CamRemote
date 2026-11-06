@@ -63,6 +63,21 @@ private enum Secrets {
         SecItemAdd(item as CFDictionary, nil)
     }
 
+    /// The other devices the person let in, each with the token it was handed.
+    static func allowed() -> [AllowedDevice] {
+        guard let data = read("allowed").data(using: .utf8),
+              let list = (try? JSONSerialization.jsonObject(with: data)) as? [[String: String]] else { return [] }
+        return list.compactMap { item in
+            guard let id = item["id"], let token = item["token"] else { return nil }
+            return AllowedDevice(id: id, name: item["name"] ?? "Another device", token: token)
+        }
+    }
+
+    static func save(_ devices: [AllowedDevice]) {
+        let list = devices.map { ["id": $0.id, "name": $0.name, "token": $0.token] }
+        write("allowed", (try? JSONSerialization.data(withJSONObject: list)).map { String(decoding: $0, as: UTF8.self) } ?? "[]")
+    }
+
     static func random(_ count: Int) -> [UInt8] {
         var bytes = [UInt8](repeating: 0, count: count)
         _ = SecRandomCopyBytes(kSecRandomDefault, count, &bytes)
@@ -83,6 +98,19 @@ private enum Secrets {
         }
         return (code, token)
     }
+}
+
+/// Another device the person let use the camera through this one.
+struct AllowedDevice: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let token: String
+}
+
+/// A device asking to join, waiting on the person's answer.
+struct JoinQuestion: Identifiable {
+    let id: String
+    let name: String
 }
 
 private struct Request {
@@ -121,6 +149,8 @@ final class Bridge: ObservableObject {
     @Published private(set) var paceBytes: Int64 = 0 // since the picture setting last changed, for the hourly figure
     @Published private(set) var watchedSeconds = 0.0 // likewise
     @Published private(set) var code = ""
+    @Published private(set) var allowedDevices = Secrets.allowed()
+    @Published private(set) var question: JoinQuestion? // someone is asking to join; the app shows Allow or Don't Allow
     @Published var pace = Pace(rawValue: UserDefaults.standard.integer(forKey: "bridgePace")) ?? .saver {
         didSet {
             UserDefaults.standard.set(pace.rawValue, forKey: "bridgePace")
@@ -136,6 +166,10 @@ final class Bridge: ObservableObject {
     private var token = "" // on `queue`
     private var codeOnQueue = "" // on `queue`
     private var nextLogin = Date.distantPast // on `queue`: one wrong code slows every try after it
+    private var allowedTokens: [String: String] = [:] // on `queue`: token to device id
+    private var waiting: (id: String, replies: [UUID: (Response) -> Void])? // on `queue`: the device being asked about now
+    private var lateYes: [String: (token: String, until: Date)] = [:] // on `queue`: a yes that came after it stopped waiting
+    private var refusedUntil: [String: Date] = [:] // on `queue`: so a no isn't asked again straight away
     private var watchers: [AnyCancellable] = []
     private lazy var page = Bridge.loadPage()
     private lazy var icon = Bundle.main.url(forResource: "phone-icon", withExtension: "png").flatMap { try? Data(contentsOf: $0) } ?? Data()
@@ -145,6 +179,7 @@ final class Bridge: ObservableObject {
     private var jpeg: Data?
     private var frameNo: Int64 = 0
     private var lastAsk = Date.distantPast
+    private var lastFarAsk = Date.distantPast // from Tailscale, where each picture costs mobile data
     private var unsentBytes: Int64 = 0
     private var encoding = false // main thread only
     private var lastEncode = Date.distantPast // main thread only
@@ -190,9 +225,11 @@ final class Bridge: ObservableObject {
         guard listener == nil else { return }
         let secrets = Secrets.load()
         code = secrets.code
+        let tokens = allowedTokenMap()
         queue.async {
             self.token = secrets.token
             self.codeOnQueue = secrets.code
+            self.allowedTokens = tokens
         }
         let parameters = NWParameters.tcp
         parameters.allowLocalEndpointReuse = true
@@ -268,11 +305,21 @@ final class Bridge: ObservableObject {
 
     /// Runs on the main thread for every picture the camera sends. Only some are shrunk and kept, and only while a computer is watching.
     private func offer(_ image: UIImage?) {
-        guard let image, listener != nil, !encoding, Date().timeIntervalSince(lastEncode) >= 1 / Double(pace.rawValue) - 0.02 else { return }
+        guard let image, listener != nil else { return }
         lock.lock()
         let wanted = Date().timeIntervalSince(lastAsk) < watchWindow
+        let far = Date().timeIntervalSince(lastFarAsk) < watchWindow
         lock.unlock()
         guard wanted else { return }
+        // An iPad on this phone's hotspot costs no data, so it gets every picture as the camera sent it.
+        if !far, let raw = camera?.frameJpeg {
+            lock.lock()
+            jpeg = raw
+            frameNo += 1
+            lock.unlock()
+            return
+        }
+        guard !encoding, Date().timeIntervalSince(lastEncode) >= 1 / Double(pace.rawValue) - 0.02 else { return }
         encoding = true
         lastEncode = Date()
         DispatchQueue.global(qos: .utility).async {
@@ -336,9 +383,22 @@ final class Bridge: ObservableObject {
             || (bytes[0] == 100 && (64...127).contains(bytes[1]))
     }
 
+    private static func isTailscale(_ endpoint: NWEndpoint) -> Bool {
+        guard case let .hostPort(host, _) = endpoint else { return false }
+        switch host {
+        case let .ipv4(address):
+            let b = Array(address.rawValue)
+            return b.count == 4 && b[0] == 100 && (64...127).contains(b[1])
+        case let .ipv6(address):
+            if let v4 = address.asIPv4 { return isTailscale(.hostPort(host: .ipv4(v4), port: 0)) }
+            return Array(address.rawValue).first.map { $0 & 0xFE == 0xFC } == true
+        default: return false
+        }
+    }
+
     private func receive(_ connection: NWConnection, _ buffer: Data) {
         if let (request, rest) = Self.parse(buffer) {
-            handle(request) { [weak self] response in
+            handle(request, far: Self.isTailscale(connection.endpoint)) { [weak self] response in
                 self?.send(Self.squeeze(response, for: request), on: connection) { self?.receive(connection, rest) }
             }
             return
@@ -420,7 +480,7 @@ final class Bridge: ObservableObject {
 
     private func send(_ response: Response, on connection: NWConnection, close: Bool = false, then next: @escaping () -> Void) {
         let reasons = [200: "OK", 204: "No Content", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found",
-                       409: "Conflict", 413: "Payload Too Large"]
+                       408: "Request Timeout", 409: "Conflict", 413: "Payload Too Large", 429: "Too Many Requests"]
         var head = "HTTP/1.1 \(response.status) \(reasons[response.status] ?? "Error")\r\n"
         var headers = response.headers
         headers["Content-Length"] = String(response.body.count)
@@ -440,13 +500,16 @@ final class Bridge: ObservableObject {
     // MARK: The page's API, the same one CamRemote on a computer answers
 
     /// Runs on `queue`. Anything that touches the camera hops to the main thread, where the camera's controls live.
-    private func handle(_ request: Request, reply: @escaping (Response) -> Void) {
+    private func handle(_ request: Request, far: Bool, reply: @escaping (Response) -> Void) {
         let path = request.path
-        if path.hasPrefix("/api/"), path != "/api/login" {
-            guard Self.same(cookie(request), token) else { return reply(Response(status: 401)) }
+        let given = cookie(request)
+        let signedIn = Self.same(given, token) || given.flatMap { allowedTokens[$0] } != nil
+        if path.hasPrefix("/api/"), !["/api/login", "/api/hello", "/api/pair"].contains(path) {
+            guard signedIn else { return reply(Response(status: 401)) }
             // Browsers won't add this header on another site's behalf.
             guard request.method == "GET" || request.headers["x-camremote"] != nil else { return reply(Response(status: 403)) }
         }
+        if path == "/api/pair", request.headers["x-camremote"] == nil { return reply(Response(status: 403)) }
         let body = (try? JSONSerialization.jsonObject(with: request.body)) as? [String: Any] ?? [:]
         switch (request.method, path) {
         case ("GET", "/"):
@@ -454,17 +517,24 @@ final class Bridge: ObservableObject {
         case ("GET", "/icon.png"):
             reply(Response(type: "image/png", body: icon))
         case ("GET", "/manifest.webmanifest"):
-            reply(.json(["name": "CamRemote", "short_name": "CamRemote", "start_url": "/", "display": "standalone",
+            reply(.json(["name": "RemoteCam", "short_name": "RemoteCam", "start_url": "/", "display": "standalone",
                          "background_color": "#101214", "theme_color": "#101214",
                          "icons": [["src": "/icon.png", "sizes": "180x180", "type": "image/png"]]]))
         case ("POST", "/api/login"):
             login(body["code"] as? String, reply: reply)
+        case ("GET", "/api/hello"):
+            // How another RemoteCam nearby finds this one. Only a device already let in learns its other addresses.
+            let (name, has) = DispatchQueue.main.sync { (UIDevice.current.name, camera?.link == .on) }
+            reply(.json(["app": "egret", "id": ThisDevice.id, "name": name, "camera": has,
+                         "addresses": signedIn ? Self.findAddresses().map { JoinLink.normalize($0) } as Any : NSNull()]))
+        case ("POST", "/api/pair"):
+            pair(id: body["id"] as? String ?? "", name: body["name"] as? String ?? "", proof: body["proof"] as? [String] ?? [], reply: reply)
         case ("GET", "/api/cameras"):
             reply(.json([["id": cameraId, "name": "Camera"]]))
         case ("GET", "/api/\(cameraId)/state"):
             reply(.json(DispatchQueue.main.sync { state() }))
         case ("GET", "/api/\(cameraId)/frame"):
-            frame(after: Int64(request.query["after"] ?? ""), since: Date(), reply: reply)
+            frame(after: Int64(request.query["after"] ?? ""), since: Date(), far: far, reply: reply)
         case ("POST", "/api/\(cameraId)/set"):
             let id = body["id"] as? String ?? "", value = body["value"] as? String ?? ""
             reply(.message(DispatchQueue.main.sync { set(id, value) }))
@@ -477,6 +547,18 @@ final class Bridge: ObservableObject {
         case ("POST", "/api/\(cameraId)/focusstep"):
             let step = max(-7, min(7, (body["step"] as? Int) ?? 0))
             reply(.message(DispatchQueue.main.sync { focusStep(step) }))
+        case ("POST", "/api/\(cameraId)/preset"):
+            let slot = body["slot"] as? Int ?? 0, save = body["save"] as? Bool ?? false
+            reply(.message(DispatchQueue.main.sync { preset(slot, save: save) }))
+        case ("POST", "/api/\(cameraId)/mode"):
+            let photo = body["photo"] as? Bool ?? false
+            reply(.message(DispatchQueue.main.sync { mode(photo: photo) }))
+        case ("POST", "/api/\(cameraId)/slowquick"):
+            let on = body["on"] as? Bool ?? false
+            reply(.message(DispatchQueue.main.sync { slowQuick(on) }))
+        case ("POST", "/api/\(cameraId)/shutter"):
+            let down = body["down"] as? Bool ?? false
+            reply(.message(DispatchQueue.main.sync { shutter(down: down) }))
         default:
             reply(Response(status: 404))
         }
@@ -506,17 +588,93 @@ final class Bridge: ObservableObject {
         reply(Response(headers: ["Set-Cookie": "\(cookieName)=\(token); Path=/; Max-Age=31536000; HttpOnly; SameSite=Strict"]))
     }
 
+    private func allowedTokenMap() -> [String: String] {
+        Dictionary(allowedDevices.map { ($0.token, $0.id) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// Runs on `queue`. A device asking to join for the first time waits while the person here is asked. Only one is
+    /// asked about at a time, and a device told no isn't asked about again for five minutes.
+    private func pair(id: String, name typed: String, proof: [String], reply: @escaping (Response) -> Void) {
+        guard (16...64).contains(id.count), id.allSatisfy(\.isHexDigit) else { return reply(Response(status: 400)) }
+        let clean = String(typed.filter { !$0.isNewline }.trimmingCharacters(in: .whitespaces).prefix(40))
+        let name = clean.isEmpty ? "Another device" : clean
+        // It knows a camera's password saved here, so it could take the camera anyway: no need to ask.
+        let given = Set(proof.prefix(8).map { $0.lowercased() })
+        if !given.isEmpty, Logins.all().contains(where: { given.contains(Nearby.proof($0.login.password, joiner: id, host: ThisDevice.id)) }) {
+            return DispatchQueue.main.async {
+                let token = self.allow(id: id, name: name)
+                self.queue.async { reply(.json(["token": token])) }
+            }
+        }
+        if let yes = lateYes.removeValue(forKey: id), yes.until > Date() { return reply(.json(["token": yes.token])) }
+        if let until = refusedUntil[id], until > Date() { return reply(Response(status: 429)) }
+        let key = UUID()
+        if var now = waiting {
+            guard now.id == id else { return reply(Response(status: 409)) }
+            now.replies[key] = reply
+            waiting = now
+        } else {
+            waiting = (id, [key: reply])
+            DispatchQueue.main.async { self.question = JoinQuestion(id: id, name: name) }
+        }
+        // It asks again after this, and gets the same question or its yes.
+        queue.asyncAfter(deadline: .now() + 100) { [weak self] in
+            guard let self, let gone = self.waiting?.replies.removeValue(forKey: key) else { return }
+            gone(Response(status: 408))
+        }
+    }
+
+    /// The person's answer to `question`. Main thread.
+    func answer(allow: Bool) {
+        guard let asked = question else { return }
+        question = nil
+        let granted = allow ? self.allow(id: asked.id, name: asked.name) : nil
+        queue.async {
+            var replies: [(Response) -> Void] = []
+            if let now = self.waiting, now.id == asked.id {
+                replies = Array(now.replies.values)
+                self.waiting = nil
+            }
+            if let granted {
+                if replies.isEmpty { self.lateYes[asked.id] = (granted, Date().addingTimeInterval(600)) }
+                replies.forEach { $0(.json(["token": granted])) }
+            } else {
+                self.refusedUntil[asked.id] = Date().addingTimeInterval(300)
+                replies.forEach { $0(Response(status: 403)) }
+            }
+        }
+    }
+
+    /// Lets a device in and hands back its token. Main thread.
+    private func allow(id: String, name: String) -> String {
+        let token = Secrets.random(32).map { String(format: "%02X", $0) }.joined()
+        allowedDevices = allowedDevices.filter { $0.id != id } + [AllowedDevice(id: id, name: name, token: token)]
+        Secrets.save(allowedDevices)
+        let tokens = allowedTokenMap()
+        queue.async { self.allowedTokens = tokens } // never sync: the queue waits on the main thread for the camera
+        return token
+    }
+
+    /// It has to ask again to join.
+    func remove(_ device: AllowedDevice) {
+        allowedDevices.removeAll { $0.id == device.id }
+        Secrets.save(allowedDevices)
+        let tokens = allowedTokenMap()
+        queue.async { self.allowedTokens = tokens }
+    }
+
     /// Waits briefly for a picture newer than the last one, so the picture paces itself to the connection.
-    private func frame(after: Int64?, since: Date, reply: @escaping (Response) -> Void) {
+    private func frame(after: Int64?, since: Date, far: Bool, reply: @escaping (Response) -> Void) {
         lock.lock()
         lastAsk = Date()
+        if far { lastFarAsk = Date() }
         let data = jpeg, number = frameNo
         lock.unlock()
         if let data, number != after {
             return reply(Response(type: "image/jpeg", body: data, headers: ["X-Frame": String(number)]))
         }
         guard Date().timeIntervalSince(since) < frameWait else { return reply(Response(status: 204)) }
-        queue.asyncAfter(deadline: .now() + 0.05) { self.frame(after: after, since: since, reply: reply) }
+        queue.asyncAfter(deadline: .now() + 0.03) { self.frame(after: after, since: since, far: far, reply: reply) }
     }
 
     // MARK: The camera, on the main thread
@@ -545,7 +703,54 @@ final class Bridge: ObservableObject {
             "magnify": 0, "magnifyChoices": [Int](), "tracking": false,
             "zebraLevel": zebraPercent, "peakSensitivity": 1, "peakColor": 0xFF3030,
             "rows": rows,
+            // For another CamRemote using the camera through this one: its C buttons and Photo and Video tabs follow these.
+            "photo": camera.photoMode, "slowQuick": camera.slowQuick, "offersSlowQuick": camera.offersSlowQuick,
+            "timeLapse": camera.timeLapseRunning,
+            "presets": (1...4).compactMap { slot -> [String: Any]? in
+                let lines = camera.presetLines(slot)
+                return lines.isEmpty && camera.preset(slot) == nil ? nil : ["slot": slot, "lines": lines]
+            },
+            "activeSlot": camera.activeSlot.map { $0 as Any } ?? NSNull(),
         ]
+    }
+
+    private func preset(_ slot: Int, save: Bool) -> String? {
+        guard let camera, camera.link == .on else { return "The camera isn't connected." }
+        guard (1...4).contains(slot) else { return "There's no C\(slot)." }
+        if save {
+            camera.savePreset(slot)
+            return nil
+        }
+        guard camera.preset(slot) != nil else { return "C\(slot) is empty. Press and hold it to save the current settings there." }
+        guard !camera.recording, !camera.timeLapseRunning else { return "Stop first, then switch settings." }
+        camera.applyPreset(slot)
+        return nil
+    }
+
+    private func mode(photo: Bool) -> String? {
+        guard let camera, camera.link == .on else { return "The camera isn't connected." }
+        guard !camera.recording, !camera.timeLapseRunning else { return "Stop first, then switch." }
+        if camera.photoMode != photo { camera.useMode(photo: photo) }
+        return nil
+    }
+
+    private func slowQuick(_ on: Bool) -> String? {
+        guard let camera, camera.link == .on else { return "The camera isn't connected." }
+        guard camera.offersSlowQuick else { return "The camera isn't offering S&Q right now." }
+        if camera.slowQuick != on { camera.useSlowQuick(on) }
+        return nil
+    }
+
+    /// Down and then up is one photo. Held down, burst keeps going, as on this phone.
+    private func shutter(down: Bool) -> String? {
+        guard let camera, camera.link == .on else { return "The camera isn't connected." }
+        guard camera.photoMode else { return "Switch to Photo first." }
+        if down {
+            if !camera.shutterDown() { return nil } // one is still going; the next press works
+        } else {
+            camera.shutterUp()
+        }
+        return nil
     }
 
     private func set(_ id: String, _ value: String) -> String? {
@@ -582,8 +787,8 @@ final class Bridge: ObservableObject {
     /// The page CamRemote on a computer serves, with its words about the computer changed to this phone.
     private static func loadPage() -> Data {
         guard let url = Bundle.main.url(forResource: "phone", withExtension: "html"),
-              var html = try? String(contentsOf: url, encoding: .utf8) else { return Data("CamRemote".utf8) }
-        for (old, new) in [("Enter the phone access code shown in the app on your PC.", "Enter the access code shown in CamRemote on your iPhone, under Setup."),
+              var html = try? String(contentsOf: url, encoding: .utf8) else { return Data("RemoteCam".utf8) }
+        for (old, new) in [("Enter the phone access code shown in the app on your PC.", "Enter the code shown in RemoteCam on your iPhone, under Setup › From a web browser."),
                            ("Can't reach the PC", "Can't reach the iPhone"), ("The PC refused that.", "The iPhone refused that."),
                            // Kept for the page's script, but this phone has no audio settings or magnifier to offer.
                            ("<h2>AUDIO</h2><div id=\"audio\"></div>", "<div id=\"audio\" class=\"hide\"></div>"),

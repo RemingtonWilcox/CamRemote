@@ -11,7 +11,7 @@ targets:
       # The animal detector's model, once README's "Build it yourself" has fetched it. Without it the option doesn't appear.
       - path: ../../vendor/BirdModel
         optional: true
-        includes: [rfdetr_nano.onnx]
+        includes: [rfdetr_small.onnx]
         buildPhase: resources
       # The page CamRemote on a computer serves to phones. Served again from here to a computer.
       - path: ../CamRemote/phone.html
@@ -25,8 +25,11 @@ targets:
     info:
       path: Sources/Info.plist
       properties:
-        CFBundleDisplayName: CamRemote
-        NSLocalNetworkUsageDescription: CamRemote connects to your camera over your hotspot or Wi-Fi.
+        CFBundleDisplayName: RemoteCam
+        NSLocalNetworkUsageDescription: RemoteCam connects to your camera over your hotspot or Wi-Fi.
+        # Another CamRemote on the hotspot or home Wi-Fi answers over plain http, like it does for a computer.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
         UILaunchScreen: {}
         UIRequiresFullScreen: true
         UISupportedInterfaceOrientations:

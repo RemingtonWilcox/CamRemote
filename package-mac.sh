@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-[ -f vendor/BirdModel/rfdetr_nano_fp16.onnx ] || { echo "The animal detector's model is missing. See 'Build it yourself' in README.md."; exit 1; }
+[ -f vendor/BirdModel/rfdetr_small.onnx ] || { echo "The animal detector's model is missing. See 'Build it yourself' in README.md."; exit 1; }
 
 export PATH="$HOME/.dotnet:/opt/homebrew/bin:/usr/local/bin:$PATH"
 dotnet restore app/CamRemote.Mac/CamRemote.Mac.csproj # the notices below read ONNX Runtime's from this
@@ -18,13 +18,13 @@ for target in "osx-arm64 AppleSilicon" "osx-x64 Intel"; do
     stage=build/dmg
     rm -rf "$stage"
     mkdir -p "$stage"
-    cp -R dist/CamRemote.app "$stage/"
+    cp -R dist/RemoteCam.app "$stage/"
     ln -s /Applications "$stage/Applications"
     cp build/THIRD-PARTY-NOTICES.txt "$stage/"
 
     dmg="dist/CamRemote-Mac-$2.dmg"
     rm -f "$dmg"
-    hdiutil create -quiet -volname CamRemote -srcfolder "$stage" -format UDZO "$dmg"
+    hdiutil create -quiet -volname RemoteCam -srcfolder "$stage" -format UDZO "$dmg"
     codesign --force --sign "$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application:.*\)".*/\1/p' | head -1)" --timestamp "$dmg"
     xcrun notarytool submit "$dmg" --keychain-profile camremote-notary --wait
     xcrun stapler staple "$dmg"

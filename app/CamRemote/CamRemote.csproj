@@ -12,6 +12,9 @@
     <SelfContained>false</SelfContained>
     <AssemblyName>CamRemote</AssemblyName>
     <RootNamespace>CamRemote</RootNamespace>
+    <!-- The app is called RemoteCam; the exe, namespaces and settings folder keep the old name. -->
+    <AssemblyTitle>RemoteCam</AssemblyTitle>
+    <Product>RemoteCam</Product>
     <ApplicationIcon>CamRemote.ico</ApplicationIcon>
     <!-- WPF's Fluent dark theme (ThemeMode) is still marked experimental. -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
@@ -26,11 +29,13 @@
     <None Include="$(RepoRoot)build\bridge\Release\CamBridge.dll" Link="CamBridge.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
     <None Include="$(CrRuntime)*.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
     <None Include="$(CrRuntime)CrAdapter\*.dll" Link="CrAdapter\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
-    <None Include="$(RepoRoot)vendor\BirdModel\*.onnx" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <None Include="$(RepoRoot)vendor\BirdModel\rfdetr_small.onnx" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.31.1" />
+    <!-- Lets the animal detector use the graphics card. The Mac's ONNX Runtime has WebGPU built in. -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.EP.WebGpu" Version="0.5.0" />
     <PackageReference Include="NAudio.Wasapi" Version="3.3.0" />
     <Resource Include="CamRemote.ico" />
     <EmbeddedResource Include="phone.html" LogicalName="phone.html" />

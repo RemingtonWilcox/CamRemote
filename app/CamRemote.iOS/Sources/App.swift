@@ -138,6 +138,7 @@ struct CamRemoteApp: App {
                 }
             }
             .preferredColorScheme(.dark)
+            .modifier(JoinQuestionAlert())
             .onAppear {
                 // This also runs each time the connect screen comes back, and Disconnect has to stay disconnected.
                 guard !launched else { return }
@@ -202,9 +203,10 @@ struct ConnectView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
-                Text("CamRemote").font(.largeTitle.weight(.semibold)).padding(.top, 72)
+                Text("RemoteCam").font(.largeTitle.weight(.semibold)).padding(.top, 72)
                 BridgeBadge()
                 status.padding(.top, 12)
+                JoinSection(camera: camera) // shows itself once it finds another device with the camera
                 if askForLogin { loginForm } else { waiting }
             }
             .frame(maxWidth: 480) // an iPad's width would stretch the fields
@@ -263,7 +265,7 @@ struct ConnectView: View {
 
     private var loginForm: some View {
         VStack(spacing: 12) {
-            Text(camera.newCamera ? "This camera is new to CamRemote. Type its login once and it's saved. It's on the camera's Access Authen. Info screen."
+            Text(camera.newCamera ? "This camera is new to RemoteCam. Type its login once and it's saved. It's on the camera's Access Authen. Info screen."
                                   : "Type these once for each camera. They're on its Access Authen. Info screen.")
                 .foregroundColor(.dim)
                 .multilineTextAlignment(.center)

@@ -19,6 +19,37 @@ public partial class ConnectWindow : Window
         UserBox.Text = settings.CameraUser;
         PasswordBox.Password = settings.LoadPassword();
         AutoBox.IsChecked = settings.AutoConnect;
+        JoinAddressBox.Text = settings.JoinAddress.Replace("http://", "");
+    }
+
+    /// <summary>Set when the person chose to use the camera through another CamRemote.</summary>
+    public RemoteLink? Joined { get; private set; }
+
+    private async void OnJoin(object sender, RoutedEventArgs e)
+    {
+        if (RemoteLink.Normalize(JoinAddressBox.Text) is not { } address)
+        {
+            JoinStatus.Text = "Type the address the other RemoteCam shows, like 100.101.102.103:8787.";
+            return;
+        }
+        JoinButton.IsEnabled = false;
+        JoinStatus.Text = "Joining…";
+        string code = JoinCodeBox.Text.Trim();
+        string saved = address == _settings.JoinAddress ? _settings.LoadJoinToken() : "";
+        var (link, problem) = code.Length == 0 && saved.Length > 0
+            ? await RemoteLink.ResumeAsync(address, saved)
+            : code.Length > 0 ? await RemoteLink.SignInAsync(address, code) : (null, "Type the access code the other RemoteCam shows.");
+        JoinButton.IsEnabled = true;
+        if (link == null)
+        {
+            JoinStatus.Text = problem;
+            return;
+        }
+        _settings.JoinAddress = address;
+        _settings.Save();
+        _settings.SaveJoinToken(link.Token);
+        Joined = link;
+        DialogResult = true;
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e) => await SearchAsync();
@@ -73,5 +104,5 @@ public partial class ConnectWindow : Window
 
     /// <summary>Asks before trusting a camera whose fingerprint has changed.</summary>
     public static Task<bool> AskFingerprint() => Task.FromResult(MessageBox.Show(CameraConnect.FingerprintWarning,
-        "CamRemote", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes);
+        "RemoteCam", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes);
 }

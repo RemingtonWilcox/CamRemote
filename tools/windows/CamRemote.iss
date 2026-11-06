@@ -1,9 +1,11 @@
 [Setup]
-AppName=CamRemote
-AppVersion=1.0.11
-AppPublisher=CamRemote
+; AppId stays CamRemote, the old name, so Setup updates an existing install instead of adding a second one.
+AppId=CamRemote
+AppName=RemoteCam
+AppVersion=1.0.13
+AppPublisher=Remington Wilcox
 DefaultDirName={autopf}\CamRemote
-DefaultGroupName=CamRemote
+DefaultGroupName=RemoteCam
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 DisableReadyPage=yes
@@ -22,12 +24,17 @@ WizardStyle=modern
 [Files]
 Source: "..\..\build\win-publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 
+[InstallDelete]
+; The shortcuts from before the app was called RemoteCam.
+Type: files; Name: "{autoprograms}\CamRemote.lnk"
+Type: files; Name: "{autodesktop}\CamRemote.lnk"
+
 [Icons]
-Name: "{autoprograms}\CamRemote"; Filename: "{app}\CamRemote.exe"
-Name: "{autodesktop}\CamRemote"; Filename: "{app}\CamRemote.exe"
+Name: "{autoprograms}\RemoteCam"; Filename: "{app}\CamRemote.exe"
+Name: "{autodesktop}\RemoteCam"; Filename: "{app}\CamRemote.exe"
 
 [Run]
-Filename: "{app}\CamRemote.exe"; Description: "Open CamRemote"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\CamRemote.exe"; Description: "Open RemoteCam"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 Type: files; Name: "{app}\*.old"

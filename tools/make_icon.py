@@ -1,66 +1,62 @@
-"""Draws the app icon (a camera with a red record light) into app/CamRemote/CamRemote.ico.
+"""Draws the app icon (a viewfinder with a red record light in the middle) into
+app/CamRemote/CamRemote.ico, app/CamRemote/phone-icon.png and the iOS AppIcon.
 
 Usage: python -I tools/make_icon.py   (needs Pillow)
-Each size is drawn at 8x and scaled down, so edges stay clean. Below 48 px the Wi-Fi arcs are left out.
+The icon is laid out on a 1024 grid. Each size is drawn larger and scaled down, so edges stay clean.
+At 64 px and below a heavier drawing is used: a thicker frame and a bigger record light.
 """
 from pathlib import Path
 from PIL import Image, ImageDraw
 
 SIZES = [16, 20, 24, 32, 40, 48, 64, 128, 256]
-OUT = Path(__file__).resolve().parent.parent / "app" / "CamRemote" / "CamRemote.ico"
+ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / "app" / "CamRemote" / "CamRemote.ico"
+IOS = ROOT / "app" / "CamRemote.iOS" / "Sources" / "Assets.xcassets" / "AppIcon.appiconset" / "icon.png"
 
-TILE_TOP, TILE_BOTTOM = (46, 52, 61), (20, 23, 28)
-BODY = (236, 236, 236)
-LENS_RING, LENS_GLASS, GLINT = (20, 23, 28), (52, 74, 102), (170, 200, 230)
+TILE = (16, 18, 20)  # the app's page colour, #101214
+WHITE = (245, 246, 244)
 REC = (229, 50, 45)  # same red as the app's record button
 
 
-def draw(size):
-    s = size * 8
-    u = s / 256  # design units: the icon is laid out on a 256 grid
+def stroke(d, points, width, k, fill):
+    """A polyline with round caps and joins, in grid units scaled by k."""
+    p = [(x * k, y * k) for x, y in points]
+    d.line(p, fill=fill, width=round(width * k))
+    r = width * k / 2
+    for x, y in p:
+        d.ellipse([x - r, y - r, x + r, y + r], fill=fill)
+
+
+def draw(size, tile=True):
+    small = size <= 64
+    ss = max(2, min(8, 4096 // size))
+    s = size * ss
+    k = s / 1024
     img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
-
-    # Rounded tile with a soft top-to-bottom gradient.
-    grad = Image.new("RGBA", (s, s))
-    gd = ImageDraw.Draw(grad)
-    for y in range(s):
-        t = y / (s - 1)
-        gd.line([(0, y), (s, y)], fill=tuple(round(a + (b - a) * t) for a, b in zip(TILE_TOP, TILE_BOTTOM)) + (255,))
-    mask = Image.new("L", (s, s), 0)
-    ImageDraw.Draw(mask).rounded_rectangle([0, 0, s - 1, s - 1], radius=56 * u, fill=255)
-    img.paste(grad, (0, 0), mask)
-
     d = ImageDraw.Draw(img)
-    small = size < 48
-    top = 92 if not small else 74  # leave room for the Wi-Fi arcs on big sizes
+    if tile:  # rounded tile, as the Windows icon has always had
+        d.rounded_rectangle([0, 0, s - 1, s - 1], radius=s * 56 / 256, fill=TILE)
+    else:  # full-bleed square for iOS, which rounds the corners itself
+        d.rectangle([0, 0, s, s], fill=TILE)
 
-    # Camera body with the viewfinder hump.
-    d.rounded_rectangle([40 * u, (top + 20) * u, 216 * u, (top + 128) * u], radius=22 * u, fill=BODY)
-    d.rounded_rectangle([96 * u, (top + 2) * u, 160 * u, (top + 40) * u], radius=10 * u, fill=BODY)
+    # Viewfinder corners.
+    m, arm, w = (196, 168, 76) if small else (232, 150, 50)
+    for sx, sy in [(1, 1), (-1, 1), (1, -1), (-1, -1)]:
+        x = m if sx == 1 else 1024 - m
+        y = m if sy == 1 else 1024 - m
+        stroke(d, [(x, y + sy * arm), (x, y), (x + sx * arm, y)], w, k, WHITE)
 
-    # Lens.
-    cx, cy = 128 * u, (top + 76) * u
-    for r, c in ((46, LENS_RING), (34, LENS_GLASS)):
-        d.ellipse([cx - r * u, cy - r * u, cx + r * u, cy + r * u], fill=c)
-    if not small:
-        d.ellipse([cx - 22 * u, cy - 22 * u, cx - 8 * u, cy - 8 * u], fill=GLINT)
-
-    # Record light.
-    r = 13 if not small else 16
-    rx, ry = 190 * u, (top + 44) * u
-    d.ellipse([rx - r * u, ry - r * u, rx + r * u, ry + r * u], fill=REC)
-
-    # Wi-Fi arcs above the camera.
-    if not small:
-        for radius, width in ((56, 11), (34, 11)):
-            box = [128 * u - radius * u, 86 * u - radius * u, 128 * u + radius * u, 86 * u + radius * u]
-            d.arc(box, start=225, end=315, fill=BODY, width=round(width * u))
-        d.ellipse([128 * u - 8 * u, 78 * u - 8 * u, 128 * u + 8 * u, 78 * u + 8 * u], fill=BODY)
-
+    # Record light, in the middle of the frame.
+    r = 150 if small else 112
+    d.ellipse([(512 - r) * k, (512 - r) * k, (512 + r) * k, (512 + r) * k], fill=REC)
     return img.resize((size, size), Image.LANCZOS)
 
 
 images = [draw(n) for n in SIZES]
 images[-1].save(OUT, format="ICO", sizes=[(n, n) for n in SIZES], append_images=images[:-1])
-draw(180).convert("RGB").save(OUT.with_name("phone-icon.png"))  # iPhone home screen
-print(f"wrote {OUT}")
+phone = Image.new("RGB", (180, 180), (0, 0, 0))  # iPhone home screen, and the Mac icon via build-mac.sh
+icon = draw(180)
+phone.paste(icon, (0, 0), icon)
+phone.save(OUT.with_name("phone-icon.png"))
+draw(1024, tile=False).convert("RGB").save(IOS)  # no alpha: App Store icons must be opaque
+print(f"wrote {OUT}, phone-icon.png and the iOS AppIcon")
