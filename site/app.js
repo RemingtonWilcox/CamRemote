@@ -718,8 +718,8 @@
 
   /* ---------- What it caught by itself ---------- */
   const TAKES = {
-    animal: { tag: 'Animal · 0.92', alt: 'Two Steller\'s jays squabbling over a tray feeder.',
-      cap: 'Two Steller\'s jays squabbling over the tray. It saw an animal (0.92 sure) and started recording on its own.' },
+    animal: { tag: 'Animal', alt: 'A Douglas squirrel on the edge of a bird bath leaps up to a branch, slowed down, with the low sun behind the trees.',
+      cap: 'A Douglas squirrel leaps from the bath to the branch, 4× slower. This one was filmed by hand: squirrels are hit and miss for the detector so far.' },
     bird: { tag: 'Bird · 0.91', alt: 'A Steller\'s jay perched beside a suet cage, sharp against a soft background.',
       cap: 'A Steller\'s jay by the suet cage, in focus. Bird was picked, so it waited for a bird (0.91 sure).' },
     person: { tag: 'Person · 0.96', alt: 'Remington walks in front of the camera at the feeder.',
