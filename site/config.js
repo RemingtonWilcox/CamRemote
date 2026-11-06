@@ -26,11 +26,10 @@ window.SITE = {
     testflight: 'https://testflight.apple.com/join/ck3rFy8f',
   },
 
-  // PLACEHOLDER: the launch video's YouTube ID, the part after "v=" in
-  // https://www.youtube.com/watch?v=XXXXXXXXXXX. It only loads, from
-  // youtube-nocookie.com, after someone clicks play.
-  youtubeId: '',
-  videoTitle: 'How far away can I run my camera?',
+  // The launch video's YouTube ID (https://youtu.be/ChdXwOyK7DU). It only
+  // loads, from youtube-nocookie.com, after someone clicks play.
+  youtubeId: 'ChdXwOyK7DU',
+  videoTitle: 'I built a free app that runs my Sony camera from anywhere',
 
   // Who makes it: a small credit in the closer, the footer and the
   // thank-you note after a download.

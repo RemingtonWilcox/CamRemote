@@ -22,6 +22,11 @@ all in one clean window on your computer, with no cables.
 
 <br><br>
 
+<a href="https://youtu.be/ChdXwOyK7DU"><img src="docs/walkthrough.jpg" alt="Watch the video: I built a free app that runs my Sony camera from anywhere (13 minutes, with setup)" width="560" /></a><br>
+<sub><a href="https://youtu.be/ChdXwOyK7DU">▶ Watch the walkthrough on YouTube</a>: the demo, then setup start to finish.</sub>
+
+<br><br>
+
 <img src="docs/window.jpg" alt="RemoteCam's window: a cattle egret beside a red ginger flower in the live picture, the histogram and meter in the corner, and the Video tab on the right with the Record button, four saved setups and exposure" width="860" />
 
 </div>
