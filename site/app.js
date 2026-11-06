@@ -718,12 +718,12 @@
 
   /* ---------- What it caught by itself ---------- */
   const TAKES = {
-    animal: { tag: 'Animal', alt: 'A Douglas squirrel on the edge of a bird bath leaps up to a branch, slowed down, with the low sun behind the trees.',
-      cap: 'A Douglas squirrel leaps from the bath to the branch, 4× slower. This one was filmed by hand: squirrels are hit and miss for the detector so far.' },
-    bird: { tag: 'Bird · 0.91', alt: 'A Steller\'s jay perched beside a suet cage, sharp against a soft background.',
-      cap: 'A Steller\'s jay by the suet cage, in focus. Bird was picked, so it waited for a bird (0.91 sure).' },
-    person: { tag: 'Person · 0.96', alt: 'Remington walks in front of the camera at the feeder.',
-      cap: 'Walk in front of it and it rolls. Handy for filming yourself, or for checking it works before you leave.' },
+    animal: { tag: 'Animal · 0.92', alt: 'The app\'s live picture: a Steller\'s jay lands by the tray feeder and a green box follows it.',
+      cap: 'A Steller\'s jay drops in by the tray. The app saw an animal (0.92 sure), boxed it and started recording.' },
+    bird: { tag: 'Bird · 0.91', alt: 'The app\'s live picture: a Steller\'s jay on a branch by the suet cage, with a green box around it.',
+      cap: 'A Steller\'s jay by the suet cage. Bird was picked, so it waited for a bird (0.91 sure), then boxed it and recorded.' },
+    person: { tag: 'Person · 0.97', alt: 'The app\'s live picture: Remington walks in front of the camera and a green box locks on.',
+      cap: 'Walk in front of it and it rolls (0.97 sure). Handy for filming yourself, or for checking it works before you leave.' },
   };
   const takeVid = $('#takeVid');
   if (takeVid) {

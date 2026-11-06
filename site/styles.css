@@ -338,6 +338,8 @@ code { font-family: var(--mono); font-size: .86em; }
 .trio-sm { margin-top: 22px; }
 .trio-sm .card { padding: 22px; }
 .trio-sm p { font-size: .93rem; }
+.trio-sm .card-pic { padding-top: 12px; }
+.trio-sm .card-pic img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; margin-bottom: 14px; }
 @media (max-width: 860px) { .trio { grid-template-columns: 1fr; } }
 
 /* ==========================================================================
