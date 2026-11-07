@@ -29,7 +29,7 @@ window.SITE = {
   // The launch video's YouTube ID (https://youtu.be/ChdXwOyK7DU). It only
   // loads, from youtube.com, after someone clicks play.
   youtubeId: 'ChdXwOyK7DU',
-  videoTitle: 'I built a free app that runs my Sony camera from anywhere',
+  videoTitle: 'Control Your Sony Camera From Anywhere (Free App + Full Setup)',
 
   // Who makes it: a small credit in the closer, the footer and the
   // thank-you note after a download.

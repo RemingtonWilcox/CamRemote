@@ -22,7 +22,7 @@ all in one clean window on your computer, with no cables.
 
 <br><br>
 
-<a href="https://youtu.be/ChdXwOyK7DU"><img src="docs/walkthrough.jpg" alt="Watch the video: I built a free app that runs my Sony camera from anywhere (13 minutes, with setup)" width="560" /></a><br>
+<a href="https://youtu.be/ChdXwOyK7DU"><img src="docs/walkthrough.jpg" alt="Watch the video: Control Your Sony Camera From Anywhere (Free App + Full Setup), 13 minutes" width="560" /></a><br>
 <sub><a href="https://youtu.be/ChdXwOyK7DU">▶ Watch the walkthrough on YouTube</a>: the demo, then setup start to finish.</sub>
 
 <br><br>
